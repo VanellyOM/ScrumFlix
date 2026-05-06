@@ -13,9 +13,10 @@ using ScrumFlix.Data;
 using ScrumFlix.Forms;
 using ScrumFlix.Models;
 using System;
+using System.Diagnostics;
+using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
-using System.Drawing;
 
 namespace ScrumFlix
 {
@@ -143,7 +144,8 @@ namespace ScrumFlix
 
         private void btnDashboard_Click(object sender, EventArgs e)
         {
-
+            var f = new DashboardForm();
+            f.Show();
         }
 
         private void btnBackupRestore_Click(object sender, EventArgs e)
@@ -159,7 +161,8 @@ namespace ScrumFlix
 
         private void btnReports_Click(object sender, EventArgs e)
         {
-
+            var f = new ReportsForm();
+            f.Show();
         }
 
         private void btnPayroll_Click(object sender, EventArgs e)

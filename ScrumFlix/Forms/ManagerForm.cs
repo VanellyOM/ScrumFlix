@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
+using System.Diagnostics;
 using System.Drawing;
 using System.Text;
 using System.Windows.Forms;
@@ -115,7 +116,8 @@ namespace ScrumFlix.Forms
 
         private void btnReports_Click(object sender, EventArgs e)
         {
-
+            var f = new ReportsForm();
+            f.Show();
         }
 
         private void btnPayroll_Click(object sender, EventArgs e)
@@ -126,8 +128,10 @@ namespace ScrumFlix.Forms
 
         private void btnDashboard_Click(object sender, EventArgs e)
         {
-
+            var f = new DashboardForm();
+            f.Show();
         }
+
         private void MainForm_FormClosed(object sender, FormClosedEventArgs e)
         {
             Application.Exit();
