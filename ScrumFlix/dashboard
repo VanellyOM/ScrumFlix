@@ -53,8 +53,7 @@ def fetch_todays_showtimes(location_id=None):
     today = date.today()
     try:
         query_str = """
-            SELECT S.ShowtimeId, M.Title, S.TheaterScreenID, S.StartTime,
-                   (S.Capacity - COUNT(T.TicketId)) AS TicketsRemaining
+            SELECT S.ShowtimeId, M.Title, S.TheaterScreenID, S.StartTime, S.Capacity AS TicketsRemaining
             FROM Showtime S 
             JOIN Movies M ON S.MovieId = M.MovieId
             JOIN TheaterScreen TS ON S.TheaterScreenId = TS.TheaterScreenId
@@ -89,7 +88,6 @@ def fetch_stock_count(location_id=None):
 def get_todays_emp_sch(location_id=None):
     today = date.today()
     try:
-        # Note: Added 'AS ShiftStart' to match your dataframe formatting logic
         query_str = """
             SELECT E.EmployeeId, E.FirstName, E.LastName, S.AssignmentName, SH.StartTime AS ShiftStart
             FROM ScheduleAssignments S
