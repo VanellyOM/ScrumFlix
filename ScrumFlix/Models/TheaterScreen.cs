@@ -13,7 +13,7 @@ public class TheaterScreen
     public int LocationId { get; set; }
     public Location? Location { get; set; }
     public int Capacity { get; set; } = 50;
-    public bool is_active { get; set; } = true;
+    public bool IsActive { get; set; } = true;
     public string ScreenDisplay
     {
         get { return $"{ScreenName} ({Location?.LocationName})"; }

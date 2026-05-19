@@ -46,6 +46,7 @@
             txtNotes = new TextBox();
             lblNotes = new Label();
             label2 = new Label();
+            comboLocation = new ComboBox();
             ((System.ComponentModel.ISupportInitialize)gridConcessions).BeginInit();
             SuspendLayout();
             // 
@@ -222,11 +223,20 @@
             label2.TabIndex = 17;
             label2.Text = "Quick Stock Edit";
             // 
+            // comboLocation
+            // 
+            comboLocation.FormattingEnabled = true;
+            comboLocation.Location = new Point(359, 255);
+            comboLocation.Name = "comboLocation";
+            comboLocation.Size = new Size(158, 29);
+            comboLocation.TabIndex = 18;
+            // 
             // ConcessionsAdminForm
             // 
             AutoScaleDimensions = new SizeF(9F, 21F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(862, 606);
+            Controls.Add(comboLocation);
             Controls.Add(label2);
             Controls.Add(lblNotes);
             Controls.Add(txtNotes);
@@ -273,5 +283,6 @@
         private TextBox txtNotes;
         private Label lblNotes;
         private Label label2;
+        private ComboBox comboLocation;
     }
 }

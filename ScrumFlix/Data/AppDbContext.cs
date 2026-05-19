@@ -39,19 +39,7 @@ public class AppDbContext : DbContext
     {
         if (optionsBuilder.IsConfigured) return;
 
-        var aiven =
-            "Server=mysql-scrumtheater-scrumflix-theater.b.aivencloud.com;" +
-            "Port=12031;" +
-            "Database=defaultdb;" +
-            "User=avnadmin;" +
-            "Password=AVNS_qfxTTR9RIG_piTLOwLl;" +
-            "SslMode=Required;";
-            /*"Server=scrumflix12-project11923918414.k.aivencloud.com;" +
-            "Port=28690;" +
-            "Database=defaultdb;" +
-            "User=avnadmin;" +
-            "Password=AVNS_grUiTjBHE9kIGTMm7Iu;" +
-            "SslMode=Required;";*/
+        var aiven = "Server=mysql-scrumtheater-scrumflix-theater.b.aivencloud.com;Port=12031;Database=defaultdb;User=avnadmin;Password=AVNS_qfxTTR9RIG_piTLOwLl;SslMode=Required;";
 
         optionsBuilder.UseMySQL(aiven);
     }

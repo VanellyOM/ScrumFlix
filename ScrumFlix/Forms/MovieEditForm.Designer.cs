@@ -43,12 +43,12 @@
             txtTitle.Location = new Point(12, 12);
             txtTitle.Name = "txtTitle";
             txtTitle.PlaceholderText = "Enter Title";
-            txtTitle.Size = new Size(130, 29);
+            txtTitle.Size = new Size(332, 29);
             txtTitle.TabIndex = 0;
             // 
             // txtRating
             // 
-            txtRating.Location = new Point(148, 12);
+            txtRating.Location = new Point(350, 12);
             txtRating.Name = "txtRating";
             txtRating.PlaceholderText = "Enter Rating";
             txtRating.Size = new Size(110, 29);
@@ -56,9 +56,9 @@
             // 
             // numRuntime
             // 
-            numRuntime.Location = new Point(389, 12);
+            numRuntime.Location = new Point(653, 12);
             numRuntime.Name = "numRuntime";
-            numRuntime.Size = new Size(51, 29);
+            numRuntime.Size = new Size(75, 29);
             numRuntime.TabIndex = 2;
             // 
             // txtDescription
@@ -68,13 +68,13 @@
             txtDescription.Name = "txtDescription";
             txtDescription.PlaceholderText = "Enter Description";
             txtDescription.ScrollBars = ScrollBars.Vertical;
-            txtDescription.Size = new Size(428, 164);
+            txtDescription.Size = new Size(717, 164);
             txtDescription.TabIndex = 3;
             // 
             // btnOk
             // 
             btnOk.DialogResult = DialogResult.OK;
-            btnOk.Location = new Point(238, 229);
+            btnOk.Location = new Point(526, 229);
             btnOk.Name = "btnOk";
             btnOk.Size = new Size(98, 30);
             btnOk.TabIndex = 4;
@@ -85,7 +85,7 @@
             // btnCancel
             // 
             btnCancel.DialogResult = DialogResult.Cancel;
-            btnCancel.Location = new Point(342, 229);
+            btnCancel.Location = new Point(630, 229);
             btnCancel.Name = "btnCancel";
             btnCancel.Size = new Size(98, 30);
             btnCancel.TabIndex = 5;
@@ -94,17 +94,17 @@
             // 
             // txtGenre
             // 
-            txtGenre.Location = new Point(264, 12);
+            txtGenre.Location = new Point(466, 11);
             txtGenre.Name = "txtGenre";
             txtGenre.PlaceholderText = "Enter Genre";
-            txtGenre.Size = new Size(115, 29);
+            txtGenre.Size = new Size(181, 29);
             txtGenre.TabIndex = 6;
             // 
             // MovieEditForm
             // 
             AutoScaleDimensions = new SizeF(9F, 21F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(450, 271);
+            ClientSize = new Size(741, 271);
             Controls.Add(txtGenre);
             Controls.Add(btnCancel);
             Controls.Add(btnOk);

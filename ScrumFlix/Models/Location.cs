@@ -17,6 +17,6 @@ namespace ScrumFlix.Models
         [MaxLength(255)]
         public string? LocationAddress { get; set; }
 
-        public bool is_active { get; set; } = true;
+        public bool IsActive { get; set; } = true;
     }
 }

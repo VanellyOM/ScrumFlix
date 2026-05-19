@@ -225,7 +225,7 @@
             // btnPayroll
             // 
             btnPayroll.Font = new Font("Microsoft Sans Serif", 17.855999F, FontStyle.Bold);
-            btnPayroll.Location = new Point(802, 593);
+            btnPayroll.Location = new Point(652, 608);
             btnPayroll.Name = "btnPayroll";
             btnPayroll.Size = new Size(264, 87);
             btnPayroll.TabIndex = 16;
@@ -236,7 +236,7 @@
             // btnReports
             // 
             btnReports.Font = new Font("Microsoft Sans Serif", 17.855999F, FontStyle.Bold);
-            btnReports.Location = new Point(518, 593);
+            btnReports.Location = new Point(368, 608);
             btnReports.Name = "btnReports";
             btnReports.Size = new Size(264, 87);
             btnReports.TabIndex = 17;
@@ -246,13 +246,15 @@
             // 
             // btnPOS
             // 
+            btnPOS.Enabled = false;
             btnPOS.Font = new Font("Microsoft Sans Serif", 17.855999F, FontStyle.Bold);
-            btnPOS.Location = new Point(240, 593);
+            btnPOS.Location = new Point(61, 448);
             btnPOS.Name = "btnPOS";
             btnPOS.Size = new Size(264, 87);
             btnPOS.TabIndex = 18;
             btnPOS.Text = "Manage POS";
             btnPOS.UseVisualStyleBackColor = true;
+            btnPOS.Visible = false;
             btnPOS.Click += btnPOS_Click;
             // 
             // btnBackupRestore

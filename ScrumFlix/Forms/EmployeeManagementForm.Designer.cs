@@ -42,12 +42,12 @@
             gridEmployees.Location = new Point(13, 14);
             gridEmployees.Name = "gridEmployees";
             gridEmployees.RowHeadersWidth = 53;
-            gridEmployees.Size = new Size(775, 388);
+            gridEmployees.Size = new Size(1757, 775);
             gridEmployees.TabIndex = 0;
             // 
             // button1
             // 
-            button1.Location = new Point(12, 408);
+            button1.Location = new Point(12, 795);
             button1.Name = "button1";
             button1.Size = new Size(98, 30);
             button1.TabIndex = 1;
@@ -57,7 +57,7 @@
             // 
             // button2
             // 
-            button2.Location = new Point(116, 408);
+            button2.Location = new Point(116, 795);
             button2.Name = "button2";
             button2.Size = new Size(98, 30);
             button2.TabIndex = 2;
@@ -67,7 +67,7 @@
             // 
             // button3
             // 
-            button3.Location = new Point(324, 408);
+            button3.Location = new Point(324, 795);
             button3.Name = "button3";
             button3.Size = new Size(98, 30);
             button3.TabIndex = 3;
@@ -77,7 +77,7 @@
             // 
             // button4
             // 
-            button4.Location = new Point(220, 408);
+            button4.Location = new Point(220, 795);
             button4.Name = "button4";
             button4.Size = new Size(98, 30);
             button4.TabIndex = 4;
@@ -89,7 +89,7 @@
             // 
             AutoScaleDimensions = new SizeF(9F, 21F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(800, 450);
+            ClientSize = new Size(1782, 837);
             Controls.Add(button4);
             Controls.Add(button3);
             Controls.Add(button2);

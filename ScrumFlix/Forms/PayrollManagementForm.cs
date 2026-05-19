@@ -70,11 +70,25 @@ namespace ScrumFlix.Forms
         private void LoadTimesheets()
         {
             using var db = new AppDbContext();
+            int? selectedPayPeriodId = null;
 
-            var timesheets = db.Timesheets
+            if (comboPayPeriod.SelectedValue is int id)
+            {
+                selectedPayPeriodId = id;
+            }
+
+            var query = db.Timesheets
                 .Include(t => t.Employee)
                 .Include(t => t.PayPeriod)
                 .Include(t => t.ApprovedByUser)
+                .AsQueryable();
+
+            if (selectedPayPeriodId != null)
+            {
+                query = query.Where(t => t.PayPeriodId == selectedPayPeriodId.Value);
+            }
+
+            var timesheets = query
                 .OrderBy(t => t.PayPeriod!.StartDate)
                 .ThenBy(t => t.Employee!.LastName)
                 .Select(t => new
@@ -319,9 +333,24 @@ namespace ScrumFlix.Forms
         {
             using var db = new AppDbContext();
 
-            var payrolls = db.Payrolls
+            int? selectedPayPeriodId = null;
+
+            if (comboPayPeriod.SelectedValue is int id)
+            {
+                selectedPayPeriodId = id;
+            }
+
+            var query = db.Payrolls
                 .Include(p => p.Employee)
                 .Include(p => p.PayPeriod)
+                .AsQueryable();
+
+            if (selectedPayPeriodId != null)
+            {
+                query = query.Where(p => p.PayPeriodId == selectedPayPeriodId.Value);
+            }
+
+            var payrolls = query
                 .OrderBy(p => p.PayPeriod!.StartDate)
                 .ThenBy(p => p.Employee!.LastName)
                 .Select(p => new
@@ -443,11 +472,27 @@ namespace ScrumFlix.Forms
         {
             using var db = new AppDbContext();
 
-            var payStubs = db.PayStubs
+            int? selectedPayPeriodId = null;
+
+            if (comboPayPeriod.SelectedValue is int id)
+            {
+                selectedPayPeriodId = id;
+            }
+
+            var query = db.PayStubs
                 .Include(ps => ps.Payroll)
                     .ThenInclude(p => p.Employee)
                 .Include(ps => ps.Payroll)
                     .ThenInclude(p => p.PayPeriod)
+                .AsQueryable();
+
+            if (selectedPayPeriodId != null)
+            {
+                query = query.Where(ps =>
+                    ps.Payroll!.PayPeriodId == selectedPayPeriodId.Value);
+            }
+
+            var payStubs = query
                 .OrderBy(ps => ps.IssueDate)
                 .ThenBy(ps => ps.Payroll!.Employee!.LastName)
                 .Select(ps => new
@@ -612,6 +657,13 @@ namespace ScrumFlix.Forms
                 $"Issue Date: {payStub.IssueDate:MM/dd/yyyy hh:mm tt}",
                 "Pay Stub Details"
             );
+        }
+
+        private void comboPayPeriod_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            LoadTimesheets();
+            LoadPayrolls();
+            LoadPayStubs();
         }
     }
 }

@@ -19,7 +19,7 @@ public class Showtime
     [Range(0, 99999999.99)]
     public decimal PricePerTicket { get; set; } = 0.00m;
 
-    public bool is_active { get; set; } = true;
+    public bool IsActive { get; set; } = true;
 
     public bool SellTicket(int amount)
     {

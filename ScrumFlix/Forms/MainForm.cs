@@ -67,7 +67,7 @@ namespace ScrumFlix
             using var context = new AppDbContext();
 
             var lowStockItems = context.ConcessionItem
-                .Where(c => c.is_active && c.QuantityInStock <= c.Minimum)
+                .Where(c => c.IsActive && c.QuantityInStock <= c.Minimum)
                 .OrderBy(c => c.ItemName)
                 .Select(c => new
                 {

@@ -67,7 +67,7 @@ namespace ScrumFlix.Forms
                     EndTime = s.StartTime.AddMinutes(s.Movie!.RuntimeMinutes),
                     s.Capacity,
                     s.PricePerTicket,
-                    s.is_active
+                    s.IsActive
                 })
                 .OrderBy(r => r.StartTime)
                 .ToList();
@@ -86,8 +86,8 @@ namespace ScrumFlix.Forms
             if (showtimesGrid.CurrentRow.Cells["PricePerTicket"].Value != null)
                 txtPricePerTicket.Text = showtimesGrid.CurrentRow.Cells["PricePerTicket"].Value.ToString();
 
-            if (showtimesGrid.CurrentRow.Cells["is_active"].Value != null)
-                chkIsActive.Checked = Convert.ToBoolean(showtimesGrid.CurrentRow.Cells["is_active"].Value);
+            if (showtimesGrid.CurrentRow.Cells["IsActive"].Value != null)
+                chkIsActive.Checked = Convert.ToBoolean(showtimesGrid.CurrentRow.Cells["IsActive"].Value);
         }
 
         private void AddButton_Click(object sender, EventArgs e) // Adds a new showtime for the selected movie and screen, also makes sure the new showtime doesn't overlap with previous showtimes
@@ -150,7 +150,7 @@ namespace ScrumFlix.Forms
                 StartTime = startTime,
                 Capacity = screen.Capacity,
                 PricePerTicket = pricePerTicket,
-                is_active = chkIsActive.Checked
+                IsActive = chkIsActive.Checked
             };
 
             db.Showtime.Add(showtime);
@@ -166,7 +166,7 @@ namespace ScrumFlix.Forms
                 ActionTime = DateTime.Now,
                 Description = $"Added showtime for '{movie.Title}'",
                 OldValues = null,
-                NewValues = $"MovieId={showtime.MovieId}, TheaterScreenId={showtime.TheaterScreenId}, StartTime={showtime.StartTime}, Capacity={showtime.Capacity}, PricePerTicket={showtime.PricePerTicket}, is_active={showtime.is_active}"
+                NewValues = $"MovieId={showtime.MovieId}, TheaterScreenId={showtime.TheaterScreenId}, StartTime={showtime.StartTime}, Capacity={showtime.Capacity}, PricePerTicket={showtime.PricePerTicket}, IsActive={showtime.IsActive}"
             });
 
             db.SaveChanges();
@@ -194,12 +194,12 @@ namespace ScrumFlix.Forms
             if (showtime == null)
                 return;
 
-            bool oldActive = showtime.is_active;
+            bool oldActive = showtime.IsActive;
 
             if (oldActive == chkIsActive.Checked)
                 return;
 
-            showtime.is_active = chkIsActive.Checked;
+            showtime.IsActive = chkIsActive.Checked;
 
             // Audit Log
             db.AuditLog.Add(new AuditLog
@@ -210,8 +210,8 @@ namespace ScrumFlix.Forms
                 ObjectId = showtime.ShowtimeId,
                 ActionTime = DateTime.Now,
                 Description = $"Changed active status for showtime '{showtime.Movie?.Title}'",
-                OldValues = $"is_active={oldActive}",
-                NewValues = $"is_active={showtime.is_active}"
+                OldValues = $"IsActive={oldActive}",
+                NewValues = $"IsActive={showtime.IsActive}"
             });
 
             db.SaveChanges();
@@ -256,10 +256,10 @@ namespace ScrumFlix.Forms
             }
 
             var oldPrice = showtime.PricePerTicket;
-            var oldActive = showtime.is_active;
+            var oldActive = showtime.IsActive;
 
             showtime.PricePerTicket = newPrice;
-            showtime.is_active = chkIsActive.Checked;
+            showtime.IsActive = chkIsActive.Checked;
 
             // Audit Log
             db.AuditLog.Add(new AuditLog
@@ -270,8 +270,8 @@ namespace ScrumFlix.Forms
                 ObjectId = showtime.ShowtimeId,
                 ActionTime = DateTime.Now,
                 Description = $"Updated showtime for '{showtime.Movie?.Title}'",
-                OldValues = $"PricePerTicket={oldPrice}, is_active={oldActive}",
-                NewValues = $"PricePerTicket={showtime.PricePerTicket}, is_active={showtime.is_active}"
+                OldValues = $"PricePerTicket={oldPrice}, IsActive={oldActive}",
+                NewValues = $"PricePerTicket={showtime.PricePerTicket}, IsActive={showtime.IsActive}"
             });
 
             db.SaveChanges();
@@ -327,7 +327,7 @@ namespace ScrumFlix.Forms
                 ObjectId = showtime.ShowtimeId,
                 ActionTime = DateTime.Now,
                 Description = $"Deleted showtime for '{showtime.Movie?.Title}'",
-                OldValues = $"MovieId={showtime.MovieId}, TheaterScreenId={showtime.TheaterScreenId}, StartTime={showtime.StartTime}, Capacity={showtime.Capacity}, PricePerTicket={showtime.PricePerTicket}, is_active={showtime.is_active}",
+                OldValues = $"MovieId={showtime.MovieId}, TheaterScreenId={showtime.TheaterScreenId}, StartTime={showtime.StartTime}, Capacity={showtime.Capacity}, PricePerTicket={showtime.PricePerTicket}, IsActive={showtime.IsActive}",
                 NewValues = null
             });
 

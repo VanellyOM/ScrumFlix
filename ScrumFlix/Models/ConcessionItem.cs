@@ -18,7 +18,8 @@ namespace ScrumFlix.Models
         public int QuantityInStock { get; set; }
 
         public int Minimum { get; set; }
+        public int LocationId { get; set; }
 
-        public bool is_active { get; set; } = true;
+        public bool IsActive { get; set; } = true;
     }
 }

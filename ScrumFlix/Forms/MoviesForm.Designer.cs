@@ -38,9 +38,9 @@
             // 
             // btnAdd
             // 
-            btnAdd.Location = new Point(12, 408);
+            btnAdd.Location = new Point(12, 421);
             btnAdd.Name = "btnAdd";
-            btnAdd.Size = new Size(98, 30);
+            btnAdd.Size = new Size(141, 49);
             btnAdd.TabIndex = 1;
             btnAdd.Text = "Add";
             btnAdd.UseVisualStyleBackColor = true;
@@ -56,14 +56,14 @@
             gridMovies.ReadOnly = true;
             gridMovies.RowHeadersWidth = 53;
             gridMovies.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-            gridMovies.Size = new Size(776, 390);
+            gridMovies.Size = new Size(1746, 403);
             gridMovies.TabIndex = 2;
             // 
             // btnEdit
             // 
-            btnEdit.Location = new Point(128, 408);
+            btnEdit.Location = new Point(159, 421);
             btnEdit.Name = "btnEdit";
-            btnEdit.Size = new Size(98, 30);
+            btnEdit.Size = new Size(141, 49);
             btnEdit.TabIndex = 3;
             btnEdit.Text = "Edit";
             btnEdit.UseVisualStyleBackColor = true;
@@ -71,9 +71,9 @@
             // 
             // btnDelete
             // 
-            btnDelete.Location = new Point(245, 408);
+            btnDelete.Location = new Point(306, 421);
             btnDelete.Name = "btnDelete";
-            btnDelete.Size = new Size(98, 30);
+            btnDelete.Size = new Size(141, 49);
             btnDelete.TabIndex = 4;
             btnDelete.Text = "Delete";
             btnDelete.UseVisualStyleBackColor = true;
@@ -81,9 +81,9 @@
             // 
             // btnRefresh
             // 
-            btnRefresh.Location = new Point(358, 408);
+            btnRefresh.Location = new Point(453, 421);
             btnRefresh.Name = "btnRefresh";
-            btnRefresh.Size = new Size(98, 30);
+            btnRefresh.Size = new Size(141, 49);
             btnRefresh.TabIndex = 5;
             btnRefresh.Text = "Refresh";
             btnRefresh.UseVisualStyleBackColor = true;
@@ -93,7 +93,7 @@
             // 
             AutoScaleDimensions = new SizeF(9F, 21F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(800, 450);
+            ClientSize = new Size(1770, 482);
             Controls.Add(btnRefresh);
             Controls.Add(btnDelete);
             Controls.Add(btnEdit);

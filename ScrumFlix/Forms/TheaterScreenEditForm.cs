@@ -35,13 +35,13 @@ namespace ScrumFlix.Forms
                 ScreenName = existing.ScreenName,
                 LocationId = existing.LocationId,
                 Capacity = existing.Capacity,
-                is_active = existing.is_active
+                IsActive = existing.IsActive
             };
 
             screenName.Text = TheaterScreen.ScreenName;
             screenLocation.SelectedValue = TheaterScreen.LocationId;
             numCapacity.Value = TheaterScreen.Capacity;
-            chkIsActive.Checked = TheaterScreen.is_active;
+            chkIsActive.Checked = TheaterScreen.IsActive;
         }
 
         private void btnOk_Click(object sender, EventArgs e) // Validates the form input and updates the TheaterScreen object before returning to the parent form
@@ -59,7 +59,7 @@ namespace ScrumFlix.Forms
 
             TheaterScreen.LocationId = Convert.ToInt32(screenLocation.SelectedValue);
 
-            TheaterScreen.is_active = chkIsActive.Checked;
+            TheaterScreen.IsActive = chkIsActive.Checked;
         }
     }
 }

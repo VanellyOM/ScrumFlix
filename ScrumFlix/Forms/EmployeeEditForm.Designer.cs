@@ -55,12 +55,12 @@
             // 
             txtFirst.Location = new Point(12, 33);
             txtFirst.Name = "txtFirst";
-            txtFirst.Size = new Size(130, 29);
+            txtFirst.Size = new Size(213, 29);
             txtFirst.TabIndex = 0;
             // 
             // txtMiddle
             // 
-            txtMiddle.Location = new Point(151, 33);
+            txtMiddle.Location = new Point(231, 33);
             txtMiddle.Name = "txtMiddle";
             txtMiddle.Size = new Size(130, 29);
             txtMiddle.TabIndex = 1;
@@ -77,7 +77,7 @@
             // label2
             // 
             label2.AutoSize = true;
-            label2.Location = new Point(151, 9);
+            label2.Location = new Point(231, 9);
             label2.Name = "label2";
             label2.Size = new Size(104, 21);
             label2.TabIndex = 3;
@@ -86,7 +86,7 @@
             // label3
             // 
             label3.AutoSize = true;
-            label3.Location = new Point(287, 9);
+            label3.Location = new Point(367, 9);
             label3.Name = "label3";
             label3.Size = new Size(81, 21);
             label3.TabIndex = 4;
@@ -104,7 +104,7 @@
             // label5
             // 
             label5.AutoSize = true;
-            label5.Location = new Point(278, 65);
+            label5.Location = new Point(297, 65);
             label5.Name = "label5";
             label5.Size = new Size(113, 21);
             label5.TabIndex = 6;
@@ -122,7 +122,7 @@
             // label7
             // 
             label7.AutoSize = true;
-            label7.Location = new Point(189, 121);
+            label7.Location = new Point(295, 121);
             label7.Name = "label7";
             label7.Size = new Size(66, 21);
             label7.TabIndex = 8;
@@ -130,16 +130,16 @@
             // 
             // txtLast
             // 
-            txtLast.Location = new Point(287, 33);
+            txtLast.Location = new Point(367, 33);
             txtLast.Name = "txtLast";
-            txtLast.Size = new Size(130, 29);
+            txtLast.Size = new Size(239, 29);
             txtLast.TabIndex = 9;
             // 
             // txtPhone
             // 
-            txtPhone.Location = new Point(278, 89);
+            txtPhone.Location = new Point(295, 89);
             txtPhone.Name = "txtPhone";
-            txtPhone.Size = new Size(130, 29);
+            txtPhone.Size = new Size(311, 29);
             txtPhone.TabIndex = 10;
             // 
             // sqliteCommand1
@@ -160,14 +160,14 @@
             // 
             txtEmail.Location = new Point(12, 145);
             txtEmail.Name = "txtEmail";
-            txtEmail.Size = new Size(170, 29);
+            txtEmail.Size = new Size(277, 29);
             txtEmail.TabIndex = 12;
             // 
             // txtAddress
             // 
-            txtAddress.Location = new Point(189, 145);
+            txtAddress.Location = new Point(295, 145);
             txtAddress.Name = "txtAddress";
-            txtAddress.Size = new Size(219, 29);
+            txtAddress.Size = new Size(311, 29);
             txtAddress.TabIndex = 13;
             // 
             // btnSubmit
@@ -196,7 +196,7 @@
             // 
             txtPayRate.Location = new Point(12, 201);
             txtPayRate.Name = "txtPayRate";
-            txtPayRate.Size = new Size(170, 29);
+            txtPayRate.Size = new Size(277, 29);
             txtPayRate.TabIndex = 16;
             // 
             // label8
@@ -211,15 +211,15 @@
             // comboLocation
             // 
             comboLocation.FormattingEnabled = true;
-            comboLocation.Location = new Point(189, 201);
+            comboLocation.Location = new Point(295, 201);
             comboLocation.Name = "comboLocation";
-            comboLocation.Size = new Size(221, 29);
+            comboLocation.Size = new Size(311, 29);
             comboLocation.TabIndex = 18;
             // 
             // label9
             // 
             label9.AutoSize = true;
-            label9.Location = new Point(186, 177);
+            label9.Location = new Point(292, 177);
             label9.Name = "label9";
             label9.Size = new Size(69, 21);
             label9.TabIndex = 19;
@@ -229,7 +229,7 @@
             // 
             AutoScaleDimensions = new SizeF(9F, 21F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(413, 283);
+            ClientSize = new Size(618, 287);
             Controls.Add(label9);
             Controls.Add(comboLocation);
             Controls.Add(label8);

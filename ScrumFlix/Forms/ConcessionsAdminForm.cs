@@ -32,7 +32,7 @@ namespace ScrumFlix.Forms
                     c.Price,
                     c.QuantityInStock,
                     c.Minimum,
-                    c.is_active
+                    c.IsActive
                 })
                 .ToList();
 
@@ -49,7 +49,7 @@ namespace ScrumFlix.Forms
             using var context = new AppDbContext();
 
             var items = context.ConcessionItem
-                .Where(c => c.is_active)
+                .Where(c => c.IsActive)
                 .OrderBy(c => c.ItemName)
                 .ToList();
 
@@ -147,7 +147,7 @@ namespace ScrumFlix.Forms
                 Price = price,
                 QuantityInStock = quantity,
                 Minimum = minimum,
-                is_active = true
+                IsActive = true
             };
 
             context.ConcessionItem.Add(item);
@@ -162,7 +162,7 @@ namespace ScrumFlix.Forms
                 ActionTime = DateTime.Now,
                 Description = $"Added concession item '{item.ItemName}', Notes: '{txtNotes.Text}'",
                 OldValues = null,
-                NewValues = $"ItemName={item.ItemName}, Price={item.Price}, QuantityInStock={item.QuantityInStock}, Minimum={item.Minimum}, is_active={item.is_active}"
+                NewValues = $"ItemName={item.ItemName}, Price={item.Price}, QuantityInStock={item.QuantityInStock}, Minimum={item.Minimum}, IsActive={item.IsActive}"
             });
 
             context.SaveChanges();
@@ -210,7 +210,7 @@ namespace ScrumFlix.Forms
             var oldPrice = item.Price;
             var oldQuantity = item.QuantityInStock;
             var oldMinimum = item.Minimum;
-            var oldActive = item.is_active;
+            var oldActive = item.IsActive;
 
             item.ItemName = itemName;
             item.Price = price;
@@ -225,8 +225,8 @@ namespace ScrumFlix.Forms
                 ObjectId = item.ConcessionItemId,
                 ActionTime = DateTime.Now,
                 Description = $"Updated concession item '{oldName}', Notes: '{txtNotes.Text}'",
-                OldValues = $"ItemName={oldName}, Price={oldPrice}, QuantityInStock={oldQuantity}, Minimum={oldMinimum}, is_active={oldActive}",
-                NewValues = $"ItemName={item.ItemName}, Price={item.Price}, QuantityInStock={item.QuantityInStock}, Minimum={item.Minimum}, is_active={item.is_active}"
+                OldValues = $"ItemName={oldName}, Price={oldPrice}, QuantityInStock={oldQuantity}, Minimum={oldMinimum}, IsActive={oldActive}",
+                NewValues = $"ItemName={item.ItemName}, Price={item.Price}, QuantityInStock={item.QuantityInStock}, Minimum={item.Minimum}, IsActive={item.IsActive}"
             });
 
             context.SaveChanges();
@@ -256,8 +256,8 @@ namespace ScrumFlix.Forms
                 return;
             }
 
-            var oldActive = item.is_active;
-            item.is_active = false;
+            var oldActive = item.IsActive;
+            item.IsActive = false;
 
             context.AuditLog.Add(new AuditLog
             {
@@ -267,8 +267,8 @@ namespace ScrumFlix.Forms
                 ObjectId = item.ConcessionItemId,
                 ActionTime = DateTime.Now,
                 Description = $"Deactivated concession item '{item.ItemName}'",
-                OldValues = $"is_active={oldActive}",
-                NewValues = $"is_active={item.is_active}"
+                OldValues = $"IsActive={oldActive}",
+                NewValues = $"IsActive={item.IsActive}"
             });
             context.SaveChanges();
 
@@ -411,8 +411,8 @@ namespace ScrumFlix.Forms
                 return;
             }
 
-            var oldActive = item.is_active;
-            item.is_active = true;
+            var oldActive = item.IsActive;
+            item.IsActive = true;
 
             context.AuditLog.Add(new AuditLog
             {
@@ -422,8 +422,8 @@ namespace ScrumFlix.Forms
                 ObjectId = item.ConcessionItemId,
                 ActionTime = DateTime.Now,
                 Description = $"Reactivated concession item '{item.ItemName}'",
-                OldValues = $"is_active={oldActive}",
-                NewValues = $"is_active={item.is_active}"
+                OldValues = $"IsActive={oldActive}",
+                NewValues = $"IsActive={item.IsActive}"
             });
             context.SaveChanges();
 

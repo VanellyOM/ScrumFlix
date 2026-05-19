@@ -12,6 +12,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
+using static Google.Protobuf.Reflection.SourceCodeInfo.Types;
 
 namespace ScrumFlix.Forms
 {
@@ -33,8 +34,11 @@ namespace ScrumFlix.Forms
 
             using (var context = new AppDbContext())
             {
+                int? locationId = GetCurrentEmployeeLocationId();
                 var filtered = context.Showtime
-                    .Where(s => s.Movie!.Title.ToLower().Contains(search))
+                    .Where(s =>
+                        s.TheaterScreen!.LocationId == locationId &&
+                        s.Movie!.Title.ToLower().Contains(search))
                     .Select(s => new
                     {
                         Movie = s.Movie!.Title,
@@ -53,10 +57,19 @@ namespace ScrumFlix.Forms
         {
             using (var context = new AppDbContext())
             {
+                int? locationId = GetCurrentEmployeeLocationId();
+
+                if (locationId == null)
+                {
+                    MessageBox.Show("Could not find your assigned location.");
+                    return;
+                }
+
                 var showtimes = context.Showtime
                     .Include(s => s.Movie)
                     .Include(s => s.TheaterScreen)
-                        .ThenInclude(ts => ts.Location)
+                    .ThenInclude(ts => ts.Location)
+                    .Where(s => s.TheaterScreen!.LocationId == locationId.Value)
                     .Select(s => new
                     {
                         Movie = s.Movie!.Title,
@@ -178,7 +191,9 @@ namespace ScrumFlix.Forms
         {
             using (var context = new AppDbContext())
             {
+                int? locationId = GetCurrentEmployeeLocationId();
                 var showtimes = context.Showtime
+                    .Where(s => s.TheaterScreen!.LocationId == locationId)
                     .Select(s => new
                     {
                         Movie = s.Movie!.Title,
@@ -198,7 +213,7 @@ namespace ScrumFlix.Forms
             var fromAddress = new MailAddress("scrumflix@gmail.com");
             var toAddress = new MailAddress(toEmail);
 
-            const string fromPassword = "tltiuneyjoqpkbmh";
+            const string fromPassword = "ftdcmrxicxrjincg";
 
             var smtp = new SmtpClient
             {
@@ -237,8 +252,11 @@ namespace ScrumFlix.Forms
 
             using (var context = new AppDbContext())
             {
+                int? locationId = GetCurrentEmployeeLocationId();
                 var filtered = context.Showtime
-                    .Where(s => s.Movie!.Title.ToLower().Contains(search))
+                    .Where(s =>
+                        s.TheaterScreen!.LocationId == locationId &&
+                        s.Movie!.Title.ToLower().Contains(search))
                     .Select(s => new
                     {
                         Movie = s.Movie!.Title,
@@ -273,6 +291,16 @@ namespace ScrumFlix.Forms
 
                 db.SaveChanges();
             }
+        }
+        private int? GetCurrentEmployeeLocationId()
+        {
+            using var context = new AppDbContext();
+
+            return context.Users
+                .Include(u => u.Employee)
+                .Where(u => u.UserId == Session.UserId)
+                .Select(u => (int?)u.Employee!.LocationId)
+                .FirstOrDefault();
         }
     }
 }

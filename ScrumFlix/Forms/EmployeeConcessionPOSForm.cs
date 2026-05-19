@@ -32,7 +32,7 @@ namespace ScrumFlix.Forms
             using var context = new AppDbContext();
 
             var items = context.ConcessionItem
-                .Where(c => c.is_active && c.QuantityInStock > 0)
+                .Where(c => c.IsActive && c.QuantityInStock > 0)
                 .OrderBy(c => c.ItemName)
                 .ToList();
 
@@ -277,7 +277,7 @@ namespace ScrumFlix.Forms
             var fromAddress = new MailAddress("scrumflix@gmail.com");
             var toAddress = new MailAddress(toEmail);
 
-            const string fromPassword = "tltiuneyjoqpkbmh";
+            const string fromPassword = "ftdcmrxicxrjincg";
 
             var smtp = new SmtpClient
             {

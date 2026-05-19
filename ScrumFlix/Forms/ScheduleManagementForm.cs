@@ -19,6 +19,10 @@ namespace ScrumFlix.Forms
         {
             InitializeComponent();
         }
+        private void comboLocation_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            LoadShiftsGrid();
+        }
 
         private void ScheduleManagementForm_Load(object sender, EventArgs e)
         {
@@ -53,7 +57,7 @@ namespace ScrumFlix.Forms
             comboRole.ValueMember = "RoleId";
 
             comboLocation.DataSource = db.Location
-                .Where(l => l.is_active)
+                .Where(l => l.IsActive)
                 .OrderBy(l => l.LocationName)
                 .ToList();
 
@@ -64,7 +68,7 @@ namespace ScrumFlix.Forms
             comboShiftLocation.DisplayMember = "LocationName";
             comboShiftLocation.ValueMember = "LocationId";
             comboShiftLocation.DataSource = db.Location
-                .Where(l => l.is_active)
+                .Where(l => l.IsActive)
                 .OrderBy(l => l.LocationName)
                 .ToList();
         }
@@ -73,10 +77,30 @@ namespace ScrumFlix.Forms
         {
             using var db = new AppDbContext();
 
-            var shifts = db.Shifts
+            int? selectedLocationId = null;
+
+            if (comboLocation.SelectedValue is int locationId)
+            {
+                selectedLocationId = locationId;
+            }
+            else if (comboLocation.SelectedItem is Location location)
+            {
+                selectedLocationId = location.LocationId;
+            }
+
+            var query = db.Shifts
                 .Include(s => s.Role)
                 .Include(s => s.Location)
+                .AsQueryable();
+
+            if (selectedLocationId != null)
+            {
+                query = query.Where(s => s.LocationId == selectedLocationId.Value);
+            }
+
+            var shifts = query
                 .OrderBy(s => s.Location!.LocationName)
+                .ThenBy(s => s.RoleId)
                 .ThenBy(s => s.StartTime)
                 .Select(s => new
                 {

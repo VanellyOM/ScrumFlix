@@ -22,6 +22,8 @@ namespace ScrumFlix.Forms
         {
             dateStart.Value = new DateTime(2026, 5, 1);
             dateEnd.Value = new DateTime(2026, 5, 31);
+
+            LoadLocations();
         }
 
         private void btnTicketSalesReport_Click(object sender, EventArgs e)
@@ -31,13 +33,18 @@ namespace ScrumFlix.Forms
 
             using var db = new AppDbContext();
 
+            int locationId = Convert.ToInt32(comboLocation.SelectedValue);
+
             var rows = db.Ticket
                 .Include(t => t.Showtime)
                     .ThenInclude(s => s.Movie)
                 .Include(t => t.Showtime)
                     .ThenInclude(s => s.TheaterScreen)
                         .ThenInclude(ts => ts.Location)
-                .Where(t => t.TimeOfSale >= start && t.TimeOfSale < endExclusive)
+                .Where(t =>
+                    t.TimeOfSale >= start &&
+                    t.TimeOfSale < endExclusive &&
+                    t.Showtime!.TheaterScreen!.LocationId == locationId)
                 .GroupBy(t => new
                 {
                     Theater = t.Showtime!.TheaterScreen!.Location!.LocationName,
@@ -65,6 +72,8 @@ namespace ScrumFlix.Forms
 
             var popup = new StringBuilder();
             popup.AppendLine("Ticket Sales Report");
+            string locationName = comboLocation.Text;
+            popup.AppendLine($"Location: {locationName}");
             popup.AppendLine($"{start:d} - {dateEnd.Value.Date:d}");
             popup.AppendLine();
 
@@ -87,15 +96,25 @@ namespace ScrumFlix.Forms
 
             using var db = new AppDbContext();
 
+            int locationId = Convert.ToInt32(comboLocation.SelectedValue);
+
             var rows = db.ConcessionSale
-                .Where(s => s.TimeOfSale >= start && s.TimeOfSale < endExclusive)
+                .Include(s => s.User)
+                    .ThenInclude(u => u.Employee)
+                .Where(s =>
+                    s.TimeOfSale >= start &&
+                    s.TimeOfSale < endExclusive &&
+                    s.User != null &&
+                    s.User.Employee != null &&
+                    s.User.Employee.LocationId == locationId)
                 .Select(s => new
                 {
                     s.ConcessionSaleId,
                     s.TimeOfSale,
                     s.CustomerEmail,
                     s.Total,
-                    SoldBy = s.User != null ? s.User.UserName : ""
+                    SoldBy = s.User != null ? s.User.UserName : "",
+                    Location = s.User!.Employee!.Location!.LocationName
                 })
                 .OrderBy(s => s.TimeOfSale)
                 .ToList();
@@ -111,6 +130,8 @@ namespace ScrumFlix.Forms
 
             var popup = new StringBuilder();
             popup.AppendLine("Concession Sales Report");
+            string locationName = comboLocation.Text;
+            popup.AppendLine($"Location: {locationName}");
             popup.AppendLine($"{start:d} - {dateEnd.Value.Date:d}");
             popup.AppendLine();
 
@@ -168,6 +189,24 @@ namespace ScrumFlix.Forms
             File.WriteAllText(filePath, csv.ToString());
 
             MessageBox.Show(popup + $"\n\nSaved to:\n{filePath}", "Payroll Report");
+        }
+        private void LoadLocations()
+        {
+            using var db = new AppDbContext();
+
+            var locations = db.Location
+                .Where(l => l.IsActive)
+                .OrderBy(l => l.LocationName)
+                .Select(l => new
+                {
+                    l.LocationId,
+                    l.LocationName
+                })
+                .ToList();
+
+            comboLocation.DataSource = locations;
+            comboLocation.DisplayMember = "LocationName";
+            comboLocation.ValueMember = "LocationId";
         }
     }
 }

@@ -46,7 +46,7 @@
             gridScreens.ReadOnly = true;
             gridScreens.RowHeadersWidth = 53;
             gridScreens.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-            gridScreens.Size = new Size(776, 390);
+            gridScreens.Size = new Size(1529, 390);
             gridScreens.TabIndex = 0;
             // 
             // btnAdd
@@ -93,7 +93,7 @@
             // 
             AutoScaleDimensions = new SizeF(9F, 21F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(800, 450);
+            ClientSize = new Size(1553, 450);
             Controls.Add(btnRefresh);
             Controls.Add(btnDelete);
             Controls.Add(btnEdit);

@@ -51,6 +51,7 @@
             comboLocation = new ComboBox();
             txtAssignmentName = new TextBox();
             comboShiftLocation = new ComboBox();
+            label1 = new Label();
             ((System.ComponentModel.ISupportInitialize)gridShifts).BeginInit();
             ((System.ComponentModel.ISupportInitialize)gridScheduleAssignments).BeginInit();
             SuspendLayout();
@@ -66,21 +67,21 @@
             // 
             // dateTimeStartShift
             // 
-            dateTimeStartShift.Location = new Point(12, 212);
+            dateTimeStartShift.Location = new Point(12, 439);
             dateTimeStartShift.Name = "dateTimeStartShift";
             dateTimeStartShift.Size = new Size(260, 29);
             dateTimeStartShift.TabIndex = 1;
             // 
             // dateTimeEndShift
             // 
-            dateTimeEndShift.Location = new Point(278, 212);
+            dateTimeEndShift.Location = new Point(278, 439);
             dateTimeEndShift.Name = "dateTimeEndShift";
             dateTimeEndShift.Size = new Size(260, 29);
             dateTimeEndShift.TabIndex = 2;
             // 
             // btnAdd
             // 
-            btnAdd.Location = new Point(12, 247);
+            btnAdd.Location = new Point(12, 474);
             btnAdd.Name = "btnAdd";
             btnAdd.Size = new Size(98, 30);
             btnAdd.TabIndex = 3;
@@ -90,7 +91,7 @@
             // 
             // btnUpdate
             // 
-            btnUpdate.Location = new Point(116, 247);
+            btnUpdate.Location = new Point(116, 474);
             btnUpdate.Name = "btnUpdate";
             btnUpdate.Size = new Size(98, 30);
             btnUpdate.TabIndex = 4;
@@ -100,7 +101,7 @@
             // 
             // btnDelete
             // 
-            btnDelete.Location = new Point(220, 247);
+            btnDelete.Location = new Point(220, 474);
             btnDelete.Name = "btnDelete";
             btnDelete.Size = new Size(98, 30);
             btnDelete.TabIndex = 5;
@@ -110,7 +111,7 @@
             // 
             // btnRefresh
             // 
-            btnRefresh.Location = new Point(324, 247);
+            btnRefresh.Location = new Point(324, 474);
             btnRefresh.Name = "btnRefresh";
             btnRefresh.Size = new Size(98, 30);
             btnRefresh.TabIndex = 6;
@@ -129,14 +130,14 @@
             gridShifts.ReadOnly = true;
             gridShifts.RowHeadersWidth = 53;
             gridShifts.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-            gridShifts.Size = new Size(526, 163);
+            gridShifts.Size = new Size(986, 383);
             gridShifts.TabIndex = 8;
             gridShifts.CellClick += gridShifts_CellClick;
             // 
             // lblAssignments
             // 
             lblAssignments.AutoSize = true;
-            lblAssignments.Location = new Point(12, 334);
+            lblAssignments.Location = new Point(12, 560);
             lblAssignments.Name = "lblAssignments";
             lblAssignments.Size = new Size(631, 21);
             lblAssignments.TabIndex = 9;
@@ -147,26 +148,26 @@
             gridScheduleAssignments.AllowUserToAddRows = false;
             gridScheduleAssignments.AllowUserToDeleteRows = false;
             gridScheduleAssignments.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            gridScheduleAssignments.Location = new Point(12, 434);
+            gridScheduleAssignments.Location = new Point(12, 660);
             gridScheduleAssignments.MultiSelect = false;
             gridScheduleAssignments.Name = "gridScheduleAssignments";
             gridScheduleAssignments.ReadOnly = true;
             gridScheduleAssignments.RowHeadersWidth = 53;
             gridScheduleAssignments.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-            gridScheduleAssignments.Size = new Size(526, 361);
+            gridScheduleAssignments.Size = new Size(1307, 361);
             gridScheduleAssignments.TabIndex = 10;
             // 
             // comboEmployee
             // 
             comboEmployee.FormattingEnabled = true;
-            comboEmployee.Location = new Point(176, 358);
+            comboEmployee.Location = new Point(428, 621);
             comboEmployee.Name = "comboEmployee";
             comboEmployee.Size = new Size(158, 29);
             comboEmployee.TabIndex = 12;
             // 
             // btnAdd2
             // 
-            btnAdd2.Location = new Point(12, 393);
+            btnAdd2.Location = new Point(12, 619);
             btnAdd2.Name = "btnAdd2";
             btnAdd2.Size = new Size(98, 30);
             btnAdd2.TabIndex = 13;
@@ -176,7 +177,7 @@
             // 
             // btnUpdate2
             // 
-            btnUpdate2.Location = new Point(116, 393);
+            btnUpdate2.Location = new Point(116, 619);
             btnUpdate2.Name = "btnUpdate2";
             btnUpdate2.Size = new Size(98, 30);
             btnUpdate2.TabIndex = 14;
@@ -186,7 +187,7 @@
             // 
             // btnDelete2
             // 
-            btnDelete2.Location = new Point(220, 393);
+            btnDelete2.Location = new Point(220, 619);
             btnDelete2.Name = "btnDelete2";
             btnDelete2.Size = new Size(98, 30);
             btnDelete2.TabIndex = 15;
@@ -196,7 +197,7 @@
             // 
             // btnRefresh2
             // 
-            btnRefresh2.Location = new Point(324, 393);
+            btnRefresh2.Location = new Point(324, 619);
             btnRefresh2.Name = "btnRefresh2";
             btnRefresh2.Size = new Size(98, 30);
             btnRefresh2.TabIndex = 16;
@@ -207,7 +208,7 @@
             // comboShowtime
             // 
             comboShowtime.FormattingEnabled = true;
-            comboShowtime.Location = new Point(340, 358);
+            comboShowtime.Location = new Point(592, 621);
             comboShowtime.Name = "comboShowtime";
             comboShowtime.Size = new Size(158, 29);
             comboShowtime.TabIndex = 18;
@@ -215,7 +216,7 @@
             // panelSchedule
             // 
             panelSchedule.AutoScroll = true;
-            panelSchedule.Location = new Point(631, 69);
+            panelSchedule.Location = new Point(1018, 32);
             panelSchedule.Name = "panelSchedule";
             panelSchedule.Size = new Size(1288, 460);
             panelSchedule.TabIndex = 19;
@@ -223,14 +224,14 @@
             // comboMonth
             // 
             comboMonth.FormattingEnabled = true;
-            comboMonth.Location = new Point(1097, 535);
+            comboMonth.Location = new Point(1484, 498);
             comboMonth.Name = "comboMonth";
             comboMonth.Size = new Size(158, 29);
             comboMonth.TabIndex = 20;
             // 
             // btnLoadSchedule
             // 
-            btnLoadSchedule.Location = new Point(1267, 535);
+            btnLoadSchedule.Location = new Point(1654, 498);
             btnLoadSchedule.Name = "btnLoadSchedule";
             btnLoadSchedule.Size = new Size(98, 30);
             btnLoadSchedule.TabIndex = 21;
@@ -241,7 +242,7 @@
             // comboRole
             // 
             comboRole.FormattingEnabled = true;
-            comboRole.Location = new Point(428, 249);
+            comboRole.Location = new Point(428, 476);
             comboRole.Name = "comboRole";
             comboRole.Size = new Size(110, 29);
             comboRole.TabIndex = 22;
@@ -249,32 +250,44 @@
             // comboLocation
             // 
             comboLocation.FormattingEnabled = true;
-            comboLocation.Location = new Point(380, 283);
+            comboLocation.Location = new Point(627, 442);
             comboLocation.Name = "comboLocation";
             comboLocation.Size = new Size(158, 29);
             comboLocation.TabIndex = 23;
+            comboLocation.SelectedIndexChanged += comboLocation_SelectedIndexChanged;
             // 
             // txtAssignmentName
             // 
-            txtAssignmentName.Location = new Point(12, 358);
+            txtAssignmentName.Location = new Point(12, 584);
             txtAssignmentName.Name = "txtAssignmentName";
-            txtAssignmentName.Size = new Size(158, 29);
+            txtAssignmentName.PlaceholderText = "Assignment Details";
+            txtAssignmentName.Size = new Size(738, 29);
             txtAssignmentName.TabIndex = 24;
             // 
             // comboShiftLocation
             // 
             comboShiftLocation.FormattingEnabled = true;
-            comboShiftLocation.Location = new Point(933, 535);
+            comboShiftLocation.Location = new Point(1320, 498);
             comboShiftLocation.Name = "comboShiftLocation";
             comboShiftLocation.Size = new Size(158, 29);
             comboShiftLocation.TabIndex = 25;
             comboShiftLocation.SelectedIndexChanged += comboShiftLocation_SelectedIndexChanged;
             // 
+            // label1
+            // 
+            label1.AutoSize = true;
+            label1.Location = new Point(791, 442);
+            label1.Name = "label1";
+            label1.Size = new Size(191, 42);
+            label1.TabIndex = 26;
+            label1.Text = "<- Select the location you \r\n     are trying to manage";
+            // 
             // ScheduleManagementForm
             // 
             AutoScaleDimensions = new SizeF(9F, 21F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(1948, 818);
+            ClientSize = new Size(2351, 1036);
+            Controls.Add(label1);
             Controls.Add(comboShiftLocation);
             Controls.Add(txtAssignmentName);
             Controls.Add(comboLocation);
@@ -332,5 +345,6 @@
         private ComboBox comboLocation;
         private TextBox txtAssignmentName;
         private ComboBox comboShiftLocation;
+        private Label label1;
     }
 }

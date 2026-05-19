@@ -55,7 +55,7 @@ namespace ScrumFlix.Forms
 
             txtName.Text = selected.LocationName;
             txtAddress.Text = selected.LocationAddress ?? "";
-            chkIsActive.Checked = selected.is_active;
+            chkIsActive.Checked = selected.IsActive;
         }
 
         private async void btnAdd_Click(object sender, EventArgs e) // When the add button is clicked it adds a new location using textbox values
@@ -75,7 +75,7 @@ namespace ScrumFlix.Forms
             {
                 LocationName = name,
                 LocationAddress = string.IsNullOrWhiteSpace(address) ? null : address,
-                is_active = chkIsActive.Checked
+                IsActive = chkIsActive.Checked
             };
 
             db.Location.Add(location);
@@ -91,7 +91,7 @@ namespace ScrumFlix.Forms
                 ActionTime = DateTime.Now,
                 Description = $"Added location '{location.LocationName}'",
                 OldValues = null,
-                NewValues = $"LocationName={location.LocationName}, LocationAddress={location.LocationAddress}, is_active={location.is_active}"
+                NewValues = $"LocationName={location.LocationName}, LocationAddress={location.LocationAddress}, IsActive={location.IsActive}"
             });
 
             await db.SaveChangesAsync();
@@ -125,11 +125,11 @@ namespace ScrumFlix.Forms
 
             var oldName = location.LocationName;
             var oldAddress = location.LocationAddress;
-            var oldActive = location.is_active;
+            var oldActive = location.IsActive;
 
             location.LocationName = name;
             location.LocationAddress = string.IsNullOrWhiteSpace(address) ? null : address;
-            location.is_active = chkIsActive.Checked;
+            location.IsActive = chkIsActive.Checked;
 
             // Audit Log
             db.AuditLog.Add(new AuditLog
@@ -140,8 +140,8 @@ namespace ScrumFlix.Forms
                 ObjectId = location.LocationId,
                 ActionTime = DateTime.Now,
                 Description = $"Updated location '{oldName}'",
-                OldValues = $"LocationName={oldName}, LocationAddress={oldAddress}, is_active={oldActive}",
-                NewValues = $"LocationName={location.LocationName}, LocationAddress={location.LocationAddress}, is_active={location.is_active}"
+                OldValues = $"LocationName={oldName}, LocationAddress={oldAddress}, IsActive={oldActive}",
+                NewValues = $"LocationName={location.LocationName}, LocationAddress={location.LocationAddress}, IsActive={location.IsActive}"
             });
 
             await db.SaveChangesAsync();
@@ -190,7 +190,7 @@ namespace ScrumFlix.Forms
                 ObjectId = location.LocationId,
                 ActionTime = DateTime.Now,
                 Description = $"Deleted location '{location.LocationName}'",
-                OldValues = $"LocationName={location.LocationName}, LocationAddress={location.LocationAddress}, is_active={location.is_active}",
+                OldValues = $"LocationName={location.LocationName}, LocationAddress={location.LocationAddress}, IsActive={location.IsActive}",
                 NewValues = null
             });
 

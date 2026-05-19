@@ -18,7 +18,7 @@ CREATE TABLE locations (
 	location_id INT PRIMARY KEY AUTO_INCREMENT,
     location_name VARCHAR(50) NOT NULL UNIQUE,
     location_address VARCHAR(255) NOT NULL UNIQUE,
-    is_active BOOLEAN NOT NULL DEFAULT TRUE
+    IsActive BOOLEAN NOT NULL DEFAULT TRUE
 );
 
 -- 3. THEATER ROOMS
@@ -27,7 +27,7 @@ CREATE TABLE theater_rooms (
     location_id INT NOT NULL,
     room_name VARCHAR(50) NOT NULL,
     seating_capacity INT NOT NULL CHECK (seating_capacity > 0),
-    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    IsActive BOOLEAN NOT NULL DEFAULT TRUE,
     
     CONSTRAINT fk_room_location
 		FOREIGN KEY (location_id)
@@ -45,7 +45,7 @@ CREATE TABLE scheduled_shows (
     show_date DATE NOT NULL,
     start_datetime DATETIME NOT NULL,
     end_datetime DATETIME NOT NULL,
-    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    IsActive BOOLEAN NOT NULL DEFAULT TRUE,
     tickets_sold INT NOT NULL DEFAULT 0,
 
     CONSTRAINT fk_show_movie
@@ -87,7 +87,7 @@ CREATE TABLE price_tiers (
     category_name VARCHAR(50) NOT NULL,
     format_type VARCHAR(20) DEFAULT '2D',
     price DECIMAL(6,2) NOT NULL CHECK (price >= 0),
-    is_active BOOLEAN DEFAULT TRUE,
+    IsActive BOOLEAN DEFAULT TRUE,
     description VARCHAR(255)
 );
 
@@ -208,7 +208,7 @@ CREATE PROCEDURE update_show_schedule (
     show_date_param DATE, 
     start_datetime_param DATETIME, 
     end_datetime_param DATETIME,
-    is_active_param TINYINT
+    IsActive_param TINYINT
 )
 BEGIN  
 
@@ -228,10 +228,10 @@ END IF;
   
 -- Insert scheduled showing
 INSERT INTO scheduled_shows
-	(movie_id, location_id, room_id, show_date, start_datetime, end_datetime, is_active)
+	(movie_id, location_id, room_id, show_date, start_datetime, end_datetime, IsActive)
 VALUES
 	(movie_id_param, location_id_param, room_id_param, DATE(start_datetime_param), 
-    start_datetime_param, end_datetime_param,is_active_param);
+    start_datetime_param, end_datetime_param,IsActive_param);
 
 END//
 
@@ -251,8 +251,8 @@ JOIN movies m
 	ON s.movie_id = m.movie_id
 JOIN locations l
 	ON s.location_id = l.location_id
-WHERE s.is_active = TRUE
-	AND l.is_active = TRUE
+WHERE s.IsActive = TRUE
+	AND l.IsActive = TRUE
     
 -- 14. Tickets: Prevent Overselling + Increment
 
@@ -328,7 +328,7 @@ BEGIN
     INTO price_at_purchase_var
     FROM price_tiers
     WHERE price_tier_id = price_tier_id_param
-      AND is_active = TRUE
+      AND IsActive = TRUE
     LIMIT 1;
 
     -- 2. Validate
@@ -589,7 +589,7 @@ CREATE TABLE concessions_pricing (
     price DECIMAL(10,2) NOT NULL CHECK (price >= 0),
     effective_start DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     effective_end DATETIME NULL,
-    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    IsActive BOOLEAN NOT NULL DEFAULT TRUE,
 
     CONSTRAINT fk_pricing_item
         FOREIGN KEY (item_id)
@@ -622,10 +622,10 @@ BEGIN
     UPDATE concessions_pricing
     SET 
         effective_end = CURRENT_TIMESTAMP,
-        is_active = FALSE
+        IsActive = FALSE
     WHERE item_id = item_id_param
       AND location_id = location_id_param
-      AND is_active = TRUE;
+      AND IsActive = TRUE;
 
     -- Insert new pricing record
     INSERT INTO concessions_pricing (
@@ -633,7 +633,7 @@ BEGIN
         location_id,
         price,
         effective_start,
-        is_active
+        IsActive
     )
     VALUES (
         item_id_param,
@@ -789,7 +789,7 @@ BEGIN
         FROM concessions_pricing
         WHERE item_id = item_id_var
           AND location_id = location_id_param
-          AND is_active = TRUE
+          AND IsActive = TRUE
         LIMIT 1;
 
         IF item_price IS NULL THEN

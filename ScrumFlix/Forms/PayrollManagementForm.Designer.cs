@@ -67,6 +67,7 @@
             comboPayPeriod.Name = "comboPayPeriod";
             comboPayPeriod.Size = new Size(158, 29);
             comboPayPeriod.TabIndex = 1;
+            comboPayPeriod.SelectedIndexChanged += comboPayPeriod_SelectedIndexChanged;
             // 
             // btnGenerateTimesheets
             // 

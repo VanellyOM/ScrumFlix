@@ -62,7 +62,7 @@ namespace ScrumFlix.Forms
                 ActionTime = DateTime.Now,
                 Description = $"Added theater screen '{form.TheaterScreen.ScreenName}'",
                 OldValues = null,
-                NewValues = $"ScreenName={form.TheaterScreen.ScreenName}, LocationId={form.TheaterScreen.LocationId}, Capacity={form.TheaterScreen.Capacity}, is_active={form.TheaterScreen.is_active}"
+                NewValues = $"ScreenName={form.TheaterScreen.ScreenName}, LocationId={form.TheaterScreen.LocationId}, Capacity={form.TheaterScreen.Capacity}, IsActive={form.TheaterScreen.IsActive}"
             });
 
             await db.SaveChangesAsync();
@@ -94,12 +94,12 @@ namespace ScrumFlix.Forms
             var oldScreenName = screen.ScreenName;
             var oldLocationId = screen.LocationId;
             var oldCapacity = screen.Capacity;
-            var oldActive = screen.is_active;
+            var oldActive = screen.IsActive;
 
             screen.ScreenName = form.TheaterScreen.ScreenName;
             screen.LocationId = form.TheaterScreen.LocationId;
             screen.Capacity = form.TheaterScreen.Capacity;
-            screen.is_active = form.TheaterScreen.is_active;
+            screen.IsActive = form.TheaterScreen.IsActive;
 
             // Audit Log
             db.AuditLog.Add(new AuditLog
@@ -110,8 +110,8 @@ namespace ScrumFlix.Forms
                 ObjectId = screen.TheaterScreenId,
                 ActionTime = DateTime.Now,
                 Description = $"Updated theater screen '{oldScreenName}'",
-                OldValues = $"ScreenName={oldScreenName}, LocationId={oldLocationId}, Capacity={oldCapacity}, is_active={oldActive}",
-                NewValues = $"ScreenName={screen.ScreenName}, LocationId={screen.LocationId}, Capacity={screen.Capacity}, is_active={screen.is_active}"
+                OldValues = $"ScreenName={oldScreenName}, LocationId={oldLocationId}, Capacity={oldCapacity}, IsActive={oldActive}",
+                NewValues = $"ScreenName={screen.ScreenName}, LocationId={screen.LocationId}, Capacity={screen.Capacity}, IsActive={screen.IsActive}"
             });
 
             await db.SaveChangesAsync();
@@ -157,7 +157,7 @@ namespace ScrumFlix.Forms
                 ObjectId = screen.TheaterScreenId,
                 ActionTime = DateTime.Now,
                 Description = $"Deleted theater screen '{screen.ScreenName}'",
-                OldValues = $"ScreenName={screen.ScreenName}, LocationId={screen.LocationId}, Capacity={screen.Capacity}, is_active={screen.is_active}",
+                OldValues = $"ScreenName={screen.ScreenName}, LocationId={screen.LocationId}, Capacity={screen.Capacity}, IsActive={screen.IsActive}",
                 NewValues = null
             });
 

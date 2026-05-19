@@ -32,6 +32,7 @@
             btnRestore = new Button();
             btnRefresh = new Button();
             gridBackups = new DataGridView();
+            progressBar = new ProgressBar();
             ((System.ComponentModel.ISupportInitialize)gridBackups).BeginInit();
             SuspendLayout();
             // 
@@ -79,17 +80,27 @@
             gridBackups.Size = new Size(652, 299);
             gridBackups.TabIndex = 3;
             // 
+            // progressBar
+            // 
+            progressBar.Location = new Point(324, 317);
+            progressBar.Name = "progressBar";
+            progressBar.Size = new Size(340, 30);
+            progressBar.TabIndex = 4;
+            progressBar.Visible = false;
+            // 
             // BackupRestoreForm
             // 
             AutoScaleDimensions = new SizeF(9F, 21F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(676, 352);
+            Controls.Add(progressBar);
             Controls.Add(gridBackups);
             Controls.Add(btnRefresh);
             Controls.Add(btnRestore);
             Controls.Add(btnBackup);
             Name = "BackupRestoreForm";
             Text = "BackupRestoreForm";
+            Load += BackupRestoreForm_Load;
             ((System.ComponentModel.ISupportInitialize)gridBackups).EndInit();
             ResumeLayout(false);
         }
@@ -100,5 +111,6 @@
         private Button btnRestore;
         private Button btnRefresh;
         private DataGridView gridBackups;
+        private ProgressBar progressBar;
     }
 }
