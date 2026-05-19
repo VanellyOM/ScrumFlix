@@ -8,6 +8,7 @@ using System.Net.Mail;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
+using static Google.Protobuf.Reflection.SourceCodeInfo.Types;
 
 namespace ScrumFlix.Forms
 {
@@ -32,7 +33,7 @@ namespace ScrumFlix.Forms
             using var context = new AppDbContext();
 
             var items = context.ConcessionItem
-                .Where(c => c.IsActive && c.QuantityInStock > 0)
+                .Where(c => c.IsActive && c.LocationId == GetLoggedInEmployeeLocationId() && c.QuantityInStock > 0)
                 .OrderBy(c => c.ItemName)
                 .ToList();
 
@@ -206,9 +207,18 @@ namespace ScrumFlix.Forms
 
             decimal total = cart.Sum(c => c.LineTotal);
 
+            int? locationId = GetLoggedInEmployeeLocationId();
+
+            if (locationId == null)
+            {
+                MessageBox.Show("Could not determine employee location.");
+                return;
+            }
+
             var sale = new ConcessionSale
             {
                 UserId = Session.UserId,
+                LocationId = locationId.Value,
                 CustomerEmail = email,
                 TimeOfSale = DateTime.Now,
                 Total = total
@@ -344,6 +354,15 @@ namespace ScrumFlix.Forms
 
                 db.SaveChanges();
             }
+        }
+        private int? GetLoggedInEmployeeLocationId()
+        {
+            using var context = new AppDbContext();
+
+            return context.Users
+                .Where(u => u.UserId == Session.UserId)
+                .Select(u => (int?)u.Employee!.LocationId)
+                .FirstOrDefault();
         }
     }
 }

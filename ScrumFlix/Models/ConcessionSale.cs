@@ -16,6 +16,7 @@ namespace ScrumFlix.Models
         public DateTime TimeOfSale { get; set; }
 
         public decimal Total { get; set; }
+        public int LocationId { get; set; }
 
         public User? User { get; set; }
 

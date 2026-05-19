@@ -230,6 +230,7 @@
             comboLocation.Name = "comboLocation";
             comboLocation.Size = new Size(158, 29);
             comboLocation.TabIndex = 18;
+            comboLocation.SelectedIndexChanged += comboLocation_SelectedIndexChanged;
             // 
             // ConcessionsAdminForm
             // 

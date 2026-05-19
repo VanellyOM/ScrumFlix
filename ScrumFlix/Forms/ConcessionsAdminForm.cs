@@ -15,6 +15,7 @@ namespace ScrumFlix.Forms
 
         private void ConcessionsAdminForm_Load(object sender, EventArgs e)
         {
+            LoadLocations();
             LoadItems();
             LoadStockItems();
         }
@@ -23,7 +24,16 @@ namespace ScrumFlix.Forms
         {
             using var context = new AppDbContext();
 
-            var items = context.ConcessionItem
+            int? locationId = GetSelectedLocationId();
+
+            var query = context.ConcessionItem.AsQueryable();
+
+            if (locationId != null)
+            {
+                query = query.Where(c => c.LocationId == locationId.Value);
+            }
+
+            var items = query
                 .OrderBy(c => c.ItemName)
                 .Select(c => new
                 {
@@ -32,6 +42,7 @@ namespace ScrumFlix.Forms
                     c.Price,
                     c.QuantityInStock,
                     c.Minimum,
+                    c.LocationId,
                     c.IsActive
                 })
                 .ToList();
@@ -42,21 +53,35 @@ namespace ScrumFlix.Forms
             {
                 gridConcessions.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
             }
+
+            if (gridConcessions.Columns["ConcessionItemId"] != null)
+            {
+                gridConcessions.Columns["ConcessionItemId"].Visible = false;
+            }
         }
 
         private void LoadStockItems()
         {
             using var context = new AppDbContext();
 
-            var items = context.ConcessionItem
-                .Where(c => c.IsActive)
+            int? locationId = GetSelectedLocationId();
+
+            var query = context.ConcessionItem
+                .Where(c => c.IsActive);
+
+            if (locationId != null)
+            {
+                query = query.Where(c => c.LocationId == locationId.Value);
+            }
+
+            var items = query
                 .OrderBy(c => c.ItemName)
                 .ToList();
 
             comboConcessionItem.DataSource = null;
-            comboConcessionItem.DataSource = items;
             comboConcessionItem.DisplayMember = "ItemName";
             comboConcessionItem.ValueMember = "ConcessionItemId";
+            comboConcessionItem.DataSource = items;
 
             if (items.Count > 0)
             {
@@ -133,11 +158,21 @@ namespace ScrumFlix.Forms
 
             using var context = new AppDbContext();
 
-            bool exists = context.ConcessionItem.Any(c => c.ItemName.ToLower() == itemName.ToLower());
+            int? locationId = GetSelectedLocationId();
+
+            bool exists = context.ConcessionItem.Any(c =>
+                c.ItemName.ToLower() == itemName.ToLower() &&
+                c.LocationId == locationId.Value);
 
             if (exists)
             {
                 MessageBox.Show("An item with that name already exists!");
+                return;
+            }
+
+            if (locationId == null)
+            {
+                MessageBox.Show("Select a location.");
                 return;
             }
 
@@ -147,6 +182,7 @@ namespace ScrumFlix.Forms
                 Price = price,
                 QuantityInStock = quantity,
                 Minimum = minimum,
+                LocationId = locationId.Value,
                 IsActive = true
             };
 
@@ -429,6 +465,42 @@ namespace ScrumFlix.Forms
 
             LoadItems();
             LoadStockItems();
+        }
+        private void LoadLocations()
+        {
+            using var context = new AppDbContext();
+
+            var locations = context.Location
+                .Where(l => l.IsActive)
+                .OrderBy(l => l.LocationName)
+                .Select(l => new
+                {
+                    l.LocationId,
+                    l.LocationName
+                })
+                .ToList();
+
+            comboLocation.DataSource = null;
+            comboLocation.DisplayMember = "LocationName";
+            comboLocation.ValueMember = "LocationId";
+            comboLocation.DataSource = locations;
+        }
+        private int? GetSelectedLocationId()
+        {
+            if (comboLocation.SelectedValue == null)
+                return null;
+
+            if (int.TryParse(comboLocation.SelectedValue.ToString(), out int locationId))
+                return locationId;
+
+            return null;
+        }
+
+        private void comboLocation_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            LoadItems();
+            LoadStockItems();
+            ClearCrudFields();
         }
     }
 }
