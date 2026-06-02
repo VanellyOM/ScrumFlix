@@ -1,0 +1,54 @@
+name: .NET CI
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+env:
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 'true'
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        dotnet-version: [10.0.x]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ matrix.dotnet-version }}
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ matrix.dotnet-version }}-${{ hashFiles('**/global.json') }}
+          restore-keys: |
+            nuget-${{ matrix.dotnet-version }}-
+
+      - name: Restore dotnet tools
+        run: |
+          cd ScrumFlix
+          dotnet tool restore
+
+      - name: Restore solution
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore -c Release
+
+      - name: Format check
+        run: |
+          dotnet tool install -g dotnet-format || true
+          dotnet format --verify-no-changes || true
+
+      - name: Run unit tests
+        env:
+          TMDB__APIKEY: ${{ secrets.TMDB_API_KEY }}
+          ConnectionStrings__MySQLConnection: ${{ secrets.MYSQL_CONNECTION }}
+        run: dotnet test --no-build --verbosity normal

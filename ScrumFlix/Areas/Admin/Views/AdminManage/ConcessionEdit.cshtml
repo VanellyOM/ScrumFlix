@@ -1,0 +1,80 @@
+@model ScrumFlix.Areas.Admin.ViewModels.ConcessionFormViewModel
+@{
+    ViewData["Title"] = "Edit Concession Item";
+
+}
+
+<div class="sf-page-header">
+    <div class="container-xl">
+        <a asp-area="Admin" asp-controller="AdminManage" asp-action="Concessions" class="sf-back-link mb-2 d-inline-flex align-items-center gap-1">
+            <i class="bi bi-arrow-left"></i> Concessions
+        </a>
+        <h1 class="sf-page-title"><i class="bi bi-pencil-square me-2"></i>Edit — @Model.ItemName</h1>
+    </div>
+</div>
+
+<section class="sf-section">
+    <div class="container-xl">
+        <div class="row justify-content-center">
+            <div class="col-lg-5">
+                <div class="sf-form-card">
+                    <form asp-area="Admin" asp-controller="AdminManage" asp-action="ConcessionEdit" method="post">
+                        @Html.AntiForgeryToken()
+                        <input asp-for="ConcessionItemId" type="hidden" />
+                        <div asp-validation-summary="ModelOnly" class="sf-flash-banner sf-flash-banner--error mb-4" role="alert"></div>
+
+                        <div class="mb-3">
+                            <label asp-for="ItemName" class="sf-label"></label>
+                            <input asp-for="ItemName" class="sf-input" />
+                            <span asp-validation-for="ItemName" class="sf-validation"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="LocationId" class="sf-label"></label>
+                            <select asp-for="LocationId" class="sf-select">
+                                @foreach (var l in Model.Locations)
+                                {
+                                    <option value="@l.LocationId" selected="@(Model.LocationId == l.LocationId)">@l.LocationName</option>
+                                }
+                            </select>
+                            <span asp-validation-for="LocationId" class="sf-validation"></span>
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-6">
+                                <label asp-for="Price" class="sf-label"></label>
+                                <input asp-for="Price" class="sf-input" type="number" min="0.01" step="0.01" />
+                                <span asp-validation-for="Price" class="sf-validation"></span>
+                            </div>
+                            <div class="col-6">
+                                <label asp-for="QuantityInStock" class="sf-label"></label>
+                                <input asp-for="QuantityInStock" class="sf-input" type="number" min="0" />
+                                <span asp-validation-for="QuantityInStock" class="sf-validation"></span>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label asp-for="Minimum" class="sf-label"></label>
+                            <input asp-for="Minimum" class="sf-input" type="number" min="0" />
+                            <span asp-validation-for="Minimum" class="sf-validation"></span>
+                        </div>
+
+                        <div class="mb-4 d-flex align-items-center gap-2">
+                            <input asp-for="IsActive" type="checkbox" class="form-check-input" />
+                            <label asp-for="IsActive" class="sf-label mb-0">Active</label>
+                        </div>
+
+                        <div class="d-flex gap-3">
+                            <button type="submit" class="btn sf-btn-primary flex-grow-1">
+                                <i class="bi bi-save me-2"></i>Save Changes
+                            </button>
+                            <a asp-area="Admin" asp-controller="AdminManage" asp-action="Concessions" class="btn sf-btn-ghost">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

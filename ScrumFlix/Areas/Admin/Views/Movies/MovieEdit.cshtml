@@ -1,0 +1,86 @@
+@*
+ * File: /Areas/Admin/Views/Movies/MovieEdit.cshtml
+ * Description: Admin-area form for editing an existing movie entry.
+ *              Submits to Admin/Movies/MovieEdit and returns to the Admin
+ *              MovieCatalog on success — never leaves the Staff Portal.
+*@
+@model Movie
+@{
+    ViewData["Title"] = "Edit Movie";
+}
+
+<div class="sf-page-header">
+    <div class="container-xl">
+        <h1 class="sf-page-title"><i class="bi bi-pencil-square me-2"></i>Edit Movie</h1>
+    </div>
+</div>
+
+<section class="sf-section">
+    <div class="container-xl">
+        <div class="row justify-content-center">
+            <div class="col-lg-6">
+                <div class="sf-form-card">
+                    <form asp-area="Admin" asp-controller="Movies" asp-action="MovieEdit" method="post">
+                        @Html.AntiForgeryToken()
+                        <input asp-for="MovieId" type="hidden" />
+                        <div asp-validation-summary="ModelOnly" class="sf-flash-banner sf-flash-banner--error mb-4" role="alert"></div>
+
+                        <div class="mb-3">
+                            <label asp-for="Title" class="sf-label"></label>
+                            <input asp-for="Title" class="sf-input" />
+                            <span asp-validation-for="Title" class="sf-validation"></span>
+                        </div>
+                        <div class="mb-3">
+                            <label asp-for="Genre" class="sf-label"></label>
+                            <input asp-for="Genre" class="sf-input" />
+                            <span asp-validation-for="Genre" class="sf-validation"></span>
+                        </div>
+                        <div class="mb-3">
+                            <label asp-for="Rating" class="sf-label"></label>
+                            <select asp-for="Rating" class="sf-select">
+                                <option value="G">G</option>
+                                <option value="PG">PG</option>
+                                <option value="PG-13">PG-13</option>
+                                <option value="R">R</option>
+                                <option value="NC-17">NC-17</option>
+                            </select>
+                            <span asp-validation-for="Rating" class="sf-validation"></span>
+                        </div>
+                        <div class="mb-4">
+                            <label asp-for="RuntimeMinutes" class="sf-label"></label>
+                            <input asp-for="RuntimeMinutes" class="sf-input" type="number" min="1" />
+                            <span asp-validation-for="RuntimeMinutes" class="sf-validation"></span>
+                        </div>
+                        <div class="mb-4">
+                            <label asp-for="Description" class="sf-label"></label>
+                            <textarea asp-for="Description" class="sf-input" rows="4"
+                                      placeholder="Plot synopsis (up to 1000 characters)…"></textarea>
+                            <span asp-validation-for="Description" class="sf-validation"></span>
+                        </div>
+                        <div class="d-flex gap-3">
+                            <button type="submit" class="sf-btn-primary flex-grow-1">
+                                <i class="bi bi-save me-2"></i>Save Changes
+                            </button>
+                            <a asp-area="Admin" asp-controller="Movies" asp-action="MovieCatalog" class="sf-btn-ghost">Cancel</a>
+                        </div>
+                    </form>
+
+                    <hr class="sf-divider mt-4" />
+
+                    <form asp-area="Admin" asp-controller="Movies" asp-action="MovieDelete" method="post"
+                          onsubmit="return confirm('Delete this movie permanently?');">
+                        @Html.AntiForgeryToken()
+                        <input name="id" type="hidden" value="@Model.MovieId" />
+                        <button type="submit" class="btn sf-btn-danger w-100">
+                            <i class="bi bi-trash me-2"></i>Delete Movie
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

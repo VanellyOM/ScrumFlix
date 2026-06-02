@@ -1,0 +1,25 @@
+@*
+ * File: Areas/Admin/Views/Shared/_AdminLayout.cshtml
+ * Description: Admin-area layout. Wraps _Layout.cshtml and injects the persistent
+ *              collapsible sidebar via _AdminSidebar partial.
+ *              All Admin-area pages that use this layout automatically get the sidebar.
+ *
+ * Usage: Set Layout = "~/Areas/Admin/Views/Shared/_AdminLayout.cshtml";
+ *        in any Admin view (or set it in _ViewStart.cshtml for the area).
+ *@
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="sf-admin-page-wrapper">
+    @* Persistent collapsible sidebar *@
+    @await Html.PartialAsync("~/Areas/Admin/Views/Shared/_AdminSidebar.cshtml")
+
+    @* Main content area shifts right when sidebar is open *@
+    <div class="sf-admin-content" id="sf-admin-content">
+        @RenderBody()
+    </div>
+</div>
+
+@await RenderSectionAsync("Scripts", required: false)
+@await RenderSectionAsync("Head", required: false)

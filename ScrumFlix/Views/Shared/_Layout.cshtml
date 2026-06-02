@@ -1,0 +1,394 @@
+@*
+ * File: /ScrumFlix/Views/Shared/_Layout.cshtml
+ * Description: Main site layout — updated for Phase 3 CSS architecture migration.
+ *
+ * CHANGES FROM PHASE 2:
+ *   - scrumflix.css replaced with 4-tier CSS load order (sf-base → sf-tokens →
+ *     sf-layout → sf-components)
+ *   - <html> receives [data-theme] from cookie (server-side FOUC prevention)
+ *   - Theme picker button injected into navbar
+ *   - sf-theme-switcher.js loaded in <head> (FOUC elimination, see note below)
+ *
+ * FOUC PREVENTION:
+ *   sf-theme-switcher.js contains an IIFE that sets data-theme on <html>
+ *   synchronously before the first paint. Loading it in <head> (before <body>)
+ *   ensures the correct theme class is present when CSS first renders.
+ *   The script is small (~4 KB min+gz) — the trade-off is worth it.
+ *   Alternatively, set data-theme via Razor using the cookie value (see below).
+*@
+
+@{
+	var layoutVm = Context.Items["LayoutViewModel"] as LayoutViewModel
+						  ?? new LayoutViewModel();
+	var cartCount = layoutVm.CartCount;
+	var sessionUserName = layoutVm.UserName;
+	var sessionRoleId = layoutVm.RoleId;
+	var activeTheme = layoutVm.ActiveTheme;
+	var isLoggedIn = sessionUserName is not null;
+}
+
+<!DOCTYPE html>
+<html lang="en" data-theme="@activeTheme">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<meta name="author" content="James Porter">
+	<meta name="description" content="This page includes content assisted by AI tools.">
+
+	<title>@(ViewData["Title"] != null ? $"{ViewData["Title"]} — ScrumFlix" : "ScrumFlix Theatres")</title>
+
+	<link rel="shortcut icon"
+		  href="~/favicon.ico"
+		  type="image/x-icon" />
+
+	@* ── Fonts ──────────────────────────────────────────────────────────── *@
+	<link rel="preconnect" href="https://fonts.googleapis.com" />
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+	@* Update in _Layout.cshtml (approx. line 45) *@
+	<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Inter:wght@300;400;500;600;700&family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700&display=swap"
+		  rel="stylesheet" />
+	@* <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet" /> *@
+
+	@* ── Bootstrap 5.3.8 CSS (loaded BEFORE our tokens so our variables win) ── *@
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" />
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" integrity="sha512-2SwdPD6INVrV/lHTZbO2nodKhrnDdJK9/kg2XD1r9uGqPo1cUbujc+IYdlYdEErWNu69gVcYgdxlmVmzTWnetw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+	@* ── ScrumFlix 4-Tier CSS Architecture ─────────────────────────────── *@
+	@* LOAD ORDER IS SIGNIFICANT — do not reorder *@
+
+	@* Tier 0: Reset + structural primitives (no color) *@
+	<link rel="stylesheet" href="~/css/sf-base.css" asp-append-version="true" />
+
+	@* Tier 1: All CSS custom properties — primitives + semantic tokens + BS bridge *@
+	<link rel="stylesheet" href="~/css/sf-tokens.css" asp-append-version="true" />
+
+	@* Tier 2: Layout, grid, spacing zones *@
+	<link rel="stylesheet" href="~/css/sf-layout.css" asp-append-version="true" />
+
+	@* Tier 3: All UI components (references only --sf-* tokens) *@
+	<link rel="stylesheet" href="~/css/sf-components.css" asp-append-version="true" />
+
+	@* Tier 4: Per-theme overrides — always loaded; selectors activate via [data-theme] *@
+	<link rel="stylesheet" href="~/css/sf-theme-light.css" asp-append-version="true" />
+	<link rel="stylesheet" href="~/css/sf-theme-red.css" asp-append-version="true" />
+
+	@*  Splide.js carousel  *@
+	<link rel="stylesheet"
+		  href="https://cdnjs.cloudflare.com/ajax/libs/splidejs/4.1.4/css/splide.min.css"
+		  integrity="sha512-KhFXpe+VJEu5HYbJyKQs9VvwGB+jQepqb4ZnlhUF/jQGxYJcjdxOTf6cr445hOc791FFLs18DKVpfrQnONOB1g=="
+		  crossorigin="anonymous"
+		  referrerpolicy="no-referrer" />
+
+
+
+	@*
+     * FOUC PREVENTION — theme switcher script in <head> (BEFORE <body> renders).
+     * The script's IIFE reads LocalStorage/cookie synchronously and sets
+     * [data-theme] on <html> before the first CSS paint.
+     * The Razor data-theme attribute above is the server-side safety net.
+     *
+     * Note: asp-append-version adds a cache-busting query string.
+     *@
+	<script src="~/js/sf-theme-switcher.js" asp-append-version="true"></script>
+
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/js/all.min.js" integrity="sha512-6BTOlkauINO65nLhXhthZMtepgJSghyimIalb+crKRPhvhmsCdnIuGcVbR5/aQY2A+260iC1OPy1oCdB6pSSwQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+	<!-- SignalR for Development environments -->
+	<environment include="Development">
+		<script src="~/js/signalr/dist/browser/signalr.js"></script>
+	</environment>
+
+	<!-- SignalR for Production environments -->
+	<environment exclude="Development">
+		<script src="~/js/signalr/dist/browser/signalr.min.js"></script>
+	</environment>
+
+	@* Per-page head content (meta tags, page-specific styles) *@
+	@await RenderSectionAsync("Head", required: false)
+</head>
+<body>
+
+	@* ── Skip link (WCAG 2.2 SC 2.4.1) ─────────────────────────────────── *@
+	<a class="skip-link" href="#main-content">Skip to main content</a>
+
+	@* ── NAVBAR ──────────────────────────────────────────────────────────── *@
+	<nav class="navbar navbar-expand-lg sf-navbar sticky-top" aria-label="Main navigation">
+		<div class="container-xl">
+
+			<a class="navbar-brand sf-brand" asp-controller="Home" asp-action="HomeDashboard">
+				<img src="~/images/logo.png" alt="ScrumFlix Theatres" height="42" class="me-2" />
+				<span class="sf-brand-text">ScrumFlix</span>
+			</a>
+
+			<button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+					data-bs-target="#sfNav" aria-controls="sfNav"
+					aria-expanded="false" aria-label="Toggle navigation">
+				<i class="bi bi-list sf-toggler-icon" aria-hidden="true"></i>
+			</button>
+
+			<div class="collapse navbar-collapse" id="sfNav">
+				<ul class="navbar-nav me-auto mb-2 mb-lg-0 gap-1">
+					<li class="nav-item">
+						<a class="nav-link sf-nav-link" asp-controller="Home" asp-action="HomeDashboard">
+							<i class="bi bi-house-door me-1" aria-hidden="true"></i>Home
+						</a>
+					</li>
+					<li class="nav-item">
+						<a class="nav-link sf-nav-link" asp-controller="Movies" asp-action="MovieCatalog">
+							<i class="bi bi-film me-1" aria-hidden="true"></i>Movies
+						</a>
+					</li>
+					<li class="nav-item">
+						<a class="nav-link sf-nav-link" asp-controller="Concessions" asp-action="ConcessionsCatalog">
+							<i class="bi bi-cup-straw me-1" aria-hidden="true"></i>Concessions
+						</a>
+					</li>
+					@if (isLoggedIn && sessionRoleId <= 1)
+					{
+						<li class="nav-item">
+							<a class="nav-link sf-nav-link"
+							   asp-area="Admin" asp-controller="AdminHome" asp-action="AdminDashboard">
+								<i class="bi bi-speedometer2 me-1"></i>Admin
+							</a>
+						</li>
+						<li class="nav-item">
+							<a class="nav-link sf-nav-link"
+							   asp-area="Admin" asp-controller="Movies" asp-action="MovieCatalog">
+								<i class="bi bi-film me-1"></i>Movies
+							</a>
+						</li>
+						<li class="nav-item">
+							<a class="nav-link sf-nav-link"
+							   asp-area="Admin" asp-controller="Concessions" asp-action="ConcessionsCatalog">
+								<i class="bi bi-cup-straw me-1"></i>Concessions
+							</a>
+						</li>
+					}
+					@if (isLoggedIn && sessionRoleId == 2)
+					{
+						<li class="nav-item">
+							<a class="nav-link sf-nav-link"
+							   asp-area="Admin" asp-controller="Schedule" asp-action="Index">
+								<i class="bi bi-calendar3 me-1"></i>Schedule
+							</a>
+						</li>
+					}
+				</ul>
+
+				<div class="d-flex align-items-center gap-2">
+
+					@* ── Auth / user area ─────────────────────────────────────── *@
+					@if (isLoggedIn)
+					{
+						@* Logged-in user pill (desktop only) *@
+						<span class="sf-user-pill" aria-label="Logged in as @sessionUserName">
+							<i class="bi @(sessionRoleId == 1 ? "bi-shield-fill" : sessionRoleId == 2 ? "bi-person-workspace" : "bi-person-fill") sf-user-pill-icon"
+							   aria-hidden="true"></i>
+							<span>@sessionUserName</span>
+						</span>
+
+						@* Change Password (desktop) *@
+						<a class="nav-link sf-nav-link d-none d-lg-flex align-items-center"
+						   asp-controller="Account" asp-action="ChangePassword"
+						   aria-label="Change your password" title="Change Password">
+							<i class="bi bi-key" aria-hidden="true"></i>
+						</a>
+
+						@* Logout *@
+						@* <a class="btn sf-btn-ghost d-flex align-items-center gap-1"
+						   asp-controller="Account" asp-action="Logout"
+						   style="font-size: 0.85rem; padding: 0.35rem 0.85rem;"
+						   aria-label="Log out of ScrumFlix">
+							<i class="bi bi-box-arrow-right me-1" aria-hidden="true"></i>
+							<span class="d-none d-sm-inline">Logout</span>
+						</a> *@
+						<a href="@Url.Action("Logout", "Account", new { area = "" })" 
+							class="sf-admin-nav-link sf-admin-nav-link--danger"
+							aria-label="Log out of ScrumFlix">
+							<i class="bi bi-box-arrow-right me-2" aria-hidden="true"></i>
+							Log Out
+						</a>
+					}
+					else
+					{
+						@* Staff Portal login link — always visible; clicking opens staff login form *@
+						<a class="btn sf-btn-ghost d-flex align-items-center gap-1"
+						   asp-controller="Account" asp-action="Login"
+						   style="font-size: 0.85rem; padding: 0.35rem 0.85rem;"
+						   aria-label="Staff Portal login">
+							<i class="bi bi-door-open me-1" aria-hidden="true"></i>
+							<span>Staff Portal</span>
+						</a>
+
+						@* Login link *@
+						@* <a class="btn sf-btn-ghost d-flex align-items-center gap-1"
+							   asp-controller="Account" asp-action="Login"
+							   style="font-size: 0.85rem; padding: 0.35rem 0.85rem;"
+							   aria-label="Log in to ScrumFlix">
+							<i class="bi bi-box-arrow-in-right me-1" aria-hidden="true"></i>
+							<span>Login</span>
+						</a> *@
+					}
+
+					@* ── Theme Picker ──────────────────────────────────────────── *@
+					@*
+                     * .sf-theme-toggle with a nested .sf-theme-picker opens as a dropdown.
+                     * Remove .sf-theme-picker and its children to get a simple cycle button.
+                     * All ARIA attributes are managed by sf-theme-switcher.js.
+                     *@
+					@* ── Theme Picker ──────────────────────────────────────────── *@
+					<div class="position-relative">
+						@* CHANGED: outer 'button' is now a 'div' to allow nested buttons *@
+						<div class="sf-theme-toggle"
+							 id="sf-theme-btn"
+							 aria-label="Theme: Dark. Click to change."
+							 aria-haspopup="true"
+							 aria-expanded="false"
+							 role="button"
+							 tabindex="0"
+							 title="Change theme">
+
+							@* One icon element per theme *@
+							<i class="bi bi-moon-stars-fill" data-theme-icon="dark" aria-hidden="true"></i>
+							<i class="bi bi-sun-fill" data-theme-icon="light" aria-hidden="true"></i>
+							<i class="bi bi-fire" data-theme-icon="red" aria-hidden="true"></i>
+
+							@* Dropdown picker panel *@
+							<div class="sf-theme-picker" role="menu" aria-label="Choose a theme">
+
+								<button class="sf-theme-picker-item"
+										type="button"
+										role="menuitemradio"
+										aria-checked="@(activeTheme == "dark" ? "true" : "false")"
+										data-theme-value="dark">
+									<span class="sf-theme-swatch sf-theme-swatch--dark" aria-hidden="true"></span>
+									<i class="bi bi-moon-stars-fill me-1" aria-hidden="true"></i>
+									Dark
+								</button>
+
+								<button class="sf-theme-picker-item"
+										type="button"
+										role="menuitemradio"
+										aria-checked="@(activeTheme == "light" ? "true" : "false")"
+										data-theme-value="light">
+									<span class="sf-theme-swatch sf-theme-swatch--light" aria-hidden="true"></span>
+									<i class="bi bi-sun-fill me-1" aria-hidden="true"></i>
+									Light
+								</button>
+
+								<button class="sf-theme-picker-item"
+										type="button"
+										role="menuitemradio"
+										aria-checked="@(activeTheme == "red" ? "true" : "false")"
+										data-theme-value="red">
+									<span class="sf-theme-swatch sf-theme-swatch--red" aria-hidden="true"></span>
+									<i class="bi bi-fire me-1" aria-hidden="true"></i>
+									Red &amp; Black
+								</button>
+							</div>
+						</div>
+					</div>
+
+					
+
+					@* ── Cart ────────────────────────────────────────────────── *@
+					<a class="btn sf-btn-cart position-relative"
+					   asp-controller="Cart" asp-action="CartReview"
+					   aria-label="Shopping cart, @cartCount items">
+						<i class="bi bi-cart3 me-1" aria-hidden="true"></i>Cart
+
+						<span id="cart-count-badge"
+							  data-cart-count="@cartCount"
+							  class="position-absolute top-0 start-100 translate-middle badge sf-cart-badge @(cartCount == 0 ? "d-none" : "")"
+							  aria-live="polite" aria-atomic="true">
+							@cartCount <span class="visually-hidden">items in cart</span>
+						</span>
+					</a>
+
+				</div>
+			</div>
+
+		</div>
+	</nav>
+
+	@* ── FLASH MESSAGE ────────────────────────────────────────────────────── *@
+	@if (TempData["SuccessMessage"] != null)
+	{
+		<div class="sf-flash-banner" role="alert" aria-live="polite">
+			<div class="container-xl d-flex align-items-center gap-2">
+				<i class="bi bi-check-circle-fill" aria-hidden="true"></i>
+				<span>@TempData["SuccessMessage"]</span>
+			</div>
+		</div>
+	}
+
+	@if (TempData["ErrorMessage"] != null)
+	{
+		<div class="sf-flash-banner" role="alert" aria-live="assertive"
+			 style="background: var(--sf-color-danger); color: var(--primitive-white);">
+			<div class="container-xl d-flex align-items-center gap-2">
+				<i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+				<span>@TempData["ErrorMessage"]</span>
+			</div>
+		</div>
+	}
+
+	@* ── MAIN CONTENT ─────────────────────────────────────────────────────── *@
+	<main id="main-content" tabindex="-1">
+		@RenderBody()
+	</main>
+
+	@* ── FOOTER ──────────────────────────────────────────────────────────── *@
+	<footer class="sf-footer mt-auto">
+		<div class="container-xl">
+			<div class="row gy-4 align-items-start">
+				<div class="col-12 col-lg-3">
+					<div class="sf-footer-brand mb-2">ScrumFlix</div>
+					<p class="sf-footer-tagline">The best seat in the house — 10 DFW locations.</p>
+				</div>
+				<div class="col-6 col-lg-2 offset-lg-1">
+					<h6 class="sf-footer-heading">Explore</h6>
+					<ul class="list-unstyled sf-footer-links">
+						<li><a asp-controller="Movies" asp-action="MovieCatalog">Movies</a></li>
+						<li><a asp-controller="Concessions" asp-action="ConcessionsCatalog">Concessions</a></li>
+						<li><a asp-controller="Cart" asp-action="CartReview">Cart</a></li>
+					</ul>
+				</div>
+				<div class="col-12 col-lg-4">
+					<h6 class="sf-footer-heading">Locations</h6>
+					@await Component.InvokeAsync("FooterLocations")
+				</div>
+				<div class="col-lg-2">
+					<h6 class="sf-footer-heading">Connect</h6>
+					<div class="sf-social-icons d-flex gap-1 mt-2">
+						<a href="#" aria-label="Twitter/X"><i class="bi bi-twitter-x" aria-hidden="true"></i></a>
+						<a href="#" aria-label="Instagram"><i class="bi bi-instagram" aria-hidden="true"></i></a>
+						<a href="#" aria-label="Facebook"><i class="bi bi-facebook" aria-hidden="true"></i></a>
+					</div>
+				</div>
+			</div>
+			<hr class="sf-footer-divider" />
+			<p class="sf-footer-copy text-center mb-0">
+				&copy; @DateTime.Now.Year ScrumFlix Theatres. All rights reserved.
+			</p>
+		</div>
+	</footer>
+
+	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+
+	@*  Splide.js carousel  *@
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/splidejs/4.1.4/js/splide.min.js"
+            integrity="sha512-4TcjHXQMLM7Y6eqfiasrsnRCc8D/unDeY1UGKGgfwyLUCTsHYMxF7/UHayjItKQKIoP6TTQ6AMamb9w2GMAvNg=="
+            crossorigin="anonymous"
+            referrerpolicy="no-referrer"></script>
+
+    <script src="~/js/sf-featured-carousel.js" asp-append-version="true"></script>
+
+    @await RenderSectionAsync("Scripts", required: false)
+	<script src="~/js/scrumflix.js" asp-append-version="true"></script>
+	<script src="~/js/refreshCartBadge.js" asp-append-version="true"></script>
+	@* concessions.js is page-scoped — loaded only in ConcessionsCatalog @section Scripts *@
+	@* sf-theme-switcher.js already loaded in <head> for FOUC prevention *@
+</body>
+</html>

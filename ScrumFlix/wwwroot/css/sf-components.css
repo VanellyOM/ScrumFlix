@@ -1,0 +1,3194 @@
+/*
+ * File:        /wwwroot/css/sf-components.css
+ * Layer:       TIER 3 — COMPONENTS
+ * Description: All UI component styles. References ONLY semantic token
+ *              variables (--sf-*) — zero raw color values allowed here.
+ *              Theme switching is fully automatic via token inheritance.
+ *
+ * Load order:  1. sf-base.css
+ *              2. sf-tokens.css
+ *              3. sf-layout.css
+ *              4. sf-components.css  ← THIS FILE
+ *              5. sf-theme-*.css  (empty overrides if needed per component)
+ *
+ * WCAG 2.2 AA:
+ *   - All interactive states have visible focus indicators (:focus-visible)
+ *   - Minimum touch target size: 44×44px enforced on interactive controls
+ *   - Color is never the SOLE means of conveying information
+ */
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   C1 · NAVBAR
+═══════════════════════════════════════════════════════════════════════════ */
+.sf-navbar {
+    background: var(--sf-navbar-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--sf-navbar-border);
+    transition: background-color var(--sf-transition-theme), border-color var(--sf-transition-theme);
+}
+
+.sf-brand-text {
+    font-family: var(--sf-font-display);
+    font-size: 1.6rem;
+    letter-spacing: .1em;
+    color: var(--sf-color-accent) !important;
+}
+
+.sf-nav-link {
+    color: var(--sf-nav-link-color) !important;
+    font-weight: 500;
+    padding: .45rem .85rem !important;
+    border-radius: var(--sf-radius);
+    transition: color var(--sf-transition), background var(--sf-transition);
+    /* Minimum touch target */
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+}
+
+    .sf-nav-link:hover,
+    .sf-nav-link.active {
+        color: var(--sf-nav-link-active-color) !important;
+        background: var(--sf-nav-link-hover-bg);
+    }
+
+    .sf-nav-link:focus-visible {
+        outline: 3px solid var(--sf-color-focus-ring);
+        outline-offset: 2px;
+    }
+
+.sf-toggler-icon {
+    font-size: 1.5rem;
+    color: var(--sf-text-primary);
+}
+
+.navbar-toggler {
+    border: 1px solid var(--sf-border-color);
+    padding: .35rem .55rem;
+    min-height: 44px;
+    min-width: 44px;
+}
+
+    .navbar-toggler:focus-visible {
+        outline: 3px solid var(--sf-color-focus-ring);
+        outline-offset: 2px;
+        box-shadow: none;
+    }
+
+/* User pill in navbar */
+.sf-user-pill {
+    display: none;
+}
+
+@media (min-width: 992px) {
+    .sf-user-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: .5rem;
+        padding: .3rem .9rem;
+        background: var(--sf-bg-card-alt);
+        border: 1px solid var(--sf-border-color);
+        border-radius: var(--primitive-radius-pill);
+        color: var(--sf-text-primary);
+        font-size: .85rem;
+    }
+}
+
+.sf-user-pill-icon {
+    color: var(--sf-color-accent);
+    font-size: .9rem;
+}
+
+/* ── Theme Toggle Button ──────────────────────────────────────────────── */
+.sf-theme-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--sf-toggle-bg);
+    border: 1px solid var(--sf-toggle-border);
+    border-radius: var(--sf-radius);
+    color: var(--sf-toggle-icon-color);
+    font-size: 1.1rem;
+    padding: .4rem .65rem;
+    cursor: pointer;
+    transition: background var(--sf-transition), border-color var(--sf-transition), color var(--sf-transition);
+    min-height: 44px;
+    min-width: 44px;
+    position: relative;
+}
+
+    .sf-theme-toggle:hover {
+        background: var(--sf-bg-card-alt);
+        border-color: var(--sf-color-accent);
+        color: var(--sf-color-accent);
+    }
+
+    .sf-theme-toggle:focus-visible {
+        outline: 3px solid var(--sf-color-focus-ring);
+        outline-offset: 2px;
+    }
+
+    /* Icon states — JS toggles aria-label and inner icon */
+    .sf-theme-toggle [data-icon-dark],
+    .sf-theme-toggle [data-icon-light],
+    .sf-theme-toggle [data-icon-red] {
+        display: none;
+    }
+
+    /* The active icon shown is driven by JS adding .sf-icon-active */
+    .sf-theme-toggle .sf-icon-active {
+        display: inline;
+    }
+
+/* Dropdown panel for multi-theme picker */
+.sf-theme-picker {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    background: var(--sf-bg-card);
+    border: 1px solid var(--sf-border-color);
+    border-radius: var(--sf-radius-lg);
+    padding: .5rem;
+    min-width: 160px;
+    z-index: 1100;
+    box-shadow: var(--sf-shadow);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-6px);
+    transition: opacity var(--sf-transition), transform var(--sf-transition);
+}
+
+    .sf-theme-picker.sf-theme-picker--open {
+        opacity: 1;
+        pointer-events: all;
+        transform: translateY(0);
+    }
+
+.sf-theme-picker-item {
+    display: flex;
+    align-items: center;
+    gap: .65rem;
+    padding: .55rem .75rem;
+    border-radius: var(--sf-radius);
+    cursor: pointer;
+    font-size: .88rem;
+    font-weight: 500;
+    color: var(--sf-text-primary);
+    border: none;
+    background: transparent;
+    width: 100%;
+    text-align: left;
+    transition: background var(--sf-transition);
+    min-height: 44px;
+}
+
+    .sf-theme-picker-item:hover {
+        background: var(--sf-bg-card-alt);
+    }
+
+    .sf-theme-picker-item[aria-checked="true"] {
+        color: var(--sf-color-accent);
+        font-weight: 700;
+    }
+
+    .sf-theme-picker-item:focus-visible {
+        outline: 3px solid var(--sf-color-focus-ring);
+        outline-offset: 2px;
+    }
+
+.sf-theme-swatch {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    border: 2px solid var(--sf-border-color);
+}
+
+.sf-theme-swatch--dark {
+    background: #18181F;
+    border-color: #F0C73D;
+}
+
+.sf-theme-swatch--light {
+    background: #F9F8DE;
+    border-color: #06144E;
+}
+
+.sf-theme-swatch--red {
+    background: #161616;
+    border-color: #C8102E;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   C2 · FLASH BANNER
+═══════════════════════════════════════════════════════════════════════════ */
+.sf-flash-banner {
+    background: var(--sf-color-success);
+    color: var(--sf-bg-page);
+    font-weight: 600;
+    padding: .65rem 0;
+    font-size: .95rem;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   C3 · GOLD BAR ACCENT / DECORATIVE
+═══════════════════════════════════════════════════════════════════════════ */
+.sf-gold-bar {
+    display: inline-block;
+    width: 4px;
+    height: 1.4em;
+    background: var(--sf-color-accent);
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+
+.sf-gold {
+    color: var(--sf-color-accent);
+}
+
+.sf-see-all {
+    font-size: .9rem;
+    font-weight: 600;
+    color: var(--sf-color-accent);
+    white-space: nowrap;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   C4 · HERO TYPOGRAPHY
+═══════════════════════════════════════════════════════════════════════════ */
+.sf-hero-eyebrow {
+    font-size: .85rem;
+    font-weight: 600;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--sf-color-accent);
+    margin-bottom: .75rem;
+}
+
+.sf-hero-headline {
+    font-size: clamp(3rem, 8vw, 5.5rem);
+    line-height: 1;
+    margin-bottom: 1rem;
+    color: var(--sf-text-heading);
+}
+
+.sf-hero-sub {
+    color: var(--sf-text-muted);
+    font-size: 1.1rem;
+    max-width: 420px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   C5 · MOVIE CARD
+═══════════════════════════════════════════════════════════════════════════ */
+.sf-movie-card {
+    background: var(--sf-bg-card);
+    border: 1px solid var(--sf-border-color);
+    border-radius: var(--sf-radius-lg);
+    overflow: hidden;
+    transition: transform var(--sf-transition), box-shadow var(--sf-transition), border-color var(--sf-transition);
+    display: flex;
+    flex-direction: column;
+}
+
+    .sf-movie-card:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--sf-shadow), 0 0 0 1px var(--sf-color-accent-dim);
+        border-color: var(--sf-color-accent-dim);
+    }
+
+    /* WCAG 2.2 SC 2.4.11: focus not obscured */
+    .sf-movie-card:focus-within {
+        outline: 3px solid var(--sf-color-focus-ring);
+        outline-offset: 2px;
+    }
+
+.sf-movie-poster {
+    position: relative;
+    aspect-ratio: 2/3;
+    overflow: hidden;
+}
+
+.sf-poster-placeholder {
+    width: 100%;
+    height: 100%;
+    background: var(--sf-poster-placeholder-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+    color: var(--sf-poster-placeholder-icon);
+}
+
+    .sf-poster-placeholder.sf-poster-lg {
+        font-size: 4rem;
+    }
+
+.sf-poster-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(10,10,12,.82);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    opacity: 0;
+    transition: opacity var(--sf-transition);
+}
+
+.sf-poster-img {
+    width: 100%;
+    aspect-ratio: 2 / 3;
+    object-fit: cover;
+    border-radius: var(--border-radius-md);
+    display: block;
+}
+
+    .sf-poster-img.sf-poster-locked {
+        filter: blur(12px) brightness(0.4);
+        pointer-events: none;
+    }
+
+.sf-movie-card:hover .sf-poster-overlay {
+    opacity: 1;
+}
+
+.sf-rating-badge {
+    position: absolute;
+    top: .6rem;
+    right: .6rem;
+    background: rgba(10,10,12,.82);
+    border: 1px solid rgba(255,255,255,.18);
+    color: #FFFFFF;                          /* FIX: white is legible on the dark bg in all themes */
+    font-size: .7rem;
+    font-weight: 700;
+    padding: .15rem .45rem;
+    border-radius: 4px;
+    letter-spacing: .05em;
+}
+
+.sf-movie-card-body {
+    padding: .85rem;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+}
+
+.sf-movie-title {
+    font-size: .95rem;
+    font-family: var(--sf-font-body);
+    font-weight: 600;
+    line-height: 1.25;
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    color: var(--sf-text-primary);
+}
+
+.sf-movie-meta {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    flex-wrap: wrap;
+}
+
+.sf-genre-pill {
+    background: var(--sf-bg-card-alt);
+    border: 1px solid var(--sf-border-color);
+    border-radius: 20px;
+    font-size: .7rem;
+    font-weight: 600;
+    padding: .15rem .6rem;
+    color: var(--sf-text-muted);
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    white-space: nowrap;
+}
+
+.sf-runtime {
+    font-size: .75rem;
+    color: var(--sf-text-muted);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   C6 · SHOWTIME CARD
+═══════════════════════════════════════════════════════════════════ */
+.sf-showtime-card {
+    background: var(--sf-bg-card);
+    border: 1px solid var(--sf-border-color);
+    border-radius: var(--sf-radius-lg);
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    transition: border-color var(--sf-transition), transform var(--sf-transition);
+}
+
+    .sf-showtime-card:hover {
+        border-color: var(--sf-color-accent-dim);
+        transform: translateY(-2px);
+    }
+
+.sf-showtime-movie {
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin: 0 0 .25rem;
+    color: var(--sf-text-primary);
+}
+
+.sf-showtime-genre {
+    font-size: .75rem;
+    color: var(--sf-color-accent);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+}
+
+.sf-showtime-row {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    font-size: .9rem;
+    color: var(--sf-text-muted);
+}
+
+    .sf-showtime-row i {
+        color: var(--sf-color-accent);
+        flex-shrink: 0;
+    }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   C7 · PERKS STRIP
+═══════════════════════════════════════════════════════════════════ */
+.sf-perks-strip {
+    background: var(--sf-bg-card-alt);
+    border-top: 1px solid var(--sf-border-color);
+    border-bottom: 1px solid var(--sf-border-color);
+    padding: 3rem 0;
+}
+
+.sf-perk-icon {
+    font-size: 2rem;
+    color: var(--sf-color-accent);
+    display: block;
+    margin-bottom: .75rem;
+}
+
+.sf-perk-title {
+    font-family: var(--sf-font-body);
+    font-size: 1rem;
+    font-weight: 700;
+    margin: 0 0 .3rem;
+    color: var(--sf-text-primary);
+}
+
+.sf-perk-desc {
+    font-size: .85rem;
+    color: var(--sf-text-muted);
+    margin: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   C8 · SEARCH & FILTER BAR
+═══════════════════════════════════════════════════════════════════ */
+.sf-filter-bar {
+    display: flex;
+    gap: .75rem;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-bottom: 1.75rem;
+}
+
+.sf-search-wrap {
+    position: relative;
+    flex: 1;
+    min-width: 200px;
+}
+
+.sf-search-icon {
+    position: absolute;
+    left: .9rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--sf-text-muted);
+    pointer-events: none;
+}
+
+.sf-search-input {
+    width: 100%;
+    background: var(--sf-input-bg);
+    border: 1px solid var(--sf-input-border);
+    border-radius: var(--sf-radius);
+    color: var(--sf-input-color);
+    padding: .6rem .9rem .6rem 2.5rem;
+    font-family: var(--sf-font-body);
+    font-size: .95rem;
+    transition: border-color var(--sf-transition), box-shadow var(--sf-transition);
+    min-height: 44px;
+}
+
+    .sf-search-input:focus {
+        outline: none;
+        border-color: var(--sf-input-focus-border);
+        box-shadow: var(--sf-input-focus-shadow);
+    }
+
+    .sf-search-input::placeholder {
+        color: var(--sf-input-placeholder);
+    }
+
+/* ── Search Mode Radio Pills ────────────────────────────────────────────── */
+.sf-search-mode {
+    display: flex;
+    gap: 0;
+    background: var(--sf-bg-card);
+    border: 1px solid var(--sf-border-color);
+    border-radius: var(--sf-radius);
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.sf-mode-radio {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+    width: 0;
+    height: 0;
+}
+
+.sf-mode-label {
+    display: flex;
+    align-items: center;
+    gap: .35rem;
+    padding: .55rem 1rem;
+    font-size: .82rem;
+    font-weight: 600;
+    color: var(--sf-text-muted);
+    cursor: pointer;
+    transition: all var(--sf-transition);
+    user-select: none;
+    white-space: nowrap;
+    border-right: 1px solid var(--sf-border-color);
+    min-height: 44px;
+}
+
+    .sf-mode-label:last-child {
+        border-right: none;
+    }
+
+    .sf-mode-label:hover {
+        color: var(--sf-text-primary);
+        background: var(--sf-bg-card-alt);
+    }
+
+    .sf-mode-label.active {
+        background: var(--sf-color-accent);
+        color: var(--sf-color-on-accent);
+        border-color: var(--sf-color-accent);
+    }
+
+        .sf-mode-label.active + .sf-mode-label {
+            border-left-color: var(--sf-color-accent);
+        }
+
+/* WCAG: keyboard focus for radio pills */
+.sf-mode-radio:focus-visible + .sf-mode-label {
+    outline: 3px solid var(--sf-color-focus-ring);
+    outline-offset: 2px;
+}
+
+/* ── Genre Filter Chips ─────────────────────────────────────────────────── */
+.sf-genre-filter {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+}
+
+.sf-genre-chip {
+    background: var(--sf-bg-card);
+    border: 1px solid var(--sf-border-color);
+    border-radius: 20px;
+    color: var(--sf-text-muted);
+    font-size: .82rem;
+    font-weight: 600;
+    padding: .3rem .9rem;
+    cursor: pointer;
+    transition: all var(--sf-transition);
+    white-space: nowrap;
+    min-height: 36px;
+    display: inline-flex;
+    align-items: center;
+}
+
+    .sf-genre-chip:hover,
+    .sf-genre-chip.active {
+        background: var(--sf-color-accent);
+        border-color: var(--sf-color-accent);
+        color: var(--sf-color-on-accent);
+    }
+
+    .sf-genre-chip:focus-visible {
+        outline: 3px solid var(--sf-color-focus-ring);
+        outline-offset: 2px;
+    }
+
+.sf-results-count {
+    color: var(--sf-text-muted);
+    font-size: .9rem;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   C9 · AGE RESTRICTION OVERLAYS (WCAG: color + icon combined signal)
+═══════════════════════════════════════════════════════════════════ */
+.sf-poster-locked {
+    filter: brightness(0.35) saturate(0.4);
+}
+
+.sf-age-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: .75rem;
+    gap: .3rem;
+    opacity: 0;
+    transition: opacity var(--sf-transition);
+    z-index: 2;
+}
+
+    .sf-age-overlay i {
+        font-size: 1.6rem;
+    }
+
+    .sf-age-overlay span {
+        font-family: var(--sf-font-display);
+        font-size: 1rem;
+        letter-spacing: .08em;
+    }
+
+    .sf-age-overlay small {
+        font-size: .7rem;
+        line-height: 1.3;
+        opacity: .85;
+    }
+
+.sf-movie-card:hover .sf-age-overlay {
+    opacity: 1;
+}
+
+.sf-age-overlay--warning {
+    background: rgba(20,14,0,.88);
+    color: #f5c518;
+    border: 1px solid rgba(245,197,24,.25);
+}
+
+    .sf-age-overlay--warning i {
+        color: #f5a623;
+    }
+
+.sf-age-overlay--locked {
+    background: rgba(10,18,35,.92);
+    color: var(--primitive-light-100);
+    border: 1px solid rgba(80,140,240,.3);
+}
+
+    .sf-age-overlay--locked i {
+        color: #6fa3ef;
+    }
+
+.sf-age-overlay--blocked {
+    background: rgba(20,8,8,.92);
+    color: var(--primitive-light-100);
+    border: 1px solid rgba(224,82,82,.3);
+    opacity: 1 !important;
+}
+
+    .sf-age-overlay--blocked i {
+        color: var(--primitive-danger-dark);
+    }
+
+.sf-rating-badge--r {
+    background: rgba(245,166,35,.2) !important;
+    border-color: #f5a623 !important;
+    color: #f5a623 !important;
+}
+
+.sf-rating-badge--nc17 {
+    background: rgba(224,82,82,.2) !important;
+    border-color: var(--primitive-danger-dark) !important;
+    color: var(--primitive-danger-dark) !important;
+}
+
+.sf-rating-banner {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: .5rem;
+    border-radius: var(--sf-radius);
+    padding: .85rem 1.2rem;
+    font-size: .9rem;
+    font-weight: 500;
+    margin-bottom: 0;
+}
+
+.sf-rating-banner-sub {
+    display: block;
+    width: 100%;
+    font-size: .8rem;
+    font-weight: 400;
+    opacity: .75;
+    margin-top: .2rem;
+}
+
+.sf-rating-banner--warning {
+    background: rgba(245,166,35,.12);
+    border: 1px solid rgba(245,166,35,.35);
+    color: #f5c518;
+}
+
+.sf-rating-banner--locked {
+    background: rgba(80,140,240,.1);
+    border: 1px solid rgba(80,140,240,.3);
+    color: #a8c8f8;
+}
+
+.sf-rating-banner--blocked {
+    background: rgba(224,82,82,.1);
+    border: 1px solid rgba(224,82,82,.3);
+    color: #f08080;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   C10 · CASCADE DROPDOWNS (shared visual treatment)
+═══════════════════════════════════════════════════════════════════ */
+.sf-cascade-bar {
+    background: var(--sf-bg-card);
+    border: 1px solid var(--sf-border-color);
+}
+
+.sf-cascade-label {
+    font-size: .75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--sf-text-muted);
+}
+
+.sf-cascade-arrow {
+    color: var(--sf-color-accent);
+    font-size: 1.1rem;
+    padding-bottom: .5rem;
+    flex-shrink: 0;
+    opacity: .6;
+}
+
+.sf-cascade-select:disabled {
+    opacity: .4;
+    cursor: not-allowed;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   C11 · MOVIE DETAIL
+═══════════════════════════════════════════════════════════════════ */
+.sf-movie-detail-hero {
+    background: var(--sf-bg-surface);
+    border-bottom: 1px solid var(--sf-border-color);
+    padding: 3rem 0;
+}
+
+.sf-detail-poster {
+    border-radius: var(--sf-radius-lg);
+    overflow: hidden;
+}
+
+.sf-detail-title {
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    margin: .5rem 0;
+    color: var(--sf-text-heading);
+}
+
+.sf-rating-badge-lg {
+    background: var(--sf-color-accent);
+    color: var(--sf-color-on-accent);
+    font-size: .8rem;
+    font-weight: 800;
+    padding: .25rem .7rem;
+    border-radius: 5px;
+    letter-spacing: .06em;
+}
+
+.sf-runtime-lg {
+    color: var(--sf-text-muted);
+    font-size: .95rem;
+}
+
+.sf-detail-synopsis {
+    color: var(--sf-text-muted);
+    font-size: 1.05rem;
+    line-height: 1.7;
+}
+
+.sf-trailer-placeholder {
+    background: var(--sf-bg-card);
+    border: 1px solid var(--sf-border-color);
+    border-radius: var(--sf-radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 180px;
+    cursor: pointer;
+    transition: border-color var(--sf-transition);
+}
+
+    .sf-trailer-placeholder:hover {
+        border-color: var(--sf-color-accent);
+    }
+
+.sf-trailer-inner {
+    text-align: center;
+    color: var(--sf-text-muted);
+}
+
+.sf-play-icon {
+    font-size: 3rem;
+    color: var(--sf-color-accent);
+}
+
+/* Showtime slots on detail page */
+.sf-showtime-date-label {
+    font-size: 1.1rem;
+    font-family: var(--sf-font-body);
+    font-weight: 700;
+    color: var(--sf-color-accent);
+    margin-bottom: .75rem;
+    letter-spacing: .03em;
+}
+
+.sf-showtime-slot {
+    background: var(--sf-bg-card);
+    border: 1px solid var(--sf-border-color);
+    border-radius: var(--sf-radius);
+    padding: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    transition: border-color var(--sf-transition);
+}
+
+    .sf-showtime-slot:hover {
+        border-color: var(--sf-color-accent-dim);
+    }
+
+.sf-slot-time {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--sf-color-accent);
+}
+
+.sf-slot-room {
+    font-size: .85rem;
+    color: var(--sf-text-primary);
+    font-weight: 600;
+}
+
+.sf-slot-location,
+.sf-slot-seats {
+    font-size: .8rem;
+    color: var(--sf-text-muted);
+}
+
+.sf-low-seats {
+    color: var(--sf-color-danger) !important;
+    font-weight: 600;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   C12 · BOOKING / SEAT VISUALIZATION
+═══════════════════════════════════════════════════════════════════ */
+.sf-screen-label {
+    text-align: center;
+    font-size: .75rem;
+    letter-spacing: .25em;
+    color: var(--sf-color-accent);
+    font-weight: 700;
+    text-transform: uppercase;
+    margin-bottom: .2rem;
+}
+
+.sf-screen-curve {
+    width: 70%;
+    margin: 0 auto 1.5rem;
+    height: 6px;
+    background: linear-gradient(90deg, transparent, var(--sf-color-accent-dim), transparent);
+    border-radius: 50%;
+    box-shadow: 0 2px 12px var(--sf-color-accent-glow);
+}
+
+/* Available seat tile — SVG seat icon state */
+.sf-seat-open {
+    /* Token-driven — SVG stroke/fill colors set in seatPicker.js */
+    background: transparent;
+    border: none;
+    transition: transform var(--sf-transition), filter var(--sf-transition);
+    cursor: pointer;
+}
+
+.sf-seat-sold {
+    /* Legacy class kept for backward compat — new view uses sf-seat-ghost */
+    background: var(--sf-seat-sold-bg);
+    opacity: .35;
+}
+
+/* Ghost seat — preserves grid spacing for unavailable seats (Sold/Reserved/Blocked).
+   visibility:hidden makes them completely invisible while keeping layout geometry.
+   pointer-events:none + aria-hidden prevent any interaction. */
+.sf-seat-ghost {
+    /* Dimensions come from --sf-seat-size in sf-layout.css — do NOT set width/height here */
+    visibility: hidden;
+    pointer-events: none;
+    background: transparent;
+    border-color: transparent;
+}
+
+/* Gap/aisle — empty grid cells with no seat assigned */
+.sf-seat-gap {
+    /* Dimensions come from --sf-seat-size in sf-layout.css — do NOT set width/height here */
+    background: transparent;
+    border: none;
+    pointer-events: none;
+}
+
+/* Row label — color only; font-size and width set in sf-layout.css */
+.sf-seat-row-label {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: var(--sf-text-muted);
+    flex-shrink: 0;
+    letter-spacing: .05em;
+}
+
+/* Legend swatch — size set in sf-layout.css; only display mode here */
+.sf-legend-swatch {
+    display: inline-flex;
+    vertical-align: middle;
+    flex-shrink: 0;
+}
+
+.sf-legend-swatch svg {
+    width: 100%;
+    height: 100%;
+}
+
+.sf-seat-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem 1.5rem;
+    font-size: .82rem;
+    color: var(--sf-text-muted);
+}
+
+.sf-legend-item {
+    display: flex;
+    align-items: center;
+}
+
+.sf-seats-summary {
+    color: var(--sf-text-muted);
+    font-size: .95rem;
+}
+
+/* Tier / price options */
+.sf-tier-option {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    background: var(--sf-bg-card);
+    border: 1px solid var(--sf-border-color);
+    border-radius: var(--sf-radius);
+    padding: .85rem 1rem;
+    margin-bottom: .5rem;
+    cursor: pointer;
+    transition: border-color var(--sf-transition), background var(--sf-transition);
+    min-height: 44px;
+}
+
+    .sf-tier-option:hover {
+        border-color: var(--sf-color-accent-dim);
+    }
+
+    .sf-tier-option input[type="radio"] {
+        accent-color: var(--sf-color-accent);
+        width: 16px;
+        height: 16px;
+        flex-shrink: 0;
+    }
+
+    .sf-tier-option:has(input:checked) {
+        border-color: var(--sf-color-accent);
+        background: var(--sf-color-accent-glow);
+    }
+
+.sf-tier-imax {
+    border-color: var(--sf-color-accent-dim);
+}
+
+.sf-tier-name {
+    font-weight: 700;
+    font-size: .95rem;
+    color: var(--sf-text-primary);
+}
+
+.sf-tier-desc {
+    font-size: .78rem;
+    color: var(--sf-text-muted);
+}
+
+.sf-tier-price {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--sf-color-accent);
+    white-space: nowrap;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   C13 · CONCESSIONS
+═══════════════════════════════════════════════════════════════════ */
+.sf-location-label {
+    font-weight: 600;
+    font-size: .9rem;
+    color: var(--sf-text-muted);
+    white-space: nowrap;
+}
+
+.sf-concession-card {
+    background: var(--sf-bg-card);
+    border: 1px solid var(--sf-border-color);
+    border-radius: var(--sf-radius-lg);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: transform var(--sf-transition), border-color var(--sf-transition);
+}
+
+    .sf-concession-card:hover {
+        transform: translateY(-3px);
+        border-color: var(--sf-color-accent-dim);
+    }
+
+.sf-concession-icon {
+    background: var(--sf-poster-placeholder-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+    color: var(--sf-color-accent);
+    padding: 1.5rem;
+    min-height: 100px;
+}
+
+.sf-concession-name {
+    font-size: 1rem;
+    font-weight: 700;
+    margin: 0 0 .35rem;
+    line-height: 1.2;
+    color: var(--sf-text-primary);
+}
+
+.sf-concession-price {
+    font-size: 1.25rem;
+    color: var(--sf-color-accent);
+    font-weight: 700;
+    margin: 0 0 .75rem;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   C14 · CART
+═══════════════════════════════════════════════════════════════════ */
+.sf-cart-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1.25rem;
+    background: var(--sf-bg-card);
+    border: 1px solid var(--sf-border-color);
+    border-radius: var(--sf-radius-lg);
+    margin-bottom: .75rem;
+    flex-wrap: wrap;
+}
+
+.sf-cart-item-icon {
+    font-size: 1.5rem;
+    color: var(--sf-color-accent);
+    flex-shrink: 0;
+    margin-top: .1rem;
+}
+
+.sf-cart-item-name {
+    font-weight: 700;
+    font-size: 1rem;
+    line-height: 1.25;
+    margin-bottom: .2rem;
+    color: var(--sf-text-primary);
+}
+
+.sf-cart-item-meta,
+.sf-cart-item-price-unit {
+    font-size: .82rem;
+    color: var(--sf-text-muted);
+    margin-bottom: .25rem;
+}
+
+.sf-cart-item-controls {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    margin-left: auto;
+    flex-wrap: wrap;
+}
+
+.sf-cart-line-total {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--sf-color-accent);
+    min-width: 60px;
+    text-align: right;
+}
+
+.sf-cart-remove {
+    background: none;
+    border: none;
+    color: var(--sf-text-muted);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: .35rem;
+    transition: color var(--sf-transition);
+    border-radius: var(--sf-radius);
+    min-height: 44px;
+    min-width: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+    .sf-cart-remove:hover {
+        color: var(--sf-color-danger);
+    }
+
+    .sf-cart-remove:focus-visible {
+        outline: 3px solid var(--sf-color-focus-ring);
+        outline-offset: 2px;
+    }
+
+/* Order Summary */
+.sf-order-summary {
+    background: var(--sf-bg-card);
+    border: 1px solid var(--sf-border-color);
+    border-radius: var(--sf-radius-lg);
+    padding: 1.75rem;
+}
+
+.sf-order-summary-title {
+    font-size: 1.4rem;
+    margin: 0 0 1.25rem;
+    color: var(--sf-text-heading);
+}
+
+.sf-summary-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: .95rem;
+    color: var(--sf-text-muted);
+    padding: .4rem 0;
+}
+
+.sf-summary-total {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--sf-text-primary);
+}
+
+    .sf-summary-total span:last-child {
+        color: var(--sf-color-accent);
+    }
+
+.sf-summary-links {
+    text-align: center;
+    font-size: .85rem;
+    color: var(--sf-text-muted);
+}
+
+.sf-secure-badge {
+    background: var(--sf-bg-card-alt);
+    border: 1px solid var(--sf-border-color);
+    border-radius: var(--sf-radius);
+    padding: .6rem 1rem;
+    font-size: .82rem;
+    color: var(--sf-text-muted);
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+    .sf-secure-badge i {
+        color: var(--sf-color-success);
+    }
+
+/* Cart button */
+.sf-btn-cart {
+    background: var(--sf-color-accent);
+    color: var(--sf-color-on-accent) !important;
+    font-weight: 700;
+    border-radius: var(--sf-radius);
+    padding: .4rem 1rem;
+    transition: background var(--sf-transition), transform var(--sf-transition);
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+}
+
+    .sf-btn-cart:hover {
+        background: var(--sf-color-accent-dim);
+        transform: translateY(-1px);
+    }
+
+    .sf-btn-cart:focus-visible {
+        outline: 3px solid var(--sf-color-focus-ring);
+        outline-offset: 2px;
+    }
+
+.sf-cart-badge {
+    background: var(--sf-color-danger) !important;
+    font-size: .65rem;
+    padding: .25em .45em;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   C15 · ORDER CONFIRMATION
+═══════════════════════════════════════════════════════════════════ */
+.sf-confirm-icon {
+    font-size: 5rem;
+    color: var(--sf-color-success);
+    animation: sf-pop .5s cubic-bezier(.25,.8,.25,1);
+}
+
+@keyframes sf-pop {
+    0% {
+        transform: scale(.5);
+        opacity: 0;
+    }
+
+    70% {
+        transform: scale(1.15);
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.sf-confirm-title {
+    font-size: 2.5rem;
+    color: var(--sf-text-heading);
+}
+
+.sf-confirm-sub {
+    color: var(--sf-text-muted);
+    font-size: 1.05rem;
+}
+
+.sf-confirm-total {
+    background: var(--sf-bg-card);
+    border: 1px solid var(--sf-border-color);
+    border-radius: var(--sf-radius-lg);
+    padding: 1.5rem 2rem;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: .35rem;
+}
+
+.sf-confirm-label {
+    font-size: .85rem;
+    color: var(--sf-text-muted);
+    text-transform: uppercase;
+    letter-spacing: .1em;
+}
+
+.sf-confirm-amount {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--sf-color-accent);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   C16 · FORM ELEMENTS (WCAG: visible labels, visible focus, error states)
+═══════════════════════════════════════════════════════════════════ */
+.sf-form-card {
+    background: var(--sf-bg-card);
+    border: 1px solid var(--sf-border-color);
+    border-radius: var(--sf-radius-lg);
+    padding: 2rem;
+}
+
+.sf-label {
+    display: block;
+    font-size: .88rem;
+    font-weight: 600;
+    color: var(--sf-text-muted);
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    margin-bottom: .4rem;
+}
+
+.sf-input,
+.sf-select {
+    width: 100%;
+    background: var(--sf-input-bg);
+    border: 1px solid var(--sf-input-border);
+    border-radius: var(--sf-radius);
+    color: var(--sf-input-color);
+    padding: .65rem .9rem;
+    font-family: var(--sf-font-body);
+    font-size: .95rem;
+    transition: border-color var(--sf-transition), box-shadow var(--sf-transition);
+    appearance: none;
+    min-height: 44px;
+}
+
+    .sf-input:focus,
+    .sf-select:focus {
+        outline: none;
+        border-color: var(--sf-input-focus-border);
+        box-shadow: var(--sf-input-focus-shadow);
+    }
+
+    .sf-input::placeholder {
+        color: var(--sf-input-placeholder);
+    }
+
+.sf-select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238888a0' fill='none' stroke-width='1.5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right .9rem center;
+    padding-right: 2.5rem;
+}
+
+    .sf-select option {
+        background: var(--sf-select-option-bg);
+        color: var(--sf-input-color);
+    }
+
+/* Validation states — WCAG: icon + color dual signal */
+.sf-validation {
+    font-size: .82rem;
+    color: var(--sf-color-danger);
+    display: flex;
+    align-items: center;
+    gap: .3rem;
+    margin-top: .3rem;
+}
+
+    .sf-validation::before {
+        content: "\26A0"; /* ⚠ */
+        font-size: .75rem;
+    }
+
+.sf-input-valid {
+    border-color: var(--sf-color-success) !important;
+    box-shadow: 0 0 0 3px rgba(76,175,128,.18) !important;
+}
+
+.sf-input-invalid {
+    border-color: var(--sf-color-danger) !important;
+    box-shadow: 0 0 0 3px rgba(224,82,82,.18) !important;
+}
+
+.sf-field-hint {
+    display: block;
+    font-size: .78rem;
+    color: var(--sf-text-muted);
+    margin-top: .3rem;
+}
+
+/* Qty Controls */
+.sf-qty-control {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    border: 1px solid var(--sf-border-color);
+    border-radius: var(--sf-radius);
+    overflow: hidden;
+    width: fit-content;
+}
+
+.sf-qty-sm .sf-qty-btn {
+    padding: .25rem .6rem;
+    font-size: .9rem;
+}
+
+.sf-qty-sm .sf-qty-input {
+    width: 40px;
+    font-size: .9rem;
+    padding: .25rem .3rem;
+}
+
+.sf-qty-btn {
+    background: var(--sf-bg-card-alt);
+    border: none;
+    color: var(--sf-text-primary);
+    padding: .45rem .85rem;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: background var(--sf-transition), color var(--sf-transition);
+    line-height: 1;
+    min-height: 44px;
+    min-width: 36px;
+}
+
+    .sf-qty-btn:hover {
+        background: var(--sf-color-accent);
+        color: var(--sf-color-on-accent);
+    }
+
+    .sf-qty-btn:focus-visible {
+        outline: 3px solid var(--sf-color-focus-ring);
+        outline-offset: -3px;
+    }
+
+.sf-qty-input {
+    width: 56px;
+    border: none;
+    border-left: 1px solid var(--sf-border-color);
+    border-right: 1px solid var(--sf-border-color);
+    background: var(--sf-bg-card);
+    color: var(--sf-text-primary);
+    text-align: center;
+    font-family: var(--sf-font-body);
+    font-size: .95rem;
+    padding: .45rem .3rem;
+    -moz-appearance: textfield;
+    min-height: 44px;
+}
+
+    .sf-qty-input::-webkit-outer-spin-button,
+    .sf-qty-input::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+    }
+
+    .sf-qty-input:focus {
+        outline: none;
+    }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   C17 · BUTTONS (WCAG: 44px min touch target, visible focus, disabled state)
+═══════════════════════════════════════════════════════════════════ */
+.btn {
+    font-family: var(--sf-font-body);
+    font-weight: 600;
+    border-radius: var(--sf-radius);
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sf-btn-primary {
+    background: var(--sf-color-accent);
+    color: var(--sf-color-on-accent) !important;
+    border: 2px solid transparent;
+    transition: background var(--sf-transition), transform var(--sf-transition), box-shadow var(--sf-transition);
+}
+
+    .sf-btn-primary:hover:not(:disabled) {
+        background: var(--sf-color-accent-dim);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 14px var(--sf-color-accent-glow);
+    }
+
+    .sf-btn-primary:focus-visible {
+        outline: 3px solid var(--sf-color-focus-ring);
+        outline-offset: 2px;
+    }
+
+    .sf-btn-primary:disabled {
+        opacity: .45;
+        cursor: not-allowed;
+    }
+
+.sf-btn-outline {
+    background: transparent;
+    color: var(--sf-color-accent) !important;
+    border: 2px solid var(--sf-color-accent);
+    transition: background var(--sf-transition), color var(--sf-transition);
+}
+
+    .sf-btn-outline:hover {
+        background: var(--sf-color-accent);
+        color: var(--sf-color-on-accent) !important;
+    }
+
+    .sf-btn-outline:focus-visible {
+        outline: 3px solid var(--sf-color-focus-ring);
+        outline-offset: 2px;
+    }
+
+.sf-btn-ghost {
+    background: transparent;
+    color: var(--sf-text-muted) !important;
+    border: 1px solid var(--sf-border-color);
+    transition: border-color var(--sf-transition), color var(--sf-transition);
+}
+
+    .sf-btn-ghost:hover {
+        border-color: var(--sf-color-danger);
+        color: var(--sf-color-danger) !important;
+    }
+
+    .sf-btn-ghost:focus-visible {
+        outline: 3px solid var(--sf-color-focus-ring);
+        outline-offset: 2px;
+    }
+
+.sf-btn-danger {
+    background: var(--sf-color-danger);
+    color: var(--primitive-white) !important;
+    border: none;
+    transition: background var(--sf-transition);
+}
+
+    .sf-btn-danger:hover {
+        background: var(--primitive-danger);
+    }
+
+    .sf-btn-danger:focus-visible {
+        outline: 3px solid var(--sf-color-focus-ring);
+        outline-offset: 2px;
+    }
+
+/* ── Red theme button override — moved to sf-theme-red.css ─────────────── */
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   C18 · EMPTY STATES
+═══════════════════════════════════════════════════════════════════ */
+.sf-empty-state {
+    padding: 3rem 1rem;
+}
+
+.sf-empty-icon {
+    font-size: 3.5rem;
+    color: var(--sf-border-color);
+    display: block;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   C19 · NAVIGATION MISC
+═══════════════════════════════════════════════════════════════════ */
+.sf-back-link {
+    display: inline-flex;
+    align-items: center;
+    font-size: .88rem;
+    color: var(--sf-text-muted);
+    font-weight: 600;
+    transition: color var(--sf-transition);
+    margin-bottom: .5rem;
+    min-height: 44px;
+}
+
+    .sf-back-link:hover {
+        color: var(--sf-color-accent);
+    }
+
+    .sf-back-link:focus-visible {
+        outline: 3px solid var(--sf-color-focus-ring);
+        outline-offset: 2px;
+    }
+
+.sf-showtime-day {
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--sf-border-color);
+}
+
+    .sf-showtime-day:last-child {
+        border-bottom: none;
+    }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   C20 · FOOTER COMPONENTS
+═══════════════════════════════════════════════════════════════════ */
+.sf-footer {
+    background: var(--sf-footer-bg);
+    border-top: 1px solid var(--sf-footer-border);
+    transition: background-color var(--sf-transition-theme), border-color var(--sf-transition-theme);
+}
+
+/* Light theme footer overrides — moved to sf-theme-light.css */
+
+
+.sf-footer-brand {
+    font-family: var(--sf-font-display);
+    font-size: 1.8rem;
+    letter-spacing: .1em;
+    color: var(--sf-color-accent);
+}
+
+.sf-footer-tagline {
+    color: var(--sf-text-muted);
+    font-size: .9rem;
+}
+
+.sf-footer-heading {
+    font-family: var(--sf-font-body);
+    font-weight: 700;
+    font-size: .82rem;
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    color: var(--sf-text-muted);
+    margin-bottom: .75rem;
+}
+
+.sf-footer-links {
+    display: flex;
+    flex-direction: column;
+    gap: .35rem;
+}
+
+    .sf-footer-links a,
+    .sf-footer-links li {
+        font-size: .9rem;
+        color: var(--sf-text-muted);
+        transition: color var(--sf-transition);
+    }
+
+        .sf-footer-links a:hover {
+            color: var(--sf-color-accent);
+        }
+
+.sf-footer-divider {
+    border-color: var(--sf-border-color);
+    margin: 2rem 0 1rem;
+}
+
+.sf-footer-copy {
+    font-size: .82rem;
+    color: var(--sf-text-muted);
+}
+
+.sf-social-icons a {
+    font-size: 1.2rem;
+    color: var(--sf-text-muted);
+    transition: color var(--sf-transition);
+    min-height: 44px;
+    min-width: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+    .sf-social-icons a:hover {
+        color: var(--sf-color-accent);
+    }
+
+    .sf-social-icons a:focus-visible {
+        outline: 3px solid var(--sf-color-focus-ring);
+        outline-offset: 2px;
+        border-radius: var(--sf-radius);
+    }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   C21 · RED THEME OVERRIDES — moved to sf-theme-red.css
+   See /wwwroot/css/sf-theme-red.css for all [data-theme="red"] component rules.
+═══════════════════════════════════════════════════════════════════ */
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   C22 · ADMIN COMPONENTS
+═══════════════════════════════════════════════════════════════════ */
+.sf-admin-sidebar {
+    background: var(--sf-bg-surface);
+}
+
+.sf-admin-nav-link {
+    display: flex;
+    align-items: center;
+    gap: .65rem;
+    padding: .65rem 1.25rem;
+    color: var(--sf-text-muted);
+    font-size: .9rem;
+    font-weight: 500;
+    border-left: 3px solid transparent;
+    transition: color var(--sf-transition), border-color var(--sf-transition), background var(--sf-transition);
+    min-height: 44px;
+}
+
+    .sf-admin-nav-link:hover {
+        color: var(--sf-text-primary);
+        background: var(--sf-bg-card-alt);
+    }
+
+    .sf-admin-nav-link.active {
+        color: var(--sf-color-accent);
+        border-left-color: var(--sf-color-accent);
+        background: var(--sf-bg-card);
+        font-weight: 700;
+    }
+
+    .sf-admin-nav-link:focus-visible {
+        outline: 3px solid var(--sf-color-focus-ring);
+        outline-offset: -3px;
+    }
+
+/* Admin stat cards */
+.sf-stat-card {
+    background: var(--sf-bg-card);
+    border: 1px solid var(--sf-border-color);
+    border-radius: var(--sf-radius-lg);
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+}
+
+.sf-stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--sf-color-accent);
+    font-family: var(--sf-font-display);
+    letter-spacing: .04em;
+}
+
+.sf-stat-label {
+    font-size: .82rem;
+    color: var(--sf-text-muted);
+    text-transform: uppercase;
+    letter-spacing: .08em;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   C-ADDENDUM · PHASE 3 TOKEN SWEEP — New utility & modifier classes
+   Replaces all inline style="" attributes removed from Login/ChangePassword.
+   All values reference --sf-* semantic tokens only.
+═══════════════════════════════════════════════════════════════════ */
+
+/* ── Inline alert banner modifiers ──────────────────────────────────────── */
+/* Base: inherits display, padding, border-radius from .alert (Bootstrap)   */
+/* These replace raw rgba() inline styles for themed alert states.           */
+
+.sf-flash-banner--info {
+    background: color-mix(in srgb, var(--sf-color-accent) 12%, transparent);
+    border: 1px solid var(--sf-color-accent) !important;
+    color: var(--sf-color-accent);
+    border-radius: var(--sf-radius);
+    padding: .65rem .9rem;
+}
+
+.sf-flash-banner--success {
+    background: color-mix(in srgb, var(--sf-color-success) 12%, transparent);
+    border: 1px solid var(--sf-color-success) !important;
+    color: var(--sf-color-success);
+    border-radius: var(--sf-radius);
+    padding: .65rem .9rem;
+}
+
+.sf-flash-banner--error {
+    background: color-mix(in srgb, var(--sf-color-danger) 12%, transparent);
+    border: 1px solid var(--sf-color-danger) !important;
+    color: var(--sf-color-danger);
+    border-radius: var(--sf-radius);
+    padding: .65rem .9rem;
+}
+
+.sf-flash-banner--warning {
+    background: color-mix(in srgb, var(--sf-color-warning) 12%, transparent);
+    border: 1px solid var(--sf-color-warning) !important;
+    color: var(--sf-color-warning);
+    border-radius: var(--sf-radius);
+    padding: .65rem .9rem;
+}
+
+/* ── Password show/hide toggle button ───────────────────────────────────── */
+.sf-pw-toggle {
+    background: none !important;
+    border: none !important;
+    color: var(--sf-text-muted);
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0 .75rem;
+    transition: color var(--sf-transition);
+}
+
+    .sf-pw-toggle:hover {
+        color: var(--sf-text-primary);
+    }
+
+    .sf-pw-toggle:focus-visible {
+        outline: 3px solid var(--sf-color-focus-ring);
+        outline-offset: 2px;
+        border-radius: var(--sf-radius);
+    }
+
+/* ── Accent-colored icon (replaces color: var(--sf-gold) inline) ─────────── */
+.sf-icon-accent {
+    color: var(--sf-color-accent);
+}
+
+/* ── Display heading style (replaces font-family/color inline styles) ────── */
+/* Use alongside h1–h6 — only adds font-family override and color.          */
+.sf-display-heading {
+    font-family: var(--sf-font-display);
+    font-size: 2rem;
+    color: var(--sf-text-heading);
+    letter-spacing: .04em;
+}
+
+/* ── Submit button — display font variant ───────────────────────────────── */
+/* Extends .sf-btn-primary with Bebas Neue sizing for login/CP forms.       */
+.sf-btn-display {
+    font-family: var(--sf-font-display) !important;
+    font-size: 1.1rem !important;
+    letter-spacing: .06em !important;
+    padding: .7rem !important;
+}
+
+/* ── Semantic text color utilities ──────────────────────────────────────── */
+/* Only add to elements where Bootstrap utility classes would hard-code a   */
+/* color that doesn't theme correctly (e.g. text-white / text-dark).        */
+.sf-text-primary {
+    color: var(--sf-text-primary) !important;
+}
+
+.sf-text-muted {
+    color: var(--sf-text-muted) !important;
+}
+
+/* ── QR ticket card (OrderConfirmation — P3-9) ───────────────────────────── */
+.sf-ticket-qr-card {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    background: var(--sf-bg-card);
+    border: 1px solid var(--sf-border-color);
+    border-radius: var(--sf-radius-lg);
+    padding: 1.25rem 1.5rem;
+    width: 100%;
+    max-width: 420px;
+    transition: border-color var(--sf-transition);
+}
+
+    .sf-ticket-qr-card:hover {
+        border-color: var(--sf-color-accent);
+    }
+
+.sf-ticket-qr-wrap {
+    flex-shrink: 0;
+    background: #fff; /* QR codes require white background regardless of theme */
+    border-radius: var(--sf-radius);
+    padding: 6px;
+    line-height: 0;
+}
+
+.sf-ticket-qr-img {
+    display: block;
+    width: 120px;
+    height: 120px;
+    image-rendering: pixelated; /* keep QR modules sharp when CSS-scaled */
+}
+
+.sf-ticket-qr-meta {
+    text-align: left;
+}
+
+.sf-ticket-code {
+    font-family: var(--sf-font-display);
+    font-size: 2rem;
+    color: var(--sf-color-accent);
+    letter-spacing: .08em;
+    line-height: 1;
+}
+
+/* ── Out-of-stock concession card state ──────────────────────────────────── */
+.sf-concession-card--oos {
+    opacity: .55;
+    pointer-events: none;
+}
+
+.sf-badge-oos {
+    background: color-mix(in srgb, var(--sf-color-danger) 15%, transparent);
+    color: var(--sf-color-danger);
+    border: 1px solid var(--sf-color-danger);
+    font-size: .72rem;
+    font-weight: 600;
+    letter-spacing: .04em;
+}
+
+.sf-badge-ok {
+    background: color-mix(in srgb, var(--sf-color-success) 15%, transparent);
+    color: var(--sf-color-success);
+    border: 1px solid var(--sf-color-success);
+    font-size: .72rem;
+    font-weight: 600;
+}
+
+
+/*  Added by Gemini */
+/* --- Add to sf-components.css --- */
+
+/* Typography Utilities */
+/*.sf-text-sm {
+    font-size: 0.9rem;
+}*/
+
+.sf-text-sm {
+    font-size: 0.85rem; /* Increased from 0.72rem */
+}
+
+.sf-brand-text {
+    font-size: 1.8rem; /* Scaled up for brand presence */
+}
+
+.sf-footer-links li {
+    margin-bottom: 0.5rem;
+    font-size: 1rem;
+}
+
+/* Locations grid — 2 columns, fills top-to-bottom then right column.
+   Does NOT use sf-footer-links because that class sets display:flex
+   which overrides column-count. Styles are declared here instead. */
+.sf-footer-locations-grid {
+    column-count: 2;
+    column-width: 110px;
+    column-gap: 1.25rem;
+    column-fill: balance;
+}
+
+.sf-footer-locations-grid li {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    white-space: nowrap;
+    font-size: .9rem;
+    color: var(--sf-text-muted);
+    margin-bottom: .35rem;
+    transition: color var(--sf-transition);
+}
+
+.sf-text-xs {
+    font-size: 0.8rem;
+}
+
+/* Icon Scaling */
+.sf-icon-accent {
+    color: var(--sf-color-accent);
+}
+
+.sf-icon-lg {
+    font-size: 2.8rem;
+}
+
+/* Refined Validation Summary for Phase 3 */
+.sf-flash-banner--error[data-valmsg-summary="true"] {
+    display: none; /* Hidden by default; JS or CSS logic toggles this */
+    flex-direction: row;
+    align-items: flex-start;
+}
+
+/* validation-summary-errors class is added by ASP.NET on every render.
+   Do NOT use this class as a show/hide trigger — it fires on empty summaries too.
+   Visibility is controlled exclusively by login.js reading the li count. */
+
+
+/* Seat tile — user-selected state (SVG stroke/fill driven by seatPicker.js) */
+.sf-seat-selected {
+    /* Visual state applied via JS — this class signals the selected state.
+       seatPicker.js re-renders the SVG with selected fill/stroke colors.     */
+    cursor: pointer;
+}
+
+    /* Keep selected on hover/focus — JS also prevents revert */
+    .sf-seat-selected:hover,
+    .sf-seat-selected:focus {
+        transform: translateY(-2px);
+        filter: brightness(1.1);
+    }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ADMIN PERSISTENT SIDEBAR
+   Collapsible sidebar with a sticky toggle tab.
+   .sf-admin-page-wrapper   — flex row: sidebar + content
+   .sf-admin-sidebar        — the sidebar panel
+   .sf-sidebar-toggle-tab   — the sticky tab that sticks out when sidebar collapses
+   .sf-admin-content        — main content area (shifts right when sidebar open)
+   .sf-sidebar-collapsed    — applied to sidebar when hidden; tab stays visible
+═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+    --sf-sidebar-w: 230px;
+    --sf-sidebar-collapsed-w: 0px;
+    --sf-sidebar-tab-w: 28px;
+    --sf-sidebar-transition: 0.22s ease;
+}
+
+/* ── Page wrapper ─────────────────────────────────────────────────────── */
+.sf-admin-page-wrapper {
+    display: flex;
+    align-items: stretch;
+    min-height: calc(100vh - 72px);   /* full height minus navbar */
+    position: relative;
+}
+
+/* ── Sidebar panel ────────────────────────────────────────────────────── */
+.sf-admin-sidebar {
+    width: var(--sf-sidebar-w);
+    min-width: var(--sf-sidebar-w);
+    background: var(--sf-surface-2, #13131f);
+    border-right: 1px solid var(--sf-border-muted, rgba(255,255,255,.08));
+    padding: 1.25rem 0;
+    flex-shrink: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    transition: width var(--sf-sidebar-transition),
+                min-width var(--sf-sidebar-transition),
+                padding var(--sf-sidebar-transition);
+    position: sticky;
+    top: 72px;               /* offset = navbar height */
+    height: calc(100vh - 72px);
+    z-index: 100;
+}
+
+.sf-admin-sidebar.sf-sidebar-collapsed {
+    width: 0;
+    min-width: 0;
+    padding: 0;
+    overflow: hidden;
+    border-right: none;
+}
+
+/* ── Nav links inside sidebar ─────────────────────────────────────────── */
+.sf-admin-sidebar .sf-admin-nav-link {
+    display: flex;
+    align-items: center;
+    padding: .45rem 1.1rem;
+    font-size: .85rem;
+    color: var(--sf-text-muted);
+    text-decoration: none;
+    border-radius: 6px;
+    margin: 1px 8px;
+    white-space: nowrap;
+    transition: background .15s, color .15s;
+}
+.sf-admin-sidebar .sf-admin-nav-link:hover,
+.sf-admin-sidebar .sf-admin-nav-link:focus-visible {
+    background: var(--sf-surface-3, rgba(255,255,255,.06));
+    color: var(--sf-text-primary, #fff);
+    outline: none;
+}
+.sf-admin-sidebar .sf-admin-nav-link.active {
+    background: var(--sf-color-accent);
+    color: var(--sf-color-on-accent);
+    font-weight: 600;
+}
+.sf-admin-sidebar .sf-admin-nav-link--danger {
+    color: var(--sf-color-danger, #e74c3c);
+}
+.sf-admin-sidebar .sf-admin-nav-link--danger:hover {
+    background: rgba(231,76,60,.12);
+    color: var(--sf-color-danger, #e74c3c);
+}
+.sf-admin-nav-section-label {
+    font-size: .65rem;
+    font-weight: 700;
+    letter-spacing: .09em;
+    color: var(--sf-text-muted);
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+/* ── Toggle tab ───────────────────────────────────────────────────────── */
+.sf-sidebar-toggle-tab {
+    position: fixed;
+    left: var(--sf-sidebar-w);
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 200;
+    width: var(--sf-sidebar-tab-w);
+    height: 56px;
+    background: var(--sf-surface-2, #13131f);
+    border: 1px solid var(--sf-border-muted, rgba(255,255,255,.08));
+    border-left: none;
+    border-radius: 0 8px 8px 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--sf-text-muted);
+    transition: left var(--sf-sidebar-transition),
+                background .15s, color .15s;
+    padding: 0;
+    line-height: 1;
+}
+.sf-sidebar-toggle-tab:hover { background: var(--sf-surface-3); color: var(--sf-text-primary); }
+
+/* When sidebar is collapsed, tab sits at left:0 */
+.sf-admin-sidebar.sf-sidebar-collapsed ~ .sf-sidebar-toggle-tab,
+#sf-admin-sidebar.sf-sidebar-collapsed + .sf-sidebar-toggle-tab {
+    left: 0;
+}
+/* JS sets left dynamically; ensure smooth animation */
+@media (max-width: 991px) {
+    :root { --sf-sidebar-w: 200px; }
+}
+
+/* ── Main content area ───────────────────────────────────────────────── */
+.sf-admin-content {
+    flex: 1;
+    min-width: 0;          /* prevent flex blowout */
+    padding-left: var(--sf-sidebar-tab-w);  /* always clear the toggle tab */
+    transition: padding-left var(--sf-sidebar-transition);
+}
+
+/* ── Divider ──────────────────────────────────────────────────────────── */
+.sf-admin-sidebar .sf-divider {
+    border-top: 1px solid var(--sf-border-color);
+}
+
+/* ── Pagination ───────────────────────────────────────────────────────── */
+.sf-pagination .page-link {
+    background: var(--sf-surface-2, #13131f);
+    border-color: var(--sf-border-muted, rgba(255,255,255,.1));
+    color: var(--sf-text-primary, #e8e8e8);
+    border-radius: 6px !important;
+    margin: 0 2px;
+    min-width: 36px;
+    text-align: center;
+    transition: background .15s, color .15s;
+}
+.sf-pagination .page-link:hover { background: var(--sf-surface-3); }
+.sf-pagination .page-item.active .page-link {
+    background: var(--sf-color-accent);
+    border-color: var(--sf-color-accent);
+    color: var(--sf-color-on-accent);
+    font-weight: 600;
+}
+.sf-pagination .page-item.disabled .page-link { opacity: .4; pointer-events: none; }
+
+/* ── Sort header links ────────────────────────────────────────────────── */
+.sf-sort-header { color: inherit; }
+.sf-sort-header:hover { color: var(--sf-color-accent); }
+
+/* ── Admin data grids ─────────────────────────────────────────────────────── */
+.sf-admin-table {
+    --bs-table-color:           var(--sf-text-primary);
+    --bs-table-bg:              transparent;
+    --bs-table-border-color:    var(--sf-border-color);
+    --bs-table-striped-color:   var(--sf-text-primary);
+    --bs-table-striped-bg:      var(--sf-bg-card-alt);
+    --bs-table-hover-color:     var(--sf-text-primary);
+    --bs-table-hover-bg:        var(--sf-bg-card-alt);
+    color:                      var(--sf-text-primary);
+    border-color:               var(--sf-border-color);
+}
+
+.sf-admin-table thead th {
+    color:                      var(--sf-text-muted);
+    background-color:           var(--sf-bg-card);
+    border-bottom-color:        var(--sf-border-color);
+    font-size:                  .75rem;
+    font-weight:                600;
+    text-transform:             uppercase;
+    letter-spacing:             .06em;
+}
+
+.sf-admin-table tbody td {
+    color:                      var(--sf-text-primary);
+    border-color:               var(--sf-border-color);
+    vertical-align:             middle;
+}
+
+.sf-admin-table tbody tr:hover td {
+    background-color:           var(--sf-bg-card-alt);
+    color:                      var(--sf-text-primary);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   C11-REV · MOVIE DETAIL PAGE — CINEMARK-INSPIRED REDESIGN
+   Layout:
+     1. Full-width backdrop hero (blurred, darkened) — BEHIND everything
+     2. Poster + metadata strip overlaid on backdrop bottom
+     3. Below fold: TMDB metadata strip → trailer → cast/facts → showtimes
+═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Backdrop hero ────────────────────────────────────────────────────── */
+.sf-md-backdrop {
+    position: relative;
+    width: 100%;
+    height: 520px;           /* tall cinematic hero */
+    overflow: hidden;
+    background: #0d0d1a;     /* fallback when no backdrop */
+}
+@media (max-width: 767px) {
+    .sf-md-backdrop { height: 340px; }
+}
+.sf-md-backdrop-img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center 20%;
+    filter: blur(2px) brightness(0.45) saturate(1.1);
+    transform: scale(1.04);  /* hide blur edges */
+}
+/* Bottom fade so content below reads cleanly */
+.sf-md-backdrop-fade {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        to bottom,
+        rgba(0,0,0,0)   40%,
+        rgba(13,13,26,1) 100%
+    );
+}
+/* "Now Showing" eyebrow text centered in backdrop */
+.sf-md-backdrop-eyebrow {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    color: rgba(255,255,255,.55);
+    font-size: .85rem;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    font-weight: 600;
+    pointer-events: none;
+    user-select: none;
+}
+
+/* ── Hero strip — poster left, metadata right, overlaps backdrop ─────── */
+.sf-md-hero {
+    position: relative;
+    margin-top: -140px;      /* pulls strip up into the backdrop */
+    z-index: 2;
+    padding-bottom: 0;
+    /* Gradient from transparent (backdrop shows) to page bg (content shows cleanly) */
+    background: linear-gradient(to bottom,
+        transparent 0%,
+        var(--sf-bg-base, var(--sf-bg-surface)) 55%
+    );
+}
+@media (max-width: 767px) {
+    .sf-md-hero { margin-top: -80px; }
+}
+.sf-md-poster-wrap {
+    position: relative;
+    flex-shrink: 0;
+    width: 185px;
+}
+@media (max-width: 767px) {
+    .sf-md-poster-wrap { width: 130px; }
+}
+.sf-md-poster {
+    width: 185px;
+    border-radius: 10px;
+    box-shadow: 0 24px 64px rgba(0,0,0,.7);
+    display: block;
+}
+@media (max-width: 767px) {
+    .sf-md-poster { width: 130px; }
+}
+.sf-md-poster-placeholder {
+    width: 185px;
+    aspect-ratio: 2/3;
+    border-radius: 10px;
+    background: var(--sf-surface-2, #13131f);
+    border: 1px solid var(--sf-border-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3rem;
+    color: var(--sf-text-muted);
+}
+
+/* ── Meta column ──────────────────────────────────────────────────────── */
+.sf-md-title {
+    font-size: clamp(1.6rem, 4vw, 2.8rem);
+    font-weight: 800;
+    line-height: 1.1;
+    color: var(--sf-text-heading);
+    margin: 0 0 .35rem;
+    /* Shadow keeps text readable over both the backdrop and the light page bg */
+    text-shadow: 0 2px 16px rgba(0,0,0,.6), 0 0 40px rgba(0,0,0,.3);
+}
+.sf-md-original-title {
+    font-size: .9rem;
+    color: rgba(255,255,255,.5);
+    font-style: italic;
+    margin-bottom: .6rem;
+}
+.sf-md-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .4rem;
+    margin-bottom: .85rem;
+    align-items: center;
+}
+.sf-md-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: .25rem;
+    padding: .2rem .65rem;
+    border-radius: 5px;
+    font-size: .78rem;
+    font-weight: 600;
+    background: rgba(255,255,255,.1);
+    color: rgba(255,255,255,.85);
+    border: 1px solid rgba(255,255,255,.15);
+    white-space: nowrap;
+}
+.sf-md-badge--mpa {
+    background: var(--sf-color-accent);
+    color: var(--sf-color-on-accent);
+    border-color: var(--sf-color-accent);
+}
+.sf-md-badge--rating {
+    background: rgba(255,193,7,.15);
+    color: #ffc107;
+    border-color: rgba(255,193,7,.3);
+}
+.sf-md-badge--genre {
+    background: rgba(99,179,237,.12);
+    color: #63b3ed;
+    border-color: rgba(99,179,237,.25);
+}
+.sf-md-description {
+    font-size: .97rem;
+    line-height: 1.7;
+    color: var(--sf-text-primary);
+    max-width: 580px;
+    margin-bottom: 1.25rem;
+}
+
+/* ── Divider below hero ───────────────────────────────────────────────── */
+.sf-md-divider {
+    border: none;
+    border-top: 1px solid var(--sf-border-color);
+    margin: 0;
+}
+
+/* ── TMDB facts strip ─────────────────────────────────────────────────── */
+.sf-md-facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0;
+    border-top: 1px solid var(--sf-border-color);
+    border-bottom: 1px solid var(--sf-border-color);
+    background: var(--sf-bg-card);
+    margin-bottom: 2.5rem;
+}
+.sf-md-fact {
+    flex: 1 1 140px;
+    padding: 1.25rem 1.5rem;
+    border-right: 1px solid var(--sf-border-color);
+    min-width: 120px;
+}
+.sf-md-fact:last-child { border-right: none; }
+.sf-md-fact-label {
+    font-size: .65rem;
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    font-weight: 800;
+    color: var(--sf-color-accent);
+    margin-bottom: .35rem;
+}
+.sf-md-fact-value {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--sf-text-heading);
+}
+.sf-md-fact-sub {
+    font-size: .75rem;
+    color: var(--sf-text-muted);
+    margin-top: .1rem;
+}
+
+/* ── Star rating visual ───────────────────────────────────────────────── */
+.sf-md-stars {
+    display: inline-flex;
+    align-items: center;
+    gap: .15rem;
+    color: #ffc107;
+    font-size: .85rem;
+}
+
+/* ── Popularity meter ─────────────────────────────────────────────────── */
+.sf-md-pop-bar {
+    height: 5px;
+    border-radius: 3px;
+    background: var(--sf-border-color);
+    overflow: hidden;
+    margin-top: .35rem;
+}
+.sf-md-pop-fill {
+    height: 100%;
+    border-radius: 3px;
+    background: linear-gradient(90deg, var(--sf-color-accent), var(--sf-color-accent-dim));
+    transition: width .4s ease;
+}
+
+/* ── Trailer section ──────────────────────────────────────────────────── */
+.sf-md-trailer-wrap {
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 16px 48px rgba(0,0,0,.4);
+}
+
+/* ── Language flag / pill ─────────────────────────────────────────────── */
+.sf-lang-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: .3rem;
+    padding: .18rem .6rem;
+    border-radius: 4px;
+    font-size: .78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    background: rgba(255,255,255,.08);
+    color: rgba(255,255,255,.7);
+    border: 1px solid rgba(255,255,255,.12);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   HOME DASHBOARD — REDESIGNED MOVIE CARDS & NOW SHOWING
+   sf-home-movie-card    — featured movie card (col-12/sm-6/md-4/lg-3)
+   sf-nowshowing-card    — today's showtime card with mini poster
+═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Featured movie card ──────────────────────────────────────────────── */
+.sf-home-movie-card {
+    background: var(--sf-bg-card);
+    border: 1px solid var(--sf-border-color);
+    border-radius: var(--sf-radius-lg, 12px);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+}
+.sf-home-movie-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 16px 40px rgba(0,0,0,.25);
+    border-color: var(--sf-color-accent-dim, var(--sf-color-accent));
+}
+
+/* Poster wrapper */
+/*.sf-home-movie-poster-link { display: block; text-decoration: none; }*/
+.sf-home-movie-poster {
+    position: relative;
+    aspect-ratio: 2/3;
+    overflow: hidden;
+    background: var(--sf-bg-card-alt);
+}
+.sf-home-poster-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform .35s ease;
+}
+.sf-home-movie-card:hover .sf-home-poster-img {
+    transform: scale(1.04);
+}
+
+/* Hover overlay */
+.sf-home-poster-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(10,10,12,.82);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    opacity: 0;
+    transition: opacity .22s ease;
+    pointer-events: none; /* ADD: invisible overlay blocks no clicks at rest */
+    z-index: 2; /* ADD: sits above the <a> and the trailer badge */
+}
+
+/* Restore hover trigger — now keyed off .sf-home-poster-wrap, not the card */
+.sf-home-movie-card:hover .sf-home-poster-overlay,
+.sf-home-movie-card:focus-within .sf-home-poster-overlay {
+    opacity: 1;
+    pointer-events: auto; /* ADD: re-enable clicks only when visible */
+}
+
+/* MPA rating badge — top-right of poster */
+/* Trailer badge z-index — overlay is z:2, badge needs to stay on top or equal */
+.sf-home-rating-badge {
+    position: absolute;
+    top: .5rem;
+    right: .5rem;
+    background: rgba(10,10,12,.82);
+    border: 1px solid rgba(255,255,255,.18);
+    color: #FFFFFF;                          /* FIX: white is legible on the dark bg in all themes */
+    font-size: .68rem;
+    font-weight: 800;
+    padding: .15rem .45rem;
+    border-radius: 4px;
+    letter-spacing: .05em;
+    z-index: 3;
+}
+
+/* Trailer badge — bottom-left of poster */
+.sf-home-trailer-badge {
+    position: absolute;
+    bottom: .5rem;
+    left: .5rem;
+    background: rgba(10,10,12,.78);
+    border: 1px solid rgba(255,255,255,.18);
+    color: rgba(255,255,255,.9);
+    font-size: .65rem;
+    font-weight: 700;
+    padding: .15rem .5rem;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    z-index: 3; /* FIX: must be above overlay (z:2) so badge stays visible at rest */
+}
+/* Overlay is now a sibling of the <a>, child of .sf-home-poster-wrap */
+.sf-home-poster-wrap {
+    position: relative; /* overlay anchors to this */
+    display: block;
+    overflow: hidden; /* FIX: clip overlay/badge to poster bounds so carousel renders correctly */
+}
+
+
+/* Card body */
+.sf-home-card-body {
+    padding: .9rem 1rem 1rem;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: .4rem;
+}
+.sf-home-card-title {
+    font-size: .95rem;
+    font-weight: 700;
+    line-height: 1.25;
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.sf-home-title-link {
+    color: var(--sf-text-heading);
+    text-decoration: none;
+}
+.sf-home-title-link:hover { color: var(--sf-color-accent); text-decoration: none; }
+
+.sf-home-card-meta {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    flex-wrap: wrap;
+}
+
+/* TMDb score row */
+.sf-home-score-row {
+    display: flex;
+    align-items: center;
+    gap: .3rem;
+    margin-top: .15rem;
+}
+.sf-home-score-stars {
+    color: #ffc107;
+    font-size: .78rem;
+    display: inline-flex;
+    gap: .05rem;
+}
+.sf-home-star-empty { opacity: .3; }
+.sf-home-score-num {
+    font-size: .9rem;
+    font-weight: 700;
+    color: var(--sf-text-heading);
+}
+.sf-home-score-denom {
+    font-size: .75rem;
+    color: var(--sf-text-muted);
+}
+.sf-home-score-votes {
+    font-size: .7rem;
+    color: var(--sf-text-muted);
+    margin-top: -.1rem;
+}
+
+.sf-home-card-year {
+    font-size: .75rem;
+    color: var(--sf-text-muted);
+}
+
+.sf-home-card-btn {
+    margin-top: auto;
+}
+
+/* ── Now Showing card ─────────────────────────────────────────────────── */
+.sf-nowshowing-card {
+    background: var(--sf-bg-card);
+    border: 1px solid var(--sf-border-color);
+    border-radius: var(--sf-radius-lg, 12px);
+    padding: .85rem;
+    display: flex;
+    flex-direction: column;
+    transition: transform .2s ease, box-shadow .2s ease;
+}
+.sf-nowshowing-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 28px rgba(0,0,0,.18);
+}
+.sf-nowshowing-inner {
+    display: flex;
+    gap: .85rem;
+    align-items: flex-start;
+}
+.sf-nowshowing-poster {
+    width: 70px;
+    min-width: 70px;
+    aspect-ratio: 2/3;
+    border-radius: 6px;
+    object-fit: cover;
+    box-shadow: 0 4px 12px rgba(0,0,0,.25);
+}
+.sf-nowshowing-poster--placeholder {
+    background: var(--sf-bg-card-alt);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    color: var(--sf-text-muted);
+}
+.sf-nowshowing-info { flex: 1; min-width: 0; }
+.sf-nowshowing-title {
+    font-size: .88rem;
+    font-weight: 700;
+    line-height: 1.25;
+    color: var(--sf-text-heading);
+    margin: 0 0 .35rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.sf-nowshowing-meta {
+    display: flex;
+    gap: .35rem;
+    flex-wrap: wrap;
+    margin-bottom: .4rem;
+}
+.sf-nowshowing-rows {
+    display: flex;
+    flex-direction: column;
+    gap: .2rem;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   C25 · FEATURED CAROUSEL (Splide.js)
+   All colors use --sf-* tokens — never hardcoded hex values.
+   Works under [data-theme="dark"], [data-theme="light"], [data-theme="red"]
+   automatically via the token system.
+═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Carousel wrapper ─────────────────────────────────────────────────── */
+.sf-featured-carousel-wrap {
+    position: relative;
+    overflow: hidden;
+    /* Side padding creates room for the arrow buttons without overlapping slides */
+    padding: 0 2.75rem;
+}
+
+@media (max-width: 575.98px) {
+    /* On mobile the peek effect handles the "more content" signal;
+       arrows are still rendered but outside the track overflow area */
+    .sf-featured-carousel-wrap {
+        padding: 0 2rem;
+    }
+}
+
+/* ── Splide arrow overrides ───────────────────────────────────────────── */
+.sf-featured-carousel-wrap .splide__arrow {
+    width: 2.25rem;
+    height: 2.25rem;
+    background: var(--sf-bg-card);
+    border: 1px solid var(--sf-border-color);
+    border-radius: var(--sf-radius);
+    color: var(--sf-text-heading);
+    opacity: 1;
+    transition: background var(--sf-transition), border-color var(--sf-transition), color var(--sf-transition), transform var(--sf-transition);
+    top: 35%; /* vertically center on poster area, not full card height */
+}
+
+    .sf-featured-carousel-wrap .splide__arrow svg {
+        fill: var(--sf-text-heading);
+        width: 1rem;
+        height: 1rem;
+        transition: fill var(--sf-transition);
+    }
+
+    .sf-featured-carousel-wrap .splide__arrow:hover {
+        background: var(--sf-color-accent);
+        border-color: var(--sf-color-accent);
+        color: var(--sf-color-on-accent);
+        transform: translateY(-50%) scale(1.08);
+    }
+
+        .sf-featured-carousel-wrap .splide__arrow:hover svg {
+            fill: var(--sf-color-on-accent);
+        }
+
+    .sf-featured-carousel-wrap .splide__arrow:focus-visible {
+        outline: 3px solid var(--sf-color-focus-ring);
+        outline-offset: 2px;
+    }
+
+.sf-featured-carousel-wrap .splide__arrow--prev {
+    left: .25rem;
+}
+
+.sf-featured-carousel-wrap .splide__arrow--next {
+    right: .25rem;
+}
+
+/* ── Splide pagination dots ───────────────────────────────────────────── */
+.sf-featured-carousel-wrap .splide__pagination {
+    bottom: -1.75rem;
+}
+
+.sf-featured-carousel-wrap .splide__pagination__page {
+    background: var(--sf-border-color);
+    opacity: 1;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    transition: background var(--sf-transition), transform var(--sf-transition);
+}
+
+    .sf-featured-carousel-wrap .splide__pagination__page.is-active {
+        background: var(--sf-color-accent);
+        transform: scale(1.35);
+    }
+
+/* Add bottom margin to the section so dots don't overlap next section */
+.sf-featured-carousel-wrap + * {
+    margin-top: 2rem;
+}
+
+/* ── Showtime pills ───────────────────────────────────────────────────── */
+.sf-home-showtimes {
+    margin-top: .35rem;
+}
+
+.sf-home-showtimes-label {
+    font-size: .7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: var(--sf-text-muted);
+    margin-bottom: .35rem;
+}
+
+.sf-home-showtimes-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .35rem;
+}
+
+.sf-showtime-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: .18rem .55rem;
+    font-size: .72rem;
+    font-weight: 600;
+    color: var(--sf-text-primary);
+    background: var(--sf-bg-card);
+    border: 1px solid var(--sf-border-color);
+    border-radius: var(--sf-radius-pill, 50px);
+    text-decoration: none;
+    white-space: nowrap;
+    transition: border-color var(--sf-transition), color var(--sf-transition), background var(--sf-transition);
+    min-height: 28px;
+}
+
+    .sf-showtime-pill:hover {
+        border-color: var(--sf-color-accent);
+        color: var(--sf-color-accent);
+        background: var(--sf-bg-card-alt);
+        text-decoration: none;
+    }
+
+    .sf-showtime-pill:focus-visible {
+        outline: 3px solid var(--sf-color-focus-ring);
+        outline-offset: 2px;
+    }
+
+/* ── Trailer modal ────────────────────────────────────────────────────── */
+.sf-trailer-modal .modal-content {
+    background: var(--sf-bg-card);
+    border: 1px solid var(--sf-border-color);
+    border-radius: var(--sf-radius-lg);
+    color: var(--sf-text-primary);
+}
+
+.sf-trailer-modal .modal-header .modal-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--sf-text-heading);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: calc(100% - 3rem);
+}
+
+/* 16:9 video wrapper */
+.sf-trailer-video-wrap {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    background: #000;
+    border-radius: var(--sf-radius);
+    overflow: hidden;
+}
+
+    .sf-trailer-video-wrap iframe {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        border: none;
+    }
+
+/* Modal footer layout */
+.sf-trailer-modal-footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .75rem;
+    padding: .85rem 1.25rem 1.25rem;
+}
+
+.sf-trailer-footer-meta {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    flex: 1;
+    min-width: 0;
+}
+
+/* Poster thumbnail inside modal footer */
+.sf-trailer-thumb {
+    width: 54px;
+    min-width: 54px;
+    height: 80px;
+    object-fit: cover;
+    border-radius: var(--sf-radius);
+    border: 1px solid var(--sf-border-color);
+    flex-shrink: 0;
+}
+
+.sf-trailer-footer-info {
+    min-width: 0;
+}
+
+.sf-trailer-footer-title {
+    font-size: .92rem;
+    font-weight: 700;
+    color: var(--sf-text-heading);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sf-trailer-footer-sub {
+    font-size: .78rem;
+    color: var(--sf-text-muted);
+    margin-top: .15rem;
+}
+
+/* Showtime pills row inside the modal footer */
+.sf-trailer-showtimes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .35rem;
+    align-items: center;
+}
+
+/* "Get Tickets" button inside modal footer */
+.sf-trailer-detail-btn {
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   STAFF LOGIN PAGE
+   Full-page centered layout with branded card, icon-prefixed inputs,
+   clean error banner. No Bootstrap form classes — fully custom so browser
+   native :invalid icons cannot bleed through.
+═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Full-page centering ─────────────────────────────────────────────── */
+.sf-login-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+    background: var(--sf-bg-page);
+}
+
+/* ── Card ────────────────────────────────────────────────────────────── */
+.sf-login-card {
+    width: 100%;
+    max-width: 420px;
+    background: var(--sf-bg-card);
+    border: 1px solid var(--sf-border);
+    border-radius: 16px;
+    padding: 2.5rem 2.25rem 2rem;
+    box-shadow: 0 8px 40px rgba(0,0,0,.35);
+}
+
+/* ── Brand mark ──────────────────────────────────────────────────────── */
+.sf-login-brand {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: .35rem;
+    margin-bottom: 2rem;
+}
+
+.sf-login-icon-ring {
+    width: 68px;
+    height: 68px;
+    border-radius: 50%;
+    background: rgba(240,199,61,.12);
+    border: 2px solid var(--primitive-gold);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.9rem;
+    color: var(--primitive-gold);
+    margin-bottom: .5rem;
+}
+
+.sf-login-brand-name {
+    font-size: 1.45rem;
+    font-weight: 800;
+    letter-spacing: .04em;
+    color: var(--sf-text-primary);
+    text-transform: uppercase;
+}
+
+.sf-login-brand-sub {
+    font-size: .78rem;
+    font-weight: 500;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--sf-text-muted);
+}
+
+/* ── Error banner ────────────────────────────────────────────────────── */
+.sf-login-error-banner {
+    display: flex;   /* toggled to flex by JS when errors exist */
+    align-items: flex-start;
+    gap: .65rem;
+    background: rgba(200,16,46,.12);
+    border: 1px solid rgba(200,16,46,.45);
+    border-radius: 8px;
+    padding: .75rem 1rem;
+    margin-bottom: 1.25rem;
+    font-size: .875rem;
+    color: #f87171;
+    line-height: 1.5;
+}
+
+.sf-login-error-banner i {
+    font-size: 1rem;
+    flex-shrink: 0;
+    margin-top: .15rem;
+    color: #f87171;
+}
+
+/* ── Form ────────────────────────────────────────────────────────────── */
+.sf-login-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+/* ── Field ───────────────────────────────────────────────────────────── */
+.sf-login-field {
+    display: flex;
+    flex-direction: column;
+    gap: .4rem;
+}
+
+.sf-login-label {
+    font-size: .78rem;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--sf-text-muted);
+}
+
+/* ── Input wrapper (icon + input + optional toggle) ──────────────────── */
+.sf-login-input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.sf-login-input-icon {
+    position: absolute;
+    left: .9rem;
+    font-size: .95rem;
+    color: var(--sf-text-muted);
+    pointer-events: none;
+    z-index: 1;
+}
+
+.sf-login-input {
+    width: 100%;
+    background: var(--sf-input-bg);
+    border: 1px solid var(--sf-input-border);
+    border-radius: 8px;
+    padding: .7rem .9rem .7rem 2.5rem;
+    font-size: .975rem;
+    color: var(--sf-input-color);
+    transition: border-color .18s, box-shadow .18s;
+    /* Prevent browser native invalid styles */
+    outline: none;
+    box-shadow: none;
+}
+
+.sf-login-input:focus {
+    border-color: var(--primitive-gold);
+    box-shadow: 0 0 0 3px rgba(240,199,61,.18);
+}
+
+.sf-login-input::placeholder {
+    color: var(--sf-input-placeholder);
+}
+
+/* Extra right padding to clear the show/hide button */
+.sf-login-input--padded {
+    padding-right: 3rem;
+}
+
+/* Server-side validation failed state — red border, no browser icons */
+.sf-login-input--error,
+.sf-login-input.input-validation-error {
+    border-color: #f87171;
+    box-shadow: 0 0 0 3px rgba(248,113,113,.15);
+}
+
+/* Suppress browser native :invalid yellow/red icons entirely */
+.sf-login-input:invalid {
+    box-shadow: none;
+    border-color: var(--sf-input-border);
+}
+
+/* ── Password toggle button ───────────────────────────────────────────── */
+.sf-login-pw-toggle {
+    position: absolute;
+    right: .75rem;
+    background: none;
+    border: none;
+    padding: .25rem;
+    color: var(--sf-text-muted);
+    cursor: pointer;
+    line-height: 1;
+    font-size: 1rem;
+    transition: color .15s;
+}
+
+.sf-login-pw-toggle:hover,
+.sf-login-pw-toggle:focus-visible {
+    color: var(--primitive-gold);
+    outline: none;
+}
+
+/* ── Submit button ───────────────────────────────────────────────────── */
+.sf-login-submit {
+    width: 100%;
+    padding: .8rem;
+    margin-top: .25rem;
+    background: var(--primitive-gold);
+    color: var(--primitive-dark-900);
+    border: none;
+    border-radius: 8px;
+    font-size: .975rem;
+    font-weight: 700;
+    letter-spacing: .04em;
+    cursor: pointer;
+    transition: background .18s, transform .1s;
+}
+
+.sf-login-submit:hover {
+    background: var(--primitive-gold-dim);
+}
+
+.sf-login-submit:active {
+    transform: scale(.98);
+}
+
+/* ── Footer note ─────────────────────────────────────────────────────── */
+.sf-login-footer-note {
+    text-align: center;
+    font-size: .78rem;
+    color: var(--sf-text-muted);
+    margin-top: 1.5rem;
+    margin-bottom: 0;
+}
+
+/* ── Small screen adjustment (< 380px — older iPhones, small Androids) ── */
+@media (max-width: 380px) {
+    .sf-login-card {
+        padding: 2rem 1.25rem;
+    }
+    .sf-login-brand-name {
+        font-size: 1.25rem;
+    }
+    .sf-login-pw-toggle {
+        padding: .5rem .75rem;
+        right: .25rem;
+    }
+}
+
+/* ── Light theme overrides ───────────────────────────────────────────── */
+[data-theme="light"] .sf-login-card {
+    box-shadow: 0 4px 24px rgba(6,20,78,.10);
+}
+
+[data-theme="light"] .sf-login-error-banner {
+    background: rgba(180,30,30,.07);
+    border-color: rgba(180,30,30,.30);
+    color: #8B2020;
+}
+
+[data-theme="light"] .sf-login-error-banner i {
+    color: #8B2020;
+}
+
+[data-theme="light"] .sf-login-input--error,
+[data-theme="light"] .sf-login-input.input-validation-error {
+    border-color: #C0392B;
+    box-shadow: 0 0 0 3px rgba(192,57,43,.12);
+}

@@ -1,0 +1,393 @@
+@*
+ * File: /ScrumFlix/Areas/Admin/Views/Home/AdminDashboard.cshtml
+ * Description: Admin dashboard — live stat cards, quick-action nav, data summaries,
+ *              and TMDb metadata sync panel.
+ *              Uses sf-admin-layout, sf-admin-sidebar, sf-admin-nav-link, sf-stat-card
+ *              component classes (all defined in sf-components.css Phase 3).
+ *              Themes correctly across dark / light / red.
+ *
+ * Phase 3 — P3-UI-6:
+ *   Replaces placeholder "coming soon" stub with a functional admin overview.
+ *
+ * Phase 2 Addition:
+ *   Added TMDb sync section to sidebar nav and main content.
+ *   TmdbSyncViewModel delivered via ViewBag.TmdbSync by AdminHomeController.
+ *   Sync trigger form uses standard POST (no HTMX yet — full page return with result).
+ *   Future: upgrade TmdbSyncRun to return a partial and swap via hx-swap.
+*@
+@model ScrumFlix.Areas.Admin.ViewModels.AdminDashboardViewModel
+@using ScrumFlix.Areas.Admin.ViewModels
+@{
+    ViewData["Title"] = "Admin Dashboard";
+    // Layout provided by _ViewStart -> _AdminLayout (includes persistent sidebar)
+
+    @* All data comes from the strongly-typed Model — no ViewBag. *@
+    var tmdb = Model.TmdbSync;
+}
+
+<div class="sf-page-header">
+    <div class="container-xl">
+        <h1 class="sf-page-title">
+            <i class="bi bi-shield-lock me-2" aria-hidden="true"></i>Admin Dashboard
+        </h1>
+        <p class="sf-page-subtitle">
+            @DateTime.Now.ToString("dddd, MMMM d yyyy") &mdash; Overview
+        </p>
+    </div>
+</div>
+
+<div class="container-xl py-4">
+    <div class="container-xl py-4">
+
+
+            @* Flash messages *@
+            @if (TempData["SuccessMessage"] is string successMsg)
+            {
+                <div class="sf-flash-banner sf-flash-banner--success d-flex align-items-center gap-2 mb-4" role="alert">
+                    <i class="bi bi-check-circle-fill flex-shrink-0" aria-hidden="true"></i>
+                    <span>@successMsg</span>
+                </div>
+            }
+            @if (TempData["InfoMessage"] is string infoMsg)
+            {
+                <div class="sf-flash-banner sf-flash-banner--info d-flex align-items-center gap-2 mb-4" role="alert">
+                    <i class="bi bi-info-circle-fill flex-shrink-0" aria-hidden="true"></i>
+                    <span>@infoMsg</span>
+                </div>
+            }
+            @if (TempData["ErrorMessage"] is string errorMsg)
+            {
+                <div class="sf-flash-banner sf-flash-banner--danger d-flex align-items-center gap-2 mb-4" role="alert">
+                    <i class="bi bi-x-circle-fill flex-shrink-0" aria-hidden="true"></i>
+                    <span>@errorMsg</span>
+                </div>
+            }
+
+            @* Low-stock alert banner *@
+            @if (Model.HasLowStockItems)
+            {
+                <div class="sf-flash-banner sf-flash-banner--warning d-flex align-items-center gap-2 mb-4" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill flex-shrink-0" aria-hidden="true"></i>
+                    <span>
+                        <strong>@Model.LowStockCount concession item@(Model.LowStockCount == 1 ? "" : "s")</strong>
+                        below minimum stock level.
+                        <a href="#section-inventory" class="sf-text-link ms-1">Review inventory</a>
+                    </span>
+                </div>
+            }
+
+            @* ── Today's Summary ────────────────────────────────────── *@
+            <section id="section-today" aria-labelledby="today-heading">
+                <h2 id="today-heading" class="sf-section-title mb-4">
+                    <span class="sf-gold-bar" aria-hidden="true"></span>Today's Summary
+                </h2>
+                <div class="row g-3 mb-5">
+                    <div class="col-6 col-xl-3">
+                        <div class="sf-stat-card">
+                            <i class="bi bi-ticket-perforated sf-stat-icon" aria-hidden="true"></i>
+                            <div class="sf-stat-value">@Model.TicketsSoldToday</div>
+                            <div class="sf-stat-label">Tickets Sold Today</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-xl-3">
+                        <div class="sf-stat-card">
+                            <i class="bi bi-currency-dollar sf-stat-icon" aria-hidden="true"></i>
+                            <div class="sf-stat-value">@Model.RevenueTodayFormatted</div>
+                            <div class="sf-stat-label">Ticket Revenue Today</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-xl-3">
+                        <div class="sf-stat-card">
+                            <i class="bi bi-cup-straw sf-stat-icon" aria-hidden="true"></i>
+                            <div class="sf-stat-value">@Model.ConcessionsSoldToday</div>
+                            <div class="sf-stat-label">Concessions Sold Today</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-xl-3">
+                        <div class="sf-stat-card">
+                            <i class="bi bi-display sf-stat-icon" aria-hidden="true"></i>
+                            <div class="sf-stat-value">@Model.ActiveShowtimes</div>
+                            <div class="sf-stat-label">Active Showtimes</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            @* ── Catalog Overview ───────────────────────────────────── *@
+            <section aria-labelledby="catalog-heading" class="mb-5">
+                <h2 id="catalog-heading" class="sf-section-title mb-4">
+                    <span class="sf-gold-bar" aria-hidden="true"></span>Catalog
+                </h2>
+                <div class="row g-3">
+                    <div class="col-6 col-lg-3">
+                        <div class="sf-stat-card">
+                            <i class="bi bi-film sf-stat-icon" aria-hidden="true"></i>
+                            <div class="sf-stat-value">@Model.TotalMovies</div>
+                            <div class="sf-stat-label">Movies in Catalog</div>
+                            <a asp-area="Admin" asp-controller="AdminManage" asp-action="Showtimes" class="sf-admin-card-link mt-2">
+                                Manage <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="col-6 col-lg-3">
+                        <div class="sf-stat-card">
+                            <i class="bi bi-geo-alt sf-stat-icon" aria-hidden="true"></i>
+                            <div class="sf-stat-value">@Model.TotalLocations</div>
+                            <div class="sf-stat-label">Theater Locations</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-lg-3">
+                        <div class="sf-stat-card @(Model.HasLowStockItems ? "sf-stat-card--alert" : "")">
+                            <i class="bi bi-box-seam sf-stat-icon" aria-hidden="true"></i>
+                            <div class="sf-stat-value @(Model.HasLowStockItems ? "sf-stat-value--danger" : "")">@Model.LowStockCount</div>
+                            <div class="sf-stat-label">Low Stock Items</div>
+                            @if (Model.HasLowStockItems)
+                            {
+                                <a href="#section-inventory" class="sf-admin-card-link mt-2">
+                                    Review <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i>
+                                </a>
+                            }
+                        </div>
+                    </div>
+                    <div class="col-6 col-lg-3">
+                        <div class="sf-stat-card">
+                            <i class="bi bi-people sf-stat-icon" aria-hidden="true"></i>
+                            <div class="sf-stat-value">@Model.TotalUsers</div>
+                            <div class="sf-stat-label">Staff Users</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            @* ── TMDb Sync Section ──────────────────────────────────── *@
+            <section id="section-tmdb" aria-labelledby="tmdb-heading" class="mb-5">
+                <h2 id="tmdb-heading" class="sf-section-title mb-4">
+                    <span class="sf-gold-bar" aria-hidden="true"></span>TMDb Metadata Sync
+                </h2>
+
+                @if (!tmdb.ApiKeyConfigured)
+                {
+                    <div class="sf-flash-banner sf-flash-banner--warning d-flex align-items-center gap-2 mb-4" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill flex-shrink-0" aria-hidden="true"></i>
+                        <span>
+                            <strong>TMDb API key not configured.</strong>
+                            Set <code>Tmdb:ApiKey</code> in User Secrets or the
+                            <code>Tmdb__ApiKey</code> environment variable to enable movie poster
+                            and genre syncing.
+                        </span>
+                    </div>
+                }
+
+                @* Coverage stats *@
+                <div class="row g-3 mb-4">
+                    <div class="col-6 col-lg-3">
+                        <div class="sf-stat-card">
+                            <i class="bi bi-collection-fill sf-stat-icon" aria-hidden="true"></i>
+                            <div class="sf-stat-value">@tmdb.MoviesWithMetadata <span class="sf-stat-denom">/ @tmdb.TotalMovies</span></div>
+                            <div class="sf-stat-label">Movies Synced</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-lg-3">
+                        <div class="sf-stat-card">
+                            <i class="bi bi-image sf-stat-icon" aria-hidden="true"></i>
+                            <div class="sf-stat-value">@tmdb.MoviesWithPoster</div>
+                            <div class="sf-stat-label">With Poster</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-lg-3">
+                        <div class="sf-stat-card">
+                            <i class="bi bi-play-circle sf-stat-icon" aria-hidden="true"></i>
+                            <div class="sf-stat-value">@tmdb.MoviesWithTrailer</div>
+                            <div class="sf-stat-label">With Trailer</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-lg-3">
+                        <div class="sf-stat-card">
+                            <i class="bi bi-percent sf-stat-icon" aria-hidden="true"></i>
+                            <div class="sf-stat-value">@tmdb.CoveragePercent<span class="sf-stat-denom">%</span></div>
+                            <div class="sf-stat-label">Coverage</div>
+                        </div>
+                    </div>
+                </div>
+
+                @* Coverage progress bar *@
+                <div class="mb-4">
+                    <div class="d-flex justify-content-between mb-1">
+                        <small class="sf-text-muted">Metadata coverage</small>
+                        <small class="sf-text-muted">@tmdb.MoviesWithMetadata of @tmdb.TotalMovies movies</small>
+                    </div>
+                    <div class="progress" style="height: 8px;" role="progressbar"
+                         aria-valuenow="@tmdb.CoveragePercent" aria-valuemin="0" aria-valuemax="100">
+                        <div class="progress-bar @(tmdb.CoveragePercent == 100 ? "bg-success" : tmdb.CoveragePercent > 50 ? "bg-info" : "bg-warning")"
+                             style="width: @tmdb.CoveragePercent%"></div>
+                    </div>
+                </div>
+
+                @* Last sync result (shown after TmdbSyncRun POST) *@
+                @if (tmdb.LastSyncResult is { } syncResult)
+                {
+                    <div class="sf-flash-banner sf-flash-banner--@(syncResult.Failed == 0 ? "success" : "warning") mb-4" role="status">
+                        <strong>Sync complete.</strong>
+                        Synced: <strong>@syncResult.Synced</strong> &nbsp;|&nbsp;
+                        Skipped: <strong>@syncResult.Skipped</strong> &nbsp;|&nbsp;
+                        Failed: <strong>@syncResult.Failed</strong>
+                        @if (tmdb.LastSyncWasForced)
+                        {
+                            <span class="badge bg-secondary ms-2">Force-all</span>
+                        }
+                    </div>
+                }
+
+                @* Sync trigger form *@
+                <div class="card sf-card p-4">
+                    <h3 class="h6 mb-3">Trigger Sync</h3>
+                    <p class="sf-text-muted mb-3" style="font-size: 0.875rem;">
+                        Syncing fetches poster images, backdrop images, trailers, genres, ratings,
+                        and popularity scores from The Movie Database for all movies in the catalog.
+                        A full sync of @tmdb.TotalMovies movies may take up to
+                        @((tmdb.TotalMovies * 250 / 1000 / 60 + 1)) minute(s).
+                    </p>
+                    <div class="d-flex flex-wrap gap-3">
+                        <form asp-area="Admin" asp-controller="AdminHome" asp-action="TmdbSyncRun"
+                              method="post">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="forceAll" value="false" />
+                            <button type="submit"
+                                    class="btn sf-btn-primary"
+                                    @(!tmdb.ApiKeyConfigured ? "disabled" : "")
+                                    title="@(!tmdb.ApiKeyConfigured ? "Configure Tmdb:ApiKey first" : "Sync stale movies only (skips recently synced)")">
+                                <i class="bi bi-arrow-repeat me-2" aria-hidden="true"></i>
+                                Sync Stale Movies
+                            </button>
+                        </form>
+
+                        <form asp-area="Admin" asp-controller="AdminHome" asp-action="TmdbSyncRun"
+                              method="post">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="forceAll" value="true" />
+                            <button type="submit"
+                                    class="btn sf-btn-secondary"
+                                    @(!tmdb.ApiKeyConfigured ? "disabled" : "")
+                                    title="@(!tmdb.ApiKeyConfigured ? "Configure Tmdb:ApiKey first" : "Re-sync every movie regardless of last sync time")">
+                                <i class="bi bi-arrow-clockwise me-2" aria-hidden="true"></i>
+                                Force Full Re-sync
+                            </button>
+                        </form>
+                    </div>
+                    @if (!tmdb.ApiKeyConfigured)
+                    {
+                        <p class="sf-text-muted mt-2 mb-0" style="font-size: 0.8125rem;">
+                            <i class="bi bi-lock-fill me-1" aria-hidden="true"></i>
+                            Sync buttons disabled — TMDb API key not set.
+                        </p>
+                    }
+                </div>
+            </section>
+
+            @* ── Inventory Section ──────────────────────────────────── *@
+            <section id="section-inventory" aria-labelledby="inventory-heading" class="mb-5">
+                <h2 id="inventory-heading" class="sf-section-title mb-4">
+                    <span class="sf-gold-bar" aria-hidden="true"></span>Concession Inventory
+                </h2>
+                @if (Model.ConcessionItems.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table sf-admin-table" aria-label="Concession inventory">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Item</th>
+                                    <th scope="col" class="text-end">Price</th>
+                                    <th scope="col" class="text-end">In Stock</th>
+                                    <th scope="col" class="text-end">Min Stock</th>
+                                    <th scope="col">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in Model.ConcessionItems.OrderBy(i => i.QuantityInStock))
+                                {
+                                    var isLow = item.QuantityInStock <= item.Minimum;
+                                    <tr class="@(isLow ? "sf-row-warning" : "")">
+                                        <td>@item.ItemName</td>
+                                        <td class="text-end">@item.Price.ToString("C")</td>
+                                        <td class="text-end">@item.QuantityInStock</td>
+                                        <td class="text-end">@item.Minimum</td>
+                                        <td>
+                                            @if (item.QuantityInStock <= 0)
+                                            {
+                                                <span class="sf-badge-oos">Out of Stock</span>
+                                            }
+                                            else if (isLow)
+                                            {
+                                                <span class="badge sf-badge-low-stock">
+                                                    <i class="bi bi-exclamation-triangle-fill me-1" aria-hidden="true"></i>Low
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge sf-badge-ok">OK</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <p class="sf-text-muted">No concession items found.</p>
+                }
+            </section>
+
+            @* ── Users Section ──────────────────────────────────────── *@
+            <section id="section-users" aria-labelledby="users-heading">
+                <h2 id="users-heading" class="sf-section-title mb-4">
+                    <span class="sf-gold-bar" aria-hidden="true"></span>Staff Users
+                </h2>
+                @if (Model.RecentUsers.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table sf-admin-table" aria-label="Staff users">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Username</th>
+                                    <th scope="col">Role</th>
+                                    <th scope="col">Status</th>
+                                    <th scope="col">Must Change PW</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var user in Model.RecentUsers)
+                                {
+                                    <tr>
+                                        <td>@user.UserName</td>
+                                        <td>@(user.Role?.RoleName ?? "—")</td>
+                                        <td>
+                                            @if (user.IsLockedOut)
+                                            {
+                                                <span class="badge sf-badge-oos">Locked</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge sf-badge-ok">Active</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            @(user.MustChangePassword
+                                                ? Html.Raw("<span class=\"badge sf-badge-low-stock\">Yes</span>")
+                                                : Html.Raw("<span class=\"sf-text-muted\">No</span>"))
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <p class="sf-text-muted">No users found.</p>
+                }
+            </section>
+
+
+</div>

@@ -1,0 +1,105 @@
+@*
+ * Partial: _ShiftForm.cshtml
+ * FIX RZ1031: <option selected> uses asp-* tag helpers, not inline C# ternary in attributes.
+ * FIX: RoleId and LocationId bind correctly (no [BindNever]). EndTime > StartTime validated.
+ *@
+@model ScrumFlix.Areas.Admin.ViewModels.ShiftFormViewModel
+@{
+    bool isEdit      = Model.ShiftId > 0;
+    string postUrl   = isEdit ? "/Admin/Schedule/UpdateShift" : "/Admin/Schedule/AddShift";
+    string btnIcon   = isEdit ? "bi-pencil" : "bi-plus-lg";
+    string btnLabel  = isEdit ? "Update Shift" : "Add Shift";
+}
+
+<form id="shift-form" method="post" action="@postUrl"
+      hx-post="@postUrl" hx-target="#shifts-grid" hx-swap="innerHTML">
+    @Html.AntiForgeryToken()
+    @if (isEdit)
+    {
+        <input type="hidden" name="ShiftId" value="@Model.ShiftId" />
+    }
+
+    @if (!ViewData.ModelState.IsValid)
+    {
+        <div class="sf-flash-banner sf-flash-banner--danger mb-3" role="alert">
+            <ul class="mb-0 ps-3">
+                @foreach (var ms in ViewData.ModelState.Values)
+                {
+                    foreach (var me in ms.Errors)
+                    {
+                        <li>@me.ErrorMessage</li>
+                    }
+                }
+            </ul>
+        </div>
+    }
+
+    <div class="mb-3">
+        <label class="form-label sf-label" for="sf-role">
+            Role <span class="text-danger">*</span>
+        </label>
+        <select id="sf-role" name="RoleId" class="form-select sf-input" required>
+            <option value="">— Select Role —</option>
+            @foreach (var r in Model.Roles)
+            {
+                if (r.Selected)
+                {
+                    <option value="@r.Value" selected="selected">@r.Text</option>
+                }
+                else
+                {
+                    <option value="@r.Value">@r.Text</option>
+                }
+            }
+        </select>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label sf-label" for="sf-loc">
+            Location <span class="text-danger">*</span>
+        </label>
+        <select id="sf-loc" name="LocationId" class="form-select sf-input" required>
+            <option value="">— Select Location —</option>
+            @foreach (var l in Model.Locations)
+            {
+                if (l.Selected)
+                {
+                    <option value="@l.Value" selected="selected">@l.Text</option>
+                }
+                else
+                {
+                    <option value="@l.Value">@l.Text</option>
+                }
+            }
+        </select>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label sf-label" for="sf-start">
+            Start Time <span class="text-danger">*</span>
+        </label>
+        <input id="sf-start" type="datetime-local" name="StartTime"
+               class="form-control sf-input"
+               value="@Model.StartTime.ToString("yyyy-MM-ddTHH:mm")" required />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label sf-label" for="sf-end">
+            End Time <span class="text-danger">*</span>
+        </label>
+        <input id="sf-end" type="datetime-local" name="EndTime"
+               class="form-control sf-input"
+               value="@Model.EndTime.ToString("yyyy-MM-ddTHH:mm")" required />
+        <div id="sf-time-err" class="text-danger mt-1" style="font-size:.8rem; display:none">
+            End time must be after start time.
+        </div>
+    </div>
+
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn sf-btn-primary">
+            <i class="bi @btnIcon me-1" aria-hidden="true"></i>@btnLabel
+        </button>
+    </div>
+</form>
+
+<script src="~/js/sf-shift-form.js"></script>

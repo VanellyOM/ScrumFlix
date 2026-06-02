@@ -1,0 +1,167 @@
+@model ScrumFlix.Areas.Admin.ViewModels.UserIndexViewModel
+@{
+    ViewData["Title"] = "Manage Users";
+    string SortLink(string col) {
+        var desc = Model.SortBy == col && !Model.SortDesc;
+        return Url.Action("Users", "AdminManage", new { area="Admin",
+            search = Model.SearchTerm, roleId = Model.FilterRoleId,
+            sortBy = col, sortDesc = desc, page = 1 })!;
+    }
+    string SortIcon(string col) => Model.SortBy != col ? "bi-arrow-down-up text-muted"
+        : (Model.SortDesc ? "bi-sort-down" : "bi-sort-up");
+}
+
+<div class="sf-page-header">
+    <div class="container-xl d-flex align-items-center justify-content-between flex-wrap gap-3">
+        <div>
+            <h1 class="sf-page-title"><i class="bi bi-people me-2"></i>Staff Users</h1>
+            <p class="sf-page-subtitle">Manage accounts, roles, and access · @Model.TotalCount total</p>
+        </div>
+        <a asp-area="Admin" asp-controller="AdminManage" asp-action="UserCreate" class="btn sf-btn-primary">
+            <i class="bi bi-person-plus me-2"></i>Add User
+        </a>
+    </div>
+</div>
+
+<section class="sf-section">
+    <div class="container-xl">
+
+        @if (TempData["SuccessMessage"] is string ok)
+        {
+            <div class="sf-flash-banner sf-flash-banner--success d-flex gap-2 align-items-center mb-4" role="alert">
+                <i class="bi bi-check-circle-fill flex-shrink-0"></i><span>@ok</span>
+            </div>
+        }
+        @if (TempData["ErrorMessage"] is string err)
+        {
+            <div class="sf-flash-banner sf-flash-banner--danger d-flex gap-2 align-items-center mb-4" role="alert">
+                <i class="bi bi-x-circle-fill flex-shrink-0"></i><span>@err</span>
+            </div>
+        }
+
+        @* Filter bar *@
+        <form asp-area="Admin" asp-controller="AdminManage" asp-action="Users" method="get"
+              class="d-flex flex-wrap gap-2 mb-4 align-items-end">
+            <div>
+                <label class="sf-label mb-1">Search username</label>
+                <div class="sf-search-wrap" style="width:220px">
+                    <i class="bi bi-search sf-search-icon"></i>
+                    <input type="text" name="search" value="@Model.SearchTerm"
+                           class="sf-search-input" placeholder="Username…" />
+                </div>
+            </div>
+            <div>
+                <label class="sf-label mb-1">Role</label>
+                <select name="roleId" class="sf-select" style="min-width:130px">
+                    <option value="">All roles</option>
+                    @foreach (var r in Model.Roles)
+                    {
+                        <option value="@r.RoleId" selected="@(Model.FilterRoleId == r.RoleId)">@r.RoleName</option>
+                    }
+                </select>
+            </div>
+            <input type="hidden" name="sortBy" value="@Model.SortBy" />
+            <input type="hidden" name="sortDesc" value="@Model.SortDesc" />
+            <button type="submit" class="btn sf-btn-outline"><i class="bi bi-funnel me-1"></i>Filter</button>
+            @if (!string.IsNullOrWhiteSpace(Model.SearchTerm) || Model.FilterRoleId.HasValue)
+            {
+                <a asp-area="Admin" asp-controller="AdminManage" asp-action="Users" class="btn sf-btn-ghost">Clear</a>
+            }
+        </form>
+
+        @if (!Model.Users.Any())
+        {
+            <div class="sf-empty-state text-center py-5">
+                <i class="bi bi-people sf-empty-icon"></i>
+                <p class="sf-text-muted mt-3">No users found matching your filter.</p>
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table sf-admin-table" aria-label="Staff users">
+                    <thead>
+                        <tr>
+                            <th><a href="@SortLink("username")" class="text-decoration-none sf-sort-header">
+                                Username <i class="bi @SortIcon("username") ms-1" style="font-size:.7rem"></i></a></th>
+                            <th><a href="@SortLink("role")" class="text-decoration-none sf-sort-header">
+                                Role <i class="bi @SortIcon("role") ms-1" style="font-size:.7rem"></i></a></th>
+                            <th><a href="@SortLink("status")" class="text-decoration-none sf-sort-header">
+                                Status <i class="bi @SortIcon("status") ms-1" style="font-size:.7rem"></i></a></th>
+                            <th>Must Change PW</th>
+                            <th>Last Login</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var user in Model.Users)
+                        {
+                            <tr class="@(!user.IsActive ? "opacity-50" : "")">
+                                <td class="fw-500">@user.UserName</td>
+                                <td>@(user.Role?.RoleName ?? "—")</td>
+                                <td>
+                                    @if (user.IsLockedOut) { <span class="badge sf-badge-oos">Locked</span> }
+                                    else if (!user.IsActive) { <span class="badge sf-badge-oos">Inactive</span> }
+                                    else { <span class="badge sf-badge-ok">Active</span> }
+                                </td>
+                                <td>
+                                    @(user.MustChangePassword
+                                        ? Html.Raw("<span class=\"badge sf-badge-low-stock\">Yes</span>")
+                                        : Html.Raw("<span class=\"sf-text-muted\">No</span>"))
+                                </td>
+                                <td class="sf-text-muted" style="font-size:.82rem">
+                                    @(user.LastLoginUtc.HasValue ? user.LastLoginUtc.Value.ToLocalTime().ToString("MM/dd/yy h:mm tt") : "Never")
+                                </td>
+                                <td class="text-end">
+                                    <a asp-area="Admin" asp-controller="AdminManage" asp-action="UserEdit"
+                                       asp-route-id="@user.UserId" class="btn btn-sm sf-btn-outline me-1" title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    @if (user.IsLockedOut)
+                                    {
+                                        <form asp-area="Admin" asp-controller="AdminManage" asp-action="UserUnlock"
+                                              method="post" style="display:inline">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="id" value="@user.UserId" />
+                                            <button type="submit" class="btn btn-sm sf-btn-ghost" title="Unlock account">
+                                                <i class="bi bi-unlock"></i>
+                                            </button>
+                                        </form>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            @* Pagination *@
+            @if (Model.TotalPages > 1)
+            {
+                <nav aria-label="User list pagination" class="mt-3">
+                    <ul class="pagination sf-pagination justify-content-center flex-wrap">
+                        <li class="page-item @(Model.Page <= 1 ? "disabled" : "")">
+                            <a class="page-link" href="@Url.Action("Users","AdminManage",new{area="Admin",search=Model.SearchTerm,roleId=Model.FilterRoleId,sortBy=Model.SortBy,sortDesc=Model.SortDesc,page=Model.Page-1})">
+                                <i class="bi bi-chevron-left"></i>
+                            </a>
+                        </li>
+                        @for (int p = Math.Max(1, Model.Page - 2); p <= Math.Min(Model.TotalPages, Model.Page + 2); p++)
+                        {
+                            <li class="page-item @(p == Model.Page ? "active" : "")">
+                                <a class="page-link" href="@Url.Action("Users","AdminManage",new{area="Admin",search=Model.SearchTerm,roleId=Model.FilterRoleId,sortBy=Model.SortBy,sortDesc=Model.SortDesc,page=p})">@p</a>
+                            </li>
+                        }
+                        <li class="page-item @(Model.Page >= Model.TotalPages ? "disabled" : "")">
+                            <a class="page-link" href="@Url.Action("Users","AdminManage",new{area="Admin",search=Model.SearchTerm,roleId=Model.FilterRoleId,sortBy=Model.SortBy,sortDesc=Model.SortDesc,page=Model.Page+1})">
+                                <i class="bi bi-chevron-right"></i>
+                            </a>
+                        </li>
+                    </ul>
+                    <p class="text-center sf-text-muted mt-1" style="font-size:.8rem">
+                        Page @Model.Page of @Model.TotalPages · @Model.TotalCount user(s)
+                    </p>
+                </nav>
+            }
+        }
+    </div>
+</section>

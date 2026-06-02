@@ -1,0 +1,134 @@
+@*
+ * Partial: _AdminSidebar.cshtml
+ * Persistent Admin/Manager sidebar. Auto-hides on narrow screens with a tab
+ * toggle sticking out so the user can expand it at any time.
+ * Included in every Admin-area page via _AdminLayout or directly.
+ *
+ * Requires: LayoutViewModel in HttpContext.Items["LayoutViewModel"]
+ * Roles: Admin (1) sees all sections. Manager (2) sees schedule + reports.
+ *@
+@{
+    var lvm = Context.Items["LayoutViewModel"] as ScrumFlix.ViewModels.LayoutViewModel
+              ?? new ScrumFlix.ViewModels.LayoutViewModel();
+    var roleId = lvm.RoleId ?? 99;
+    var isAdmin = roleId <= 1;
+    var isManager = roleId <= 2;
+
+    // Determine active page for highlight
+    var ctrl   = ViewContext.RouteData.Values["controller"]?.ToString() ?? "";
+    var action = ViewContext.RouteData.Values["action"]?.ToString() ?? "";
+    string Nav(string c, string a) =>
+        ctrl.Equals(c, StringComparison.OrdinalIgnoreCase) &&
+        action.Equals(a, StringComparison.OrdinalIgnoreCase)
+            ? "sf-admin-nav-link active"
+            : "sf-admin-nav-link";
+}
+
+<aside id="sf-admin-sidebar" class="sf-admin-sidebar" aria-label="Staff portal navigation">
+    <nav aria-label="Staff portal sections">
+
+        @* ── Home ─────────────────────────────────────────────────── *@
+        <a asp-area="Admin" asp-controller="AdminHome" asp-action="AdminDashboard"
+           class="@Nav("AdminHome","AdminDashboard")">
+            <i class="bi bi-speedometer2 me-2" aria-hidden="true"></i>Dashboard
+        </a>
+
+        @if (isAdmin)
+        {
+            <div class="sf-divider mx-3 my-2" aria-hidden="true"></div>
+            <p class="sf-admin-nav-section-label px-3 mb-1">CATALOG</p>
+
+            <a asp-area="Admin" asp-controller="AdminManage" asp-action="Showtimes"
+               class="@Nav("AdminManage","Showtimes")">
+                <i class="bi bi-calendar-event me-2" aria-hidden="true"></i>Showtimes
+            </a>
+            <a asp-area="Admin" asp-controller="Movies" asp-action="MovieCatalog"
+               class="@Nav("Movies","MovieCatalog")">
+                <i class="bi bi-film me-2" aria-hidden="true"></i>Movies
+            </a>
+            <a asp-area="Admin" asp-controller="AdminManage" asp-action="Concessions"
+               class="@Nav("AdminManage","Concessions")">
+                <i class="bi bi-cup-straw me-2" aria-hidden="true"></i>Concessions
+            </a>
+            <a asp-area="Admin" asp-controller="Concessions" asp-action="ConcessionsCatalog"
+               class="@Nav("Concessions","ConcessionsCatalog")" title="Customer view of concessions">
+                <i class="bi bi-eye me-2" aria-hidden="true"></i>Concessions Preview
+            </a>
+
+            <div class="sf-divider mx-3 my-2" aria-hidden="true"></div>
+            <p class="sf-admin-nav-section-label px-3 mb-1">MANAGE</p>
+
+            <a asp-area="Admin" asp-controller="AdminManage" asp-action="Users"
+               class="@Nav("AdminManage","Users")">
+                <i class="bi bi-people me-2" aria-hidden="true"></i>Users
+            </a>
+            <a asp-area="Admin" asp-controller="AdminManage" asp-action="Locations"
+               class="@Nav("AdminManage","Locations")">
+                <i class="bi bi-geo-alt me-2" aria-hidden="true"></i>Locations
+            </a>
+            <a asp-area="Admin" asp-controller="AdminManage" asp-action="Screens"
+               class="@Nav("AdminManage","Screens")">
+                <i class="bi bi-display me-2" aria-hidden="true"></i>Screens
+            </a>
+        }
+
+        @if (isManager)
+        {
+            <div class="sf-divider mx-3 my-2" aria-hidden="true"></div>
+            <p class="sf-admin-nav-section-label px-3 mb-1">WORKFORCE</p>
+
+            <a asp-area="Admin" asp-controller="Schedule" asp-action="Index"
+               class="@Nav("Schedule","Index")">
+                <i class="bi bi-calendar3 me-2" aria-hidden="true"></i>Schedule
+            </a>
+        }
+
+        @if (isAdmin)
+        {
+            <div class="sf-divider mx-3 my-2" aria-hidden="true"></div>
+            <p class="sf-admin-nav-section-label px-3 mb-1">REPORTS</p>
+
+            <a asp-area="Admin" asp-controller="AdminManage" asp-action="Exports"
+               class="@Nav("AdminManage","Exports")">
+                <i class="bi bi-download me-2" aria-hidden="true"></i>Export Reports
+            </a>
+            <a asp-area="Admin" asp-controller="AdminHome" asp-action="TmdbSyncPage"
+               class="@Nav("AdminHome","TmdbSyncPage")">
+                <i class="bi bi-arrow-repeat me-2" aria-hidden="true"></i>TMDb Sync
+            </a>
+
+            <div class="sf-divider mx-3 my-2" aria-hidden="true"></div>
+            <p class="sf-admin-nav-section-label px-3 mb-1">PREVIEW</p>
+
+            <a asp-area="Admin" asp-controller="AdminManage" asp-action="StaffPortalTest"
+               class="@Nav("AdminManage","StaffPortalTest")">
+                <i class="bi bi-eye me-2" aria-hidden="true"></i>Staff Portal Test
+            </a>
+        }
+
+        <div class="sf-divider mx-3 my-2" aria-hidden="true"></div>
+        <p class="sf-admin-nav-section-label px-3 mb-1">ACCOUNT</p>
+
+        <a href="@Url.Action("ChangePassword", "Account", new { area = "" })"
+           class="sf-admin-nav-link">
+            <i class="bi bi-key me-2" aria-hidden="true"></i>Change Password
+        </a>
+        <a href="@Url.Action("Logout", "Account", new { area = "" })"
+           class="sf-admin-nav-link sf-admin-nav-link--danger">
+            <i class="bi bi-box-arrow-right me-2" aria-hidden="true"></i>Log Out
+        </a>
+
+    </nav>
+</aside>
+
+@* Toggle tab — must be AFTER <aside> so the CSS '+' adjacent-sibling selector works *@
+<button id="sf-sidebar-toggle"
+        class="sf-sidebar-toggle-tab"
+        aria-label="Toggle navigation sidebar"
+        aria-expanded="true"
+        aria-controls="sf-admin-sidebar"
+        title="Toggle sidebar">
+    <i class="bi bi-layout-sidebar" aria-hidden="true"></i>
+</button>
+
+<script src="~/js/sf-admin-sidebar.js"></script>

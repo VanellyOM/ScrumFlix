@@ -1,0 +1,26 @@
+name: DB Deploy
+on:
+  workflow_dispatch:
+    inputs:
+      script_path:
+        description: 'Path to SQL script inside repo'
+        required: true
+
+jobs:
+  apply-sql:
+    runs-on: ubuntu-latest
+    environment: production  # requires environment protection and reviewers
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup mysql client
+        run: sudo apt-get update && sudo apt-get install -y mysql-client
+
+      - name: Apply SQL script
+        env:
+          MYSQL_HOST: ${{ secrets.PROD_DB_HOST }}
+          MYSQL_USER: ${{ secrets.PROD_DB_USER }}
+          MYSQL_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
+        run: |
+          mysql -h "$MYSQL_HOST" -u "$MYSQL_USER" -p"$MYSQL_PASSWORD" < ${{ github.event.inputs.script_path }}
+
+# Safety: protect this workflow with environments and required reviewers. Prefer running scripts via an operator or managed service.

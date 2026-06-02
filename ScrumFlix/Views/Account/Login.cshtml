@@ -1,0 +1,96 @@
+@model ScrumFlix.ViewModels.LoginViewModel
+
+@{
+    ViewData["Title"] = "Staff Login";
+    Layout = "_Layout";
+}
+
+@* ── Full-page centered login — no outer nav/footer chrome needed ── *@
+<div class="sf-login-page">
+    <div class="sf-login-card">
+
+        @* ── Brand mark ──────────────────────────────────────────────── *@
+        <div class="sf-login-brand">
+            <div class="sf-login-icon-ring">
+                <i class="bi bi-film" aria-hidden="true"></i>
+            </div>
+            <span class="sf-login-brand-name">ScrumFlix</span>
+            <span class="sf-login-brand-sub">Staff Portal</span>
+        </div>
+
+        @* ── Error banner — hidden until JS confirms errors exist ────── *@
+        <div id="sf-login-errors"
+             class="sf-login-error-banner"
+             role="alert"
+             aria-live="polite"
+             style="display:none;">
+            <i class="bi bi-exclamation-circle-fill" aria-hidden="true"></i>
+            <span id="sf-login-error-text">Invalid username or password.</span>
+        </div>
+
+        @* ── Hidden ASP.NET validation summary (read by JS only) ─────── *@
+        <div asp-validation-summary="ModelOnly"
+             id="sf-login-summary"
+             class="d-none"
+             aria-hidden="true"></div>
+
+        @* ── Form ────────────────────────────────────────────────────── *@
+        <form asp-action="Login"
+              asp-controller="Account"
+              method="post"
+              novalidate
+              autocomplete="off"
+              class="sf-login-form">
+
+            @Html.AntiForgeryToken()
+            <input type="hidden" asp-for="ReturnUrl" />
+
+            <div class="sf-login-field">
+                <label asp-for="UserName" class="sf-login-label">Username</label>
+                <div class="sf-login-input-wrap">
+                    <i class="bi bi-person sf-login-input-icon" aria-hidden="true"></i>
+                    <input asp-for="UserName"
+                           class="sf-login-input"
+                           placeholder="e.g. jsmith"
+                           autocomplete="username"
+                           spellcheck="false" />
+                </div>
+            </div>
+
+            <div class="sf-login-field">
+                <label asp-for="Password" class="sf-login-label">Password</label>
+                <div class="sf-login-input-wrap">
+                    <i class="bi bi-lock sf-login-input-icon" aria-hidden="true"></i>
+                    <input asp-for="Password"
+                           type="password"
+                           id="passwordInput"
+                           class="sf-login-input sf-login-input--padded"
+                           autocomplete="current-password" />
+                    <button type="button"
+                            id="togglePassword"
+                            class="sf-login-pw-toggle"
+                            aria-label="Show password"
+                            aria-pressed="false"
+                            tabindex="0">
+                        <i class="bi bi-eye" id="togglePasswordIcon" aria-hidden="true"></i>
+                    </button>
+                </div>
+            </div>
+
+            <button type="submit" class="sf-login-submit">
+                <i class="bi bi-box-arrow-in-right me-2" aria-hidden="true"></i>Sign In
+            </button>
+
+        </form>
+
+        <p class="sf-login-footer-note">
+            Staff accounts only &mdash; contact your manager if you cannot sign in.
+        </p>
+
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/login.js" asp-append-version="true"></script>
+}

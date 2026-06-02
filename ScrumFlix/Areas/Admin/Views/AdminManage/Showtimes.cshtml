@@ -1,0 +1,154 @@
+@model ScrumFlix.Areas.Admin.ViewModels.ShowtimeIndexViewModel
+@{
+    ViewData["Title"] = "Manage Showtimes";
+    string SortLink(string col) {
+        var desc = Model.SortBy == col && !Model.SortDesc;
+        return Url.Action("Showtimes","AdminManage",new{area="Admin",movieId=Model.FilterMovieId,showInactive=Model.ShowInactive,sortBy=col,sortDesc=desc,page=1})!;
+    }
+    string SortIcon(string col) => Model.SortBy != col ? "bi-arrow-down-up text-muted"
+        : (Model.SortDesc ? "bi-sort-down" : "bi-sort-up");
+}
+
+<div class="sf-page-header">
+    <div class="container-xl d-flex align-items-center justify-content-between flex-wrap gap-3">
+        <div>
+            <h1 class="sf-page-title"><i class="bi bi-calendar-event me-2" aria-hidden="true"></i>Showtimes</h1>
+            <p class="sf-page-subtitle">Schedule and manage cinema screenings</p>
+        </div>
+        <a asp-area="Admin" asp-controller="AdminManage" asp-action="ShowtimeCreate" class="btn sf-btn-primary">
+            <i class="bi bi-plus-circle me-2" aria-hidden="true"></i>Add Showtime
+        </a>
+    </div>
+</div>
+
+<section class="sf-section">
+    <div class="container-xl">
+
+        @if (TempData["SuccessMessage"] is string ok)
+        {
+            <div class="sf-flash-banner sf-flash-banner--success d-flex align-items-center gap-2 mb-4" role="alert">
+                <i class="bi bi-check-circle-fill flex-shrink-0" aria-hidden="true"></i><span>@ok</span>
+            </div>
+        }
+        @if (TempData["ErrorMessage"] is string err)
+        {
+            <div class="sf-flash-banner sf-flash-banner--danger d-flex align-items-center gap-2 mb-4" role="alert">
+                <i class="bi bi-x-circle-fill flex-shrink-0" aria-hidden="true"></i><span>@err</span>
+            </div>
+        }
+
+        <div class="d-flex flex-wrap gap-3 mb-4 align-items-end">
+            <form asp-area="Admin" asp-controller="AdminManage" asp-action="Showtimes" method="get" class="d-flex gap-2 flex-wrap align-items-end">
+                <div>
+                    <label class="sf-label mb-1">Filter by movie</label>
+                    <select name="movieId" class="sf-select" style="min-width:180px">
+                        <option value="">All movies</option>
+                        @foreach (var m in Model.Movies)
+                        {
+                            <option value="@m.MovieId" selected="@(Model.FilterMovieId == m.MovieId)">@m.Title</option>
+                        }
+                    </select>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <input type="checkbox" id="showInactive" name="showInactive" value="true" @(Model.ShowInactive ? "checked" : "") class="form-check-input" />
+                    <label for="showInactive" class="sf-label mb-0">Show inactive</label>
+                </div>
+                <button type="submit" class="btn sf-btn-outline"><i class="bi bi-funnel me-1"></i>Filter</button>
+            </form>
+        </div>
+
+        @if (!Model.Showtimes.Any())
+        {
+            <div class="sf-empty-state text-center py-5">
+                <i class="bi bi-calendar-x sf-empty-icon" aria-hidden="true"></i>
+                <p class="sf-text-muted mt-3">No showtimes found.</p>
+                <a asp-area="Admin" asp-controller="AdminManage" asp-action="ShowtimeCreate" class="btn sf-btn-primary mt-2">Schedule one</a>
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table sf-admin-table" aria-label="Showtimes">
+                    <thead>
+                        <tr>
+                            <th><a href="@SortLink("movie")" class="text-decoration-none sf-sort-header">Movie <i class="bi @SortIcon("movie") ms-1" style="font-size:.7rem"></i></a></th>
+                            <th><a href="@SortLink("screen")" class="text-decoration-none sf-sort-header">Screen <i class="bi @SortIcon("screen") ms-1" style="font-size:.7rem"></i></a></th>
+                            <th>Location</th>
+                            <th><a href="@SortLink("start")" class="text-decoration-none sf-sort-header">Start Time <i class="bi @SortIcon("start") ms-1" style="font-size:.7rem"></i></a></th>
+                            <th class="text-end"><a href="@SortLink("price")" class="text-decoration-none sf-sort-header">Price <i class="bi @SortIcon("price") ms-1" style="font-size:.7rem"></i></a></th>
+                            <th class="text-end"><a href="@SortLink("capacity")" class="text-decoration-none sf-sort-header">Seats <i class="bi @SortIcon("capacity") ms-1" style="font-size:.7rem"></i></a></th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var st in Model.Showtimes)
+                        {
+                            <tr class="@(!st.IsActive ? "opacity-50" : "")">
+                                <td class="fw-500">@st.MovieTitle</td>
+                                <td>@st.ScreenName</td>
+                                <td>@st.LocationName</td>
+                                <td>@st.StartTimeDisplay</td>
+                                <td class="text-end">@st.PricePerTicket.ToString("C")</td>
+                                <td class="text-end">@st.AvailableSeats / @st.Capacity</td>
+                                <td>
+                                    @if (st.IsActive) { <span class="badge sf-badge-ok">Active</span> }
+                                    else { <span class="badge sf-badge-oos">Inactive</span> }
+                                </td>
+                                <td>
+                                    <div class="d-flex gap-2">
+                                        <a asp-area="Admin" asp-controller="AdminManage" asp-action="ShowtimeEdit"
+                                           asp-route-id="@st.ShowtimeId" class="btn btn-sm sf-btn-outline" title="Edit">
+                                            <i class="bi bi-pencil" aria-hidden="true"></i>
+                                        </a>
+                                        <form asp-area="Admin" asp-controller="AdminManage" asp-action="ShowtimeToggle" method="post">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="id" value="@st.ShowtimeId" />
+                                            <button type="submit" class="btn btn-sm sf-btn-ghost"
+                                                    title="@(st.IsActive ? "Deactivate" : "Activate")">
+                                                <i class="bi @(st.IsActive ? "bi-pause-circle" : "bi-play-circle")" aria-hidden="true"></i>
+                                            </button>
+                                        </form>
+                                        @if (st.TicketsSold == 0)
+                                        {
+                                            <form asp-area="Admin" asp-controller="AdminManage" asp-action="ShowtimeDelete" method="post"
+                                                  onsubmit="return confirm('Delete this showtime?')">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="id" value="@st.ShowtimeId" />
+                                                <button type="submit" class="btn btn-sm sf-btn-danger" title="Delete">
+                                                    <i class="bi bi-trash" aria-hidden="true"></i>
+                                                </button>
+                                            </form>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            @* Pagination *@
+            @if (Model.TotalPages > 1)
+            {
+                <nav aria-label="Showtimes pagination" class="mt-3">
+                    <ul class="pagination sf-pagination justify-content-center flex-wrap">
+                        <li class="page-item @(Model.Page<=1?"disabled":"")">
+                            <a class="page-link" href="@Url.Action("Showtimes","AdminManage",new{area="Admin",movieId=Model.FilterMovieId,showInactive=Model.ShowInactive,sortBy=Model.SortBy,sortDesc=Model.SortDesc,page=Model.Page-1})"><i class="bi bi-chevron-left"></i></a>
+                        </li>
+                        @for(int p=Math.Max(1,Model.Page-2);p<=Math.Min(Model.TotalPages,Model.Page+2);p++){
+                            <li class="page-item @(p==Model.Page?"active":"")">
+                                <a class="page-link" href="@Url.Action("Showtimes","AdminManage",new{area="Admin",movieId=Model.FilterMovieId,showInactive=Model.ShowInactive,sortBy=Model.SortBy,sortDesc=Model.SortDesc,page=p})">@p</a>
+                            </li>
+                        }
+                        <li class="page-item @(Model.Page>=Model.TotalPages?"disabled":"")">
+                            <a class="page-link" href="@Url.Action("Showtimes","AdminManage",new{area="Admin",movieId=Model.FilterMovieId,showInactive=Model.ShowInactive,sortBy=Model.SortBy,sortDesc=Model.SortDesc,page=Model.Page+1})"><i class="bi bi-chevron-right"></i></a>
+                        </li>
+                    </ul>
+                    <p class="text-center sf-text-muted mt-1" style="font-size:.8rem">Page @Model.Page of @Model.TotalPages · @Model.TotalCount showtime(s)</p>
+                </nav>
+            }
+        }
+
+    </div>
+</section>

@@ -1,0 +1,127 @@
+@*
+ * File: Areas/Admin/Views/Concessions/ConcessionsCatalog.cshtml
+ * Purpose: Staff Portal view of the Concessions Catalog — shows exactly what the
+ *          movie goer sees, but with admin restock and edit controls.
+ *          Route: /Admin/Concessions/ConcessionsCatalog
+ *@
+@model ScrumFlix.Areas.Admin.ViewModels.ConcessionIndexViewModel
+@{
+    ViewData["Title"] = "Concessions Catalog (Staff View)";
+}
+
+<div class="sf-page-header">
+    <div class="container-xl d-flex align-items-center justify-content-between flex-wrap gap-3">
+        <div>
+            <h1 class="sf-page-title"><i class="bi bi-cup-straw me-2"></i>Concessions Catalog</h1>
+            <p class="sf-page-subtitle">
+                <span class="badge bg-info text-dark me-2"><i class="bi bi-eye me-1"></i>Staff View</span>
+                This is exactly what movie goers see — plus admin controls.
+            </p>
+        </div>
+        <a asp-area="Admin" asp-controller="AdminManage" asp-action="ConcessionCreate" class="btn sf-btn-primary">
+            <i class="bi bi-plus-circle me-2"></i>Add Item
+        </a>
+    </div>
+</div>
+
+<section class="sf-section">
+    <div class="container-xl">
+
+        @if (Model.LowStockCount > 0)
+        {
+            <div class="sf-flash-banner sf-flash-banner--warning d-flex gap-2 align-items-center mb-4" role="alert">
+                <i class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
+                <span><strong>@Model.LowStockCount item(s)</strong> are at or below minimum stock. Restock before customers notice.</span>
+            </div>
+        }
+
+        @* What movie goers see — card grid *@
+        <h2 class="sf-section-title mb-4">
+            <span class="sf-gold-bar"></span>As Seen by Customers
+        </h2>
+        <div class="row g-4 mb-5">
+            @foreach (var ci in Model.Items.Where(i => i.IsActive))
+            {
+                var isLow = ci.IsLowStock;
+                var isOut = ci.QuantityInStock <= 0;
+                <div class="col-6 col-md-4 col-lg-3">
+                    <div class="sf-concession-card h-100 position-relative @(isOut ? "opacity-50" : "")">
+                        <div class="sf-concession-card-body">
+                            <h3 class="sf-concession-title">@ci.ItemName</h3>
+                            <div class="sf-concession-price">@ci.Price.ToString("C")</div>
+                            <div class="sf-text-muted" style="font-size:.8rem">@(ci.Location?.LocationName ?? "")</div>
+                        </div>
+                        @* Admin overlay badge *@
+                        <div class="position-absolute top-0 end-0 m-2">
+                            @if (isOut)
+                            {
+                                <span class="badge bg-danger">Out of Stock</span>
+                            }
+                            else if (isLow)
+                            {
+                                <span class="badge bg-warning text-dark">Low: @ci.QuantityInStock left</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-success">@ci.QuantityInStock in stock</span>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+
+        @* Admin management table *@
+        <h2 class="sf-section-title mb-4">
+            <span class="sf-gold-bar"></span>Admin Management
+        </h2>
+        <div class="table-responsive">
+            <table class="table sf-admin-table" id="conc-table" aria-label="Concessions staff management">
+                <thead>
+                    <tr>
+                        <th onclick="sortTable('conc-table', 0)" style="cursor:pointer">Item <i class="bi bi-arrow-down-up ms-1 text-muted" style="font-size:.7rem"></i></th>
+                        <th>Location</th>
+                        <th class="text-end" onclick="sortTable('conc-table', 2)" style="cursor:pointer">Price</th>
+                        <th class="text-end" onclick="sortTable('conc-table', 3)" style="cursor:pointer">Stock</th>
+                        <th class="text-end">Min</th>
+                        <th>Status</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var ci in Model.Items.OrderBy(i => i.QuantityInStock))
+                    {
+                        var isLow = ci.IsLowStock;
+                        <tr class="@(!ci.IsActive ? "opacity-50" : isLow ? "sf-row-warning" : "")">
+                            <td><strong>@ci.ItemName</strong></td>
+                            <td>@(ci.Location?.LocationName ?? "—")</td>
+                            <td class="text-end">@ci.Price.ToString("C")</td>
+                            <td class="text-end @(isLow ? "text-danger fw-bold" : "")">@ci.QuantityInStock</td>
+                            <td class="text-end">@ci.Minimum</td>
+                            <td>
+                                @if (!ci.IsActive) { <span class="badge sf-badge-oos">Inactive</span> }
+                                else if (ci.QuantityInStock <= 0) { <span class="badge sf-badge-oos">Out</span> }
+                                else if (isLow) { <span class="badge sf-badge-low-stock">Low</span> }
+                                else { <span class="badge sf-badge-ok">OK</span> }
+                            </td>
+                            <td class="text-end">
+                                <a asp-area="Admin" asp-controller="AdminManage" asp-action="ConcessionRestock"
+                                   asp-route-id="@ci.ConcessionItemId" class="btn btn-sm sf-btn-primary me-1" title="Restock">
+                                    <i class="bi bi-arrow-up-circle"></i>
+                                </a>
+                                <a asp-area="Admin" asp-controller="AdminManage" asp-action="ConcessionEdit"
+                                   asp-route-id="@ci.ConcessionItemId" class="btn btn-sm sf-btn-secondary" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+@section Scripts {
+<script src="~/js/sf-admin-tables.js"></script>
+}

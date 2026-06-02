@@ -1,0 +1,135 @@
+@*
+ * File: Areas/Admin/Views/Movies/MovieCatalog.cshtml
+ * Purpose: Staff Portal view of the Movie Catalog — shows exactly what the movie
+ *          goer sees, but with an admin action bar for editing each movie.
+ *          Route: /Admin/Movies/MovieCatalog
+ *@
+@model ScrumFlix.ViewModels.MovieCatalogViewModel
+@{
+    ViewData["Title"] = "Movie Catalog (Staff View)";
+}
+
+<div class="sf-page-header">
+    <div class="container-xl d-flex align-items-center justify-content-between flex-wrap gap-3">
+        <div>
+            <h1 class="sf-page-title"><i class="bi bi-film me-2"></i>Movie Catalog</h1>
+            <p class="sf-page-subtitle">
+                <span class="badge bg-info text-dark me-2"><i class="bi bi-eye me-1"></i>Staff View</span>
+                This is exactly what movie goers see — plus admin controls.
+            </p>
+        </div>
+        <a asp-area="Admin" asp-controller="Movies" asp-action="MovieCreate" class="btn sf-btn-primary">
+            <i class="bi bi-plus-circle me-2"></i>Add Movie
+        </a>
+    </div>
+</div>
+
+<section class="sf-section">
+    <div class="container-xl">
+
+        @* Search bar *@
+        <form method="get" asp-area="Admin" asp-controller="Movies" asp-action="MovieCatalog"
+              class="sf-filter-bar mb-4" role="search">
+            <div class="sf-search-wrap">
+                <i class="bi bi-search sf-search-icon"></i>
+                <input type="text" name="search" value="@Model.SearchTerm"
+                       class="sf-search-input" placeholder="Search by title…" autocomplete="off" />
+            </div>
+            <button type="submit" class="btn sf-btn-outline ms-2">Search</button>
+            @if (!string.IsNullOrWhiteSpace(Model.SearchTerm))
+            {
+                <a asp-area="Admin" asp-controller="Movies" asp-action="MovieCatalog"
+                   class="btn sf-btn-ghost ms-1">Clear</a>
+            }
+        </form>
+
+        @if (!Model.AllMovies.Any())
+        {
+            <div class="sf-empty-state text-center py-5">
+                <i class="bi bi-film sf-empty-icon"></i>
+                <p class="sf-text-muted mt-3">No movies found.</p>
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table sf-admin-table" id="movies-table" aria-label="Movie catalog staff view">
+                    <thead>
+                        <tr>
+                            <th scope="col" style="cursor:pointer" onclick="sortTable('movies-table', 0)">
+                                Title <i class="bi bi-arrow-down-up ms-1 text-muted" style="font-size:.7rem"></i>
+                            </th>
+                            <th scope="col" onclick="sortTable('movies-table', 1)" style="cursor:pointer">
+                                Genre <i class="bi bi-arrow-down-up ms-1 text-muted" style="font-size:.7rem"></i>
+                            </th>
+                            <th scope="col">Rating</th>
+                            <th scope="col" onclick="sortTable('movies-table', 3)" style="cursor:pointer">
+                                Runtime <i class="bi bi-arrow-down-up ms-1 text-muted" style="font-size:.7rem"></i>
+                            </th>
+                            <th scope="col">Poster</th>
+                            <th scope="col">Trailer</th>
+                            <th scope="col" class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var m in Model.AllMovies)
+                        {
+                            var hasPoster  = m.TmdbMetadata?.PosterPath  != null;
+                            var hasTrailer = m.TmdbMetadata?.TrailerYouTubeKey != null;
+                            <tr>
+                                <td><strong>@m.Title</strong></td>
+                                <td><span class="sf-genre-pill">@m.Genre</span></td>
+                                <td><span class="sf-rating-badge">@m.Rating</span></td>
+                                <td>@m.RuntimeMinutes min</td>
+                                <td>
+                                    @if (hasPoster)
+                                    {
+                                        <i class="bi bi-check-circle-fill text-success" title="Poster available"></i>
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-x-circle text-danger" title="No poster"></i>
+                                    }
+                                </td>
+                                <td>
+                                    @if (hasTrailer)
+                                    {
+                                        <i class="bi bi-check-circle-fill text-success" title="Trailer available"></i>
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-x-circle text-danger" title="No trailer"></i>
+                                    }
+                                </td>
+                                <td class="text-end">
+                                    <a asp-area="" asp-controller="Movies" asp-action="MovieDetail"
+                                       asp-route-id="@m.MovieId" class="btn btn-sm sf-btn-ghost me-1" title="Preview">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    <a asp-area="Admin" asp-controller="Movies" asp-action="MovieEdit"
+                                       asp-route-id="@m.MovieId" class="btn btn-sm sf-btn-secondary me-1" title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <form asp-area="Admin" asp-controller="Movies" asp-action="MovieDelete"
+                                          method="post" style="display:inline"
+                                          onsubmit="return confirm('Delete @m.Title? This cannot be undone.')">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="id" value="@m.MovieId" />
+                                        <button type="submit" class="btn btn-sm sf-btn-danger" title="Delete">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <p class="sf-text-muted mt-2" style="font-size:.8rem">@Model.AllMovies.Count title(s) shown.</p>
+        }
+    </div>
+</section>
+
+@section Scripts {
+<script src="~/js/sf-admin-tables.js"></script>
+}

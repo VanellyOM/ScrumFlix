@@ -1,0 +1,465 @@
+@*
+ * File:   /ScrumFlix/Areas/Admin/Views/AdminHome/TmdbSyncPage.cshtml
+ * Model:  ScrumFlix.Areas.Admin.ViewModels.TmdbSyncPageViewModel
+ *
+ * Purpose:
+ *   Dedicated TMDb Sync management page. Provides:
+ *     - Coverage summary (stat cards + progress bar)
+ *     - Bulk sync controls (Sync Stale / Force Full Re-sync)
+ *     - Per-movie sync status table with individual sync buttons
+ *     - Search + status filter bar
+ *     - Pagination
+ *
+ * Layout:  _AdminLayout.cshtml (via _ViewStart)
+ * Role:    Admin only (RoleId == 1), enforced by AdminHomeController.TmdbSyncPage()
+ *
+ * Phase:   5 — TMDb Sync Dashboard
+ *@
+@model ScrumFlix.Areas.Admin.ViewModels.TmdbSyncPageViewModel
+@{
+    ViewData["Title"] = "TMDb Sync";
+
+    // Helper: build a URL preserving current filter context
+    string PageUrl(int p) => Url.Action("TmdbSyncPage", "AdminHome", new
+    {
+        area   = "Admin",
+        search = Model.SearchTerm,
+        status = Model.StatusFilter,
+        page   = p
+    })!;
+
+    string FilterUrl(string s, string? q = null) => Url.Action("TmdbSyncPage", "AdminHome", new
+    {
+        area   = "Admin",
+        search = q ?? Model.SearchTerm,
+        status = s,
+        page   = 1
+    })!;
+}
+
+@* ── Page header ──────────────────────────────────────────────────────────── *@
+<div class="sf-page-header">
+    <div class="container-xl d-flex align-items-center justify-content-between flex-wrap gap-3">
+        <div>
+            <h1 class="sf-page-title">
+                <i class="bi bi-arrow-repeat me-2" aria-hidden="true"></i>TMDb Sync
+            </h1>
+            <p class="sf-page-subtitle">
+                Metadata coverage &amp; sync controls &mdash;
+                @Model.MoviesWithMetadata of @Model.TotalMovies movies synced
+                (@Model.CoveragePercent%)
+            </p>
+        </div>
+        <a asp-area="Admin" asp-controller="AdminHome" asp-action="AdminDashboard"
+           class="btn sf-btn-ghost">
+            <i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Dashboard
+        </a>
+    </div>
+</div>
+
+<div class="container-xl py-4">
+
+    @* ── Flash banners ─────────────────────────────────────────────────── *@
+
+    @if (!Model.ApiKeyConfigured)
+    {
+        <div class="sf-flash-banner sf-flash-banner--warning d-flex align-items-center gap-2 mb-4" role="alert">
+            <i class="bi bi-exclamation-triangle-fill flex-shrink-0" aria-hidden="true"></i>
+            <span>
+                <strong>TMDb API key not configured.</strong>
+                Set <code>Tmdb:ApiKey</code> in User Secrets or the
+                <code>Tmdb__ApiKey</code> environment variable to enable syncing.
+            </span>
+        </div>
+    }
+
+    @if (TempData["SuccessMessage"] is string successMsg)
+    {
+        <div class="sf-flash-banner sf-flash-banner--success d-flex align-items-center gap-2 mb-4" role="alert">
+            <i class="bi bi-check-circle-fill flex-shrink-0" aria-hidden="true"></i>
+            <span>@successMsg</span>
+        </div>
+    }
+    @if (TempData["ErrorMessage"] is string errorMsg)
+    {
+        <div class="sf-flash-banner sf-flash-banner--danger d-flex align-items-center gap-2 mb-4" role="alert">
+            <i class="bi bi-x-circle-fill flex-shrink-0" aria-hidden="true"></i>
+            <span>@errorMsg</span>
+        </div>
+    }
+    @if (TempData["InfoMessage"] is string infoMsg)
+    {
+        <div class="sf-flash-banner sf-flash-banner--info d-flex align-items-center gap-2 mb-4" role="alert">
+            <i class="bi bi-info-circle-fill flex-shrink-0" aria-hidden="true"></i>
+            <span>@infoMsg</span>
+        </div>
+    }
+
+    @* Per-movie sync result banner (from single-movie POST + redirect) *@
+    @{
+        var syncMovieId    = TempData["SyncMovieId"]    as int?;
+        var syncMovieTitle = TempData["SyncMovieTitle"] as string;
+        var syncSuccess    = TempData["SyncSuccess"]    as bool?;
+    }
+    @if (syncMovieId.HasValue)
+    {
+        var bannerClass = syncSuccess == true ? "sf-flash-banner--success" : "sf-flash-banner--warning";
+        var bannerIcon  = syncSuccess == true ? "bi-check-circle-fill" : "bi-exclamation-circle-fill";
+        var bannerText  = syncSuccess == true
+            ? $"Synced '{syncMovieTitle}' successfully."
+            : $"No TMDb match found for '{syncMovieTitle}'. Check the title or try again.";
+        <div class="sf-flash-banner @bannerClass d-flex align-items-center gap-2 mb-4" role="status">
+            <i class="bi @bannerIcon flex-shrink-0" aria-hidden="true"></i>
+            <span>@bannerText</span>
+        </div>
+    }
+
+    @* Bulk sync result banner (shown after TmdbSyncRun POST — if redirected here) *@
+    @if (Model.LastSyncResult is { } syncResult)
+    {
+        var bannerClass = syncResult.Failed == 0 ? "sf-flash-banner--success" : "sf-flash-banner--warning";
+        <div class="sf-flash-banner @bannerClass d-flex align-items-center gap-2 mb-4" role="status">
+            <i class="bi bi-arrow-repeat flex-shrink-0" aria-hidden="true"></i>
+            <span>
+                <strong>Bulk sync complete.</strong>
+                Synced: <strong>@syncResult.Synced</strong>&nbsp;|&nbsp;
+                Skipped: <strong>@syncResult.Skipped</strong>&nbsp;|&nbsp;
+                Failed: <strong>@syncResult.Failed</strong>
+                @if (Model.LastSyncWasForced)
+                {
+                    <span class="badge bg-secondary ms-2">Force-all</span>
+                }
+            </span>
+        </div>
+    }
+
+    @* ── Coverage stat cards ───────────────────────────────────────────── *@
+    <section aria-labelledby="coverage-heading" class="mb-4">
+        <h2 id="coverage-heading" class="sf-section-title mb-3">
+            <span class="sf-gold-bar" aria-hidden="true"></span>Coverage
+        </h2>
+        <div class="row g-3 mb-3">
+            <div class="col-6 col-xl">
+                <div class="sf-stat-card">
+                    <i class="bi bi-collection-fill sf-stat-icon" aria-hidden="true"></i>
+                    <div class="sf-stat-value">
+                        @Model.MoviesWithMetadata
+                        <span class="sf-stat-denom">/ @Model.TotalMovies</span>
+                    </div>
+                    <div class="sf-stat-label">Synced</div>
+                </div>
+            </div>
+            <div class="col-6 col-xl">
+                <div class="sf-stat-card">
+                    <i class="bi bi-image sf-stat-icon" aria-hidden="true"></i>
+                    <div class="sf-stat-value">@Model.MoviesWithPoster</div>
+                    <div class="sf-stat-label">With Poster</div>
+                </div>
+            </div>
+            <div class="col-6 col-xl">
+                <div class="sf-stat-card">
+                    <i class="bi bi-play-circle sf-stat-icon" aria-hidden="true"></i>
+                    <div class="sf-stat-value">@Model.MoviesWithTrailer</div>
+                    <div class="sf-stat-label">With Trailer</div>
+                </div>
+            </div>
+            <div class="col-6 col-xl @(Model.StaleMovies > 0 ? "sf-stat-card--alert" : "")">
+                <div class="sf-stat-card">
+                    <i class="bi bi-hourglass-split sf-stat-icon" aria-hidden="true"></i>
+                    <div class="sf-stat-value @(Model.StaleMovies > 0 ? "sf-stat-value--danger" : "")">
+                        @Model.StaleMovies
+                    </div>
+                    <div class="sf-stat-label">Stale / Unsynced</div>
+                </div>
+            </div>
+            <div class="col-6 col-xl">
+                <div class="sf-stat-card">
+                    <i class="bi bi-percent sf-stat-icon" aria-hidden="true"></i>
+                    <div class="sf-stat-value">
+                        @Model.CoveragePercent<span class="sf-stat-denom">%</span>
+                    </div>
+                    <div class="sf-stat-label">Coverage</div>
+                </div>
+            </div>
+        </div>
+
+        @* Progress bar *@
+        <div class="mb-1 d-flex justify-content-between">
+            <small class="sf-text-muted">Metadata coverage</small>
+            <small class="sf-text-muted">@Model.MoviesWithMetadata of @Model.TotalMovies movies</small>
+        </div>
+        <div class="progress mb-4" style="height:8px;" role="progressbar"
+             aria-valuenow="@Model.CoveragePercent" aria-valuemin="0" aria-valuemax="100">
+            <div class="progress-bar @(Model.CoveragePercent == 100 ? "bg-success"
+                                      : Model.CoveragePercent > 50  ? "bg-info"
+                                      : "bg-warning")"
+                 style="width: @Model.CoveragePercent%"></div>
+        </div>
+    </section>
+
+    @* ── Bulk sync controls ────────────────────────────────────────────── *@
+    <section aria-labelledby="bulk-sync-heading" class="mb-5">
+        <h2 id="bulk-sync-heading" class="sf-section-title mb-3">
+            <span class="sf-gold-bar" aria-hidden="true"></span>Bulk Sync
+        </h2>
+        <div class="card sf-card p-4">
+            <p class="sf-text-muted mb-3" style="font-size:0.875rem;">
+                Syncing fetches poster images, backdrop paths, trailers, genres, ratings,
+                and popularity scores from The Movie Database. A full sync of
+                @Model.TotalMovies movies may take up to
+                @((Model.TotalMovies * 250 / 1000 / 60) + 1) minute(s) due to
+                TMDb rate-limit delays between each request.
+            </p>
+            <div class="d-flex flex-wrap gap-3">
+                <form asp-area="Admin" asp-controller="AdminHome" asp-action="TmdbSyncRun"
+                      method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="forceAll" value="false" />
+                    <button type="submit"
+                            class="btn sf-btn-primary"
+                            @(!Model.ApiKeyConfigured ? "disabled" : "")
+                            title="@(!Model.ApiKeyConfigured
+                                      ? "Configure Tmdb:ApiKey first"
+                                      : "Sync only movies whose metadata is stale or missing")">
+                        <i class="bi bi-arrow-repeat me-2" aria-hidden="true"></i>
+                        Sync Stale &amp; Unsynced
+                        @if (Model.StaleMovies > 0)
+                        {
+                            <span class="badge bg-warning text-dark ms-1">@Model.StaleMovies</span>
+                        }
+                    </button>
+                </form>
+
+                <form asp-area="Admin" asp-controller="AdminHome" asp-action="TmdbSyncRun"
+                      method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="forceAll" value="true" />
+                    <button type="submit"
+                            class="btn sf-btn-secondary"
+                            @(!Model.ApiKeyConfigured ? "disabled" : "")
+                            title="@(!Model.ApiKeyConfigured
+                                      ? "Configure Tmdb:ApiKey first"
+                                      : "Re-sync every movie regardless of last sync time")">
+                        <i class="bi bi-arrow-clockwise me-2" aria-hidden="true"></i>
+                        Force Full Re-sync
+                    </button>
+                </form>
+            </div>
+            @if (!Model.ApiKeyConfigured)
+            {
+                <p class="sf-text-muted mt-2 mb-0" style="font-size:0.8125rem;">
+                    <i class="bi bi-lock-fill me-1" aria-hidden="true"></i>
+                    Sync buttons disabled — TMDb API key not configured.
+                </p>
+            }
+        </div>
+    </section>
+
+    @* ── Per-movie table ───────────────────────────────────────────────── *@
+    <section aria-labelledby="movie-table-heading">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-3">
+            <h2 id="movie-table-heading" class="sf-section-title mb-0">
+                <span class="sf-gold-bar" aria-hidden="true"></span>Movie Sync Status
+            </h2>
+            <span class="sf-text-muted" style="font-size:0.85rem;">
+                @Model.TotalCount result@(Model.TotalCount != 1 ? "s" : "")
+            </span>
+        </div>
+
+        @* Filter bar *@
+        <form asp-area="Admin" asp-controller="AdminHome" asp-action="TmdbSyncPage"
+              method="get" class="d-flex flex-wrap gap-2 mb-4 align-items-end">
+            <div>
+                <label class="sf-label mb-1">Search title</label>
+                <div class="sf-search-wrap" style="width:220px">
+                    <i class="bi bi-search sf-search-icon" aria-hidden="true"></i>
+                    <input type="text" name="search" value="@Model.SearchTerm"
+                           class="sf-search-input" placeholder="Movie title…" />
+                </div>
+            </div>
+            <div>
+                <label class="sf-label mb-1">Status</label>
+                <select name="status" class="sf-select" style="min-width:140px">
+                    <option value="all"      selected="@(Model.StatusFilter == "all")">All</option>
+                    <option value="unsynced" selected="@(Model.StatusFilter == "unsynced")">Never Synced</option>
+                    <option value="stale"    selected="@(Model.StatusFilter == "stale")">Stale</option>
+                    <option value="fresh"    selected="@(Model.StatusFilter == "fresh")">Fresh</option>
+                </select>
+            </div>
+            <input type="hidden" name="page" value="1" />
+            <button type="submit" class="btn sf-btn-outline">
+                <i class="bi bi-funnel me-1" aria-hidden="true"></i>Filter
+            </button>
+            @if (!string.IsNullOrWhiteSpace(Model.SearchTerm) || Model.StatusFilter != "all")
+            {
+                <a href="@FilterUrl("all", "")" class="btn sf-btn-ghost">Clear</a>
+            }
+        </form>
+
+        @if (!Model.Movies.Any())
+        {
+            <div class="sf-empty-state text-center py-5">
+                <i class="bi bi-film sf-empty-icon" aria-hidden="true"></i>
+                <p class="sf-text-muted mt-3">No movies match the current filter.</p>
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table sf-admin-table align-middle" aria-label="Movie sync status">
+                    <thead>
+                        <tr>
+                            <th scope="col" style="width:52px;">Poster</th>
+                            <th scope="col">Title</th>
+                            <th scope="col" class="d-none d-lg-table-cell">Rating</th>
+                            <th scope="col" class="d-none d-xl-table-cell">TMDb ID</th>
+                            <th scope="col" class="d-none d-lg-table-cell">Release</th>
+                            <th scope="col" class="d-none d-xl-table-cell text-center">
+                                <i class="bi bi-play-circle" title="Trailer" aria-label="Trailer"></i>
+                            </th>
+                            <th scope="col" class="d-none d-xl-table-cell text-end">★ Rating</th>
+                            <th scope="col">Status</th>
+                            <th scope="col" class="d-none d-lg-table-cell">Last Synced</th>
+                            <th scope="col" class="text-end">Sync</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in Model.Movies)
+                        {
+                            <tr class="@(row.SyncStatus == "Never" ? "sf-row-warning opacity-75"
+                                        : row.SyncStatus == "Stale" ? "sf-row-warning"
+                                        : "")">
+                                @* Poster thumbnail *@
+                                <td style="width:52px; padding:6px 8px;">
+                                    @if (row.PosterUrl is not null)
+                                    {
+                                        <img src="@row.PosterUrl"
+                                             alt="@row.Title poster"
+                                             style="width:40px; height:60px; object-fit:cover; border-radius:3px;"
+                                             loading="lazy" />
+                                    }
+                                    else
+                                    {
+                                        <div style="width:40px; height:60px; background:var(--sf-surface-raised);
+                                                    border-radius:3px; display:flex; align-items:center;
+                                                    justify-content:center;">
+                                            <i class="bi bi-image sf-text-muted" style="font-size:1rem;" aria-hidden="true"></i>
+                                        </div>
+                                    }
+                                </td>
+
+                                @* Title *@
+                                <td>
+                                    <span class="fw-500">@row.Title</span>
+                                    @if (row.SyncStatus == "Never")
+                                    {
+                                        <br /><small class="sf-text-muted">Not yet synced</small>
+                                    }
+                                </td>
+
+                                @* Rating *@
+                                <td class="d-none d-lg-table-cell sf-text-muted">@row.Rating</td>
+
+                                @* TMDb ID *@
+                                <td class="d-none d-xl-table-cell sf-text-muted" style="font-size:0.8rem;">
+                                    @(row.TMDbMovieId.HasValue ? row.TMDbMovieId.ToString() : "—")
+                                </td>
+
+                                @* Release date *@
+                                <td class="d-none d-lg-table-cell sf-text-muted" style="font-size:0.82rem;">
+                                    @(row.ReleaseDate.HasValue
+                                        ? row.ReleaseDate.Value.ToString("MMM yyyy")
+                                        : "—")
+                                </td>
+
+                                @* Trailer indicator *@
+                                <td class="d-none d-xl-table-cell text-center">
+                                    @if (row.HasTrailer)
+                                    {
+                                        <i class="bi bi-play-circle-fill text-success"
+                                           title="Trailer available" aria-label="Trailer available"></i>
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-dash sf-text-muted" aria-label="No trailer"></i>
+                                    }
+                                </td>
+
+                                @* Vote average *@
+                                <td class="d-none d-xl-table-cell text-end sf-text-muted"
+                                    style="font-size:0.82rem;">
+                                    @(row.VoteAverage.HasValue
+                                        ? row.VoteAverage.Value.ToString("F1")
+                                        : "—")
+                                </td>
+
+                                @* Status badge *@
+                                <td>
+                                    <span class="badge @row.StatusBadgeClass">@row.SyncStatus</span>
+                                </td>
+
+                                @* Last synced *@
+                                <td class="d-none d-lg-table-cell sf-text-muted"
+                                    style="font-size:0.8rem;">
+                                    @row.LastSyncedDisplay
+                                </td>
+
+                                @* Individual sync button *@
+                                <td class="text-end">
+                                    <form asp-area="Admin" asp-controller="AdminHome"
+                                          asp-action="TmdbSyncMovie" method="post"
+                                          style="display:inline;">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="movieId"      value="@row.MovieId" />
+                                        <input type="hidden" name="movieTitle"   value="@row.Title" />
+                                        <input type="hidden" name="returnSearch" value="@Model.SearchTerm" />
+                                        <input type="hidden" name="returnStatus" value="@Model.StatusFilter" />
+                                        <input type="hidden" name="returnPage"   value="@Model.Page" />
+                                        <button type="submit"
+                                                class="btn btn-sm sf-btn-outline"
+                                                @(!Model.ApiKeyConfigured ? "disabled" : "")
+                                                title="@(!Model.ApiKeyConfigured
+                                                          ? "API key not configured"
+                                                          : $"Sync TMDb metadata for {row.Title}")">
+                                            <i class="bi bi-arrow-repeat" aria-hidden="true"></i>
+                                            <span class="d-none d-xl-inline ms-1">Sync</span>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            @* Pagination *@
+            @if (Model.TotalPages > 1)
+            {
+                <nav aria-label="Movie sync table pagination" class="mt-3">
+                    <ul class="pagination sf-pagination justify-content-center flex-wrap">
+                        <li class="page-item @(Model.Page <= 1 ? "disabled" : "")">
+                            <a class="page-link" href="@PageUrl(Model.Page - 1)">
+                                <i class="bi bi-chevron-left" aria-hidden="true"></i>
+                            </a>
+                        </li>
+                        @for (int p = Math.Max(1, Model.Page - 2);
+                              p <= Math.Min(Model.TotalPages, Model.Page + 2); p++)
+                        {
+                            <li class="page-item @(p == Model.Page ? "active" : "")">
+                                <a class="page-link" href="@PageUrl(p)">@p</a>
+                            </li>
+                        }
+                        <li class="page-item @(Model.Page >= Model.TotalPages ? "disabled" : "")">
+                            <a class="page-link" href="@PageUrl(Model.Page + 1)">
+                                <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                            </a>
+                        </li>
+                    </ul>
+                    <p class="text-center sf-text-muted mt-1" style="font-size:0.8rem;">
+                        Page @Model.Page of @Model.TotalPages &middot; @Model.TotalCount movie(s)
+                    </p>
+                </nav>
+            }
+        }
+    </section>
+</div>

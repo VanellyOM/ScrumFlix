@@ -1,0 +1,72 @@
+@model ScrumFlix.Areas.Admin.ViewModels.UserFormViewModel
+@{
+    ViewData["Title"] = "Add User";
+
+}
+
+<div class="sf-page-header">
+    <div class="container-xl">
+        <a asp-area="Admin" asp-controller="AdminManage" asp-action="Users" class="sf-back-link mb-2 d-inline-flex align-items-center gap-1">
+            <i class="bi bi-arrow-left"></i> Users
+        </a>
+        <h1 class="sf-page-title"><i class="bi bi-person-plus me-2"></i>Add User</h1>
+    </div>
+</div>
+
+<section class="sf-section">
+    <div class="container-xl">
+        <div class="row justify-content-center">
+            <div class="col-lg-5">
+                <div class="sf-form-card">
+                    <form asp-area="Admin" asp-controller="AdminManage" asp-action="UserCreate" method="post">
+                        @Html.AntiForgeryToken()
+                        <div asp-validation-summary="ModelOnly" class="sf-flash-banner sf-flash-banner--error mb-4" role="alert"></div>
+
+                        <div class="mb-3">
+                            <label asp-for="UserName" class="sf-label"></label>
+                            <input asp-for="UserName" class="sf-input" placeholder="e.g. jsmith" autocomplete="username" />
+                            <span asp-validation-for="UserName" class="sf-validation"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Password" class="sf-label"></label>
+                            <input asp-for="Password" type="password" class="sf-input" placeholder="Minimum 6 characters" autocomplete="new-password" />
+                            <span asp-validation-for="Password" class="sf-validation"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="RoleId" class="sf-label"></label>
+                            <select asp-for="RoleId" class="sf-select">
+                                <option value="">Select role…</option>
+                                @foreach (var role in Model.Roles)
+                                {
+                                    <option value="@role.RoleId">@role.RoleName</option>
+                                }
+                            </select>
+                            <span asp-validation-for="RoleId" class="sf-validation"></span>
+                        </div>
+
+                        <div class="mb-3 d-flex align-items-center gap-2">
+                            <input asp-for="IsActive" type="checkbox" class="form-check-input" />
+                            <label asp-for="IsActive" class="sf-label mb-0">Active</label>
+                        </div>
+
+                        <div class="mb-4 d-flex align-items-center gap-2">
+                            <input asp-for="MustChangePassword" type="checkbox" class="form-check-input" />
+                            <label asp-for="MustChangePassword" class="sf-label mb-0">Require password change on first login</label>
+                        </div>
+
+                        <div class="d-flex gap-3">
+                            <button type="submit" class="btn sf-btn-primary flex-grow-1">
+                                <i class="bi bi-person-plus me-2"></i>Create User
+                            </button>
+                            <a asp-area="Admin" asp-controller="AdminManage" asp-action="Users" class="btn sf-btn-ghost">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

@@ -1,0 +1,191 @@
+@*
+ * File: /ScrumFlix/Views/Concessions/ConcessionsCatalog.cshtml
+ * Description: Concessions browsing page — product cards with add-to-cart and AJAX badge refresh.
+ *
+ * Phase 3 — Backend Alignment (#32 / P3-6):
+ *   REMOVED:
+ *     - Model.Items (List<ConcessionItemDisplayModel>) → replaced with Model.ConcessionItems (List<ConcessionItem>)
+ *     - item.Item.ItemName → item.ItemName  (no more wrapper class)
+ *     - item.ItemIdBase64 / hidden itemIdBase64 form field → concessionItemId (int)
+ *     - item.Price → item.Price (same property name, now directly on ConcessionItem)
+ *     - hidden locationId form field (pricing is no longer location-specific)
+ *     - Toast inline bg color (#0d6efd hardcoded) → uses sf-flash-banner--success component class
+ *   ADDED:
+ *     - hidden name="concessionItemId" value="@item.ConcessionItemId" (int FK)
+ *     - stock-aware "Out of Stock" disabled state when QuantityInStock == 0
+*@
+@model ConcessionsCatalogViewModel
+@{
+	ViewData["Title"] = "Concessions";
+	var layoutVm = Context.Items["LayoutViewModel"] as ScrumFlix.ViewModels.LayoutViewModel ?? new ScrumFlix.ViewModels.LayoutViewModel();
+	var isAdmin  = layoutVm.RoleId == 1;
+	var isStaff  = layoutVm.RoleId is not null;
+}
+
+<div class="sf-page-header">
+	<div class="container-xl d-flex align-items-center justify-content-between flex-wrap gap-3">
+		<div>
+			<h1 class="sf-page-title">
+				<i class="bi bi-cup-straw me-3" aria-hidden="true"></i>Concessions
+			</h1>
+			<p class="sf-page-subtitle">Fresh snacks and drinks — ready for pickup with your tickets.</p>
+		</div>
+		@if (isAdmin)
+		{
+			<a asp-area="Admin" asp-controller="AdminManage" asp-action="Concessions" class="btn sf-btn-outline">
+				<i class="bi bi-gear me-2"></i>Manage Inventory
+			</a>
+		}
+	</div>
+</div>
+
+<section class="sf-section">
+	<div class="container-xl">
+
+		@* Ticket-flow contextual banner *@
+			@if (Model.IsTicketFlow)
+			{
+				<div class="sf-flash-banner sf-flash-banner--info d-flex align-items-center gap-3 mb-4"
+					 role="status">
+					<i class="bi bi-ticket-perforated-fill fs-4 flex-shrink-0" aria-hidden="true"></i>
+					<div>
+						<strong>Showing concessions for @(Model.TicketLocationName ?? "your theater")</strong>
+						<div class="small mt-1 opacity-75">
+							These items match the location of the tickets in your cart.
+							Want a different theater?
+							<a asp-controller="Concessions" asp-action="ConcessionsCatalog"
+							   class="sf-text-link">Browse all locations</a>
+						</div>
+					</div>
+				</div>
+			}
+
+			@* Location selector (hidden in ticket flow — location is locked to ticket's theater) *@
+			@if (Model.Locations.Any() && !Model.IsTicketFlow)
+			{
+				<div class="sf-location-selector mb-5" role="navigation" aria-label="Select theater location">
+					<span class="sf-location-label me-3">
+						<i class="bi bi-geo-alt me-1" aria-hidden="true"></i>Location:
+					</span>
+					<div class="d-flex flex-wrap gap-2">
+						@foreach (var loc in Model.Locations)
+						{
+							<a asp-controller="Concessions" asp-action="ConcessionsCatalog"
+								   asp-route-locationId="@loc.LocationId"
+								   class="sf-genre-chip @(Model.SelectedLocationId == loc.LocationId ? "active" : "")"
+								   aria-current="@(Model.SelectedLocationId == loc.LocationId ? "page" : "false")">
+								@loc.LocationName
+							</a>
+						}
+					</div>
+				</div>
+			}
+
+			@* Items grid *@
+			@if (Model.ConcessionItems.Any())
+			{
+				<div class="row g-4">
+					@foreach (var item in Model.ConcessionItems)
+					{
+						var outOfStock = item.QuantityInStock <= 0;
+						<div class="col-6 col-md-4 col-lg-3">
+							<article class="sf-concession-card h-100 @(outOfStock ? "sf-concession-card--oos" : "")"
+									 aria-label="@item.ItemName">
+
+								<div class="sf-concession-icon" aria-hidden="true">
+									@{
+										var iconFile = item.ItemName.ToLower() switch
+										{
+											var n when n.Contains("popcorn") => "popcorn_drink_combo.png",
+											var n when n.Contains("kids") => "kids_combo.png",
+											var n when n.Contains("drink") => "fountain_drink.png",
+											var n when n.Contains("icee") => "icee.png",
+											var n when n.Contains("water") => "bottled_water.png",
+											var n when n.Contains("candy") => "candy_box.png",
+											var n when n.Contains("hot dog") => "hot_dog.png",
+											var n when n.Contains("nachos") => "nachos.png",
+											var n when n.Contains("pretzel") => "pretzel.png",
+											var n when n.Contains("souvenir") => "souvenir.png",
+											_ => "logo.png"
+										};
+									}
+									@* Use Url.Content so the browser gets the real path, not the tilde *@
+									<img src="@Url.Content("~/images/" + iconFile)" alt="" class="sf-icon-img" />
+									@* <img src="~/images/@iconFile" alt="" class="sf-icon-img" /> *@
+								</div>
+
+								<div class="sf-concession-body">
+									<h3 class="sf-concession-name">@item.ItemName</h3>
+									<p class="sf-concession-price">@item.Price.ToString("C")</p>
+
+									@if (outOfStock)
+									{
+										<span class="badge sf-badge-oos mb-3">Out of Stock</span>
+									}
+
+									<form asp-controller="Concessions" asp-action="AddConcessionToCart"
+										  method="post" class="js-add-concession">
+										@Html.AntiForgeryToken()
+										<input type="hidden" name="concessionItemId" value="@item.ConcessionItemId" />
+
+										<div class="sf-qty-control sf-qty-sm mb-3">
+											@* <button type="button" class="sf-qty-btn"
+                                                onclick="this.nextElementSibling.value = Math.max(1, parseInt(this.nextElementSibling.value)-1)"
+                                                aria-label="Decrease quantity"
+                                                @(outOfStock ? "disabled" : "")>
+                                            −
+                                        </button>
+                                        <input type="number" name="quantity" value="1" min="1" max="20"
+                                               class="sf-qty-input" aria-label="Quantity"
+                                               @(outOfStock ? "disabled" : "") />
+                                        <button type="button" class="sf-qty-btn"
+                                                onclick="this.previousElementSibling.value = Math.min(20, parseInt(this.previousElementSibling.value)+1)"
+                                                aria-label="Increase quantity"
+                                                @(outOfStock ? "disabled" : "")>
+                                            +
+                                        </button> *@
+											<button type="button" class="sf-qty-btn js-qty-btn js-qty-minus" aria-label="Decrease quantity" @(outOfStock ? "disabled" : "")>−</button>
+											<input type="number" name="quantity" value="1" min="1" max="20" class="sf-qty-input" aria-label="Quantity" @(outOfStock ? "disabled" : "") />
+											<button type="button" class="sf-qty-btn js-qty-btn js-qty-plus" aria-label="Increase quantity" @(outOfStock ? "disabled" : "")>+</button>
+										</div>
+
+										<button type="submit"
+												class="btn sf-btn-primary w-100 btn-sm"
+											@(outOfStock ? "disabled aria-disabled=\"true\"" : "")>
+											<i class="bi bi-cart-plus me-1" aria-hidden="true"></i>
+											@(outOfStock ? "Out of Stock" : "Add to Cart")
+										</button>
+									</form>
+								</div>
+							</article>
+						</div>
+					}
+				</div>
+
+				<div class="d-flex justify-content-end mt-4">
+					<a asp-controller="Cart" asp-action="CartReview" class="btn sf-btn-primary">
+						<i class="bi bi-cart-check me-2" aria-hidden="true"></i>Proceed to Checkout
+					</a>
+				</div>
+			}
+			else
+			{
+				<div class="sf-empty-state text-center py-5">
+					<i class="bi bi-cup sf-empty-icon" aria-hidden="true"></i>
+					<h3 class="mt-3">No items available</h3>
+					<p class="sf-text-muted">Please check back later.</p>
+				</div>
+			}
+
+		</div>
+	</section>
+
+	@* Live toast region for AJAX add-to-cart feedback *@
+	<div id="sf-toast-region" aria-live="polite" aria-atomic="true"
+		 style="position:fixed; bottom:1.25rem; right:1.25rem; z-index:1200; pointer-events:none;">
+	</div>
+
+	@section Scripts {
+		<script src="~/js/concessions.js"
+		        asp-append-version="true"></script>
+	}

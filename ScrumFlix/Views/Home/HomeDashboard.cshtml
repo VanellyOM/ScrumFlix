@@ -1,0 +1,405 @@
+@*
+ * File: Views/Home/HomeDashboard.cshtml
+ * Redesigned: bigger featured cards with TMDB score/stars/year,
+ *   trailer badge, rich Now Showing with mini-poster, perks strip.
+ * Carousel upgrade: row g-4 featured section replaced with Splide.js
+ *   carousel; trailer modal added; showtime pills wired to booking URLs.
+ * HTML fix: poster overlay and trailer badge moved outside <a> to avoid
+ *   button-in-anchor nesting (HTML0203). pointer-events toggled via CSS.
+ *@
+@model ScrumFlix.ViewModels.HomeDashboardViewModel
+@{
+	ViewData["Title"] = "Welcome";
+}
+
+@* ══ HERO ═════════════════════════════════════════════════════════════ *@
+<section class="sf-hero" aria-label="Hero banner">
+	<div class="sf-hero-overlay"></div>
+	<div class="sf-hero-content container-xl">
+		<p class="sf-hero-eyebrow">Now Playing Across DFW</p>
+		<h1 class="sf-hero-headline">Lights. Camera.<br /><span class="sf-gold">Action.</span></h1>
+		<p class="sf-hero-sub">10 premium locations &mdash; IMAX screens &mdash; Unbeatable concessions.</p>
+		<div class="d-flex flex-wrap gap-3 mt-4">
+			<a asp-controller="Movies" asp-action="MovieCatalog" class="btn sf-btn-primary btn-lg">
+				<i class="bi bi-film me-2"></i>Browse Movies
+			</a>
+			<a asp-controller="Concessions" asp-action="ConcessionsCatalog" class="btn sf-btn-outline btn-lg">
+				<i class="bi bi-cup-straw me-2"></i>Order Concessions
+			</a>
+		</div>
+	</div>
+</section>
+
+<!-- ══ FEATURED THIS WEEK — SPLIDE CAROUSEL ════════════════════════════ -->
+@if (Model.HasFeaturedMovies)
+{
+	<section class="sf-section" aria-labelledby="featured-heading">
+		<div class="container-xl">
+			<div class="sf-section-header">
+				<h2 class="sf-section-title" id="featured-heading">
+					<span class="sf-gold-bar"></span>Featured This Week
+				</h2>
+				<a asp-controller="Movies" asp-action="MovieCatalog" class="sf-see-all">
+					See All <i class="bi bi-arrow-right ms-1"></i>
+				</a>
+			</div>
+
+			<div class="sf-featured-carousel-wrap">
+				<div id="sf-featured-carousel" class="splide" aria-label="Featured movies this week">
+					<div class="splide__track">
+						<ul class="splide__list">
+
+							@foreach (var movie in Model.FeaturedMovies)
+							{
+								var hasPoster = movie.TmdbMetadata?.PosterUrl is not null;
+								var hasTrailer = movie.TmdbMetadata?.TrailerYouTubeKey is not null;
+								var score = movie.TmdbMetadata?.VoteAverage;
+								var votes = movie.TmdbMetadata?.VoteCount;
+								var release = movie.TmdbMetadata?.ReleaseDate;
+								var detailUrl = Url.Action("MovieDetail", "Movies", new { id = movie.MovieId });
+
+								Model.FeaturedShowtimes.TryGetValue(movie.MovieId, out var movieShowtimes);
+								var hasShowtimes = movieShowtimes is { Count: > 0 };
+
+								<li class="splide__slide">
+									<article class="sf-home-movie-card h-100" aria-label="@movie.Title">
+
+										<!-- Poster + overlay wrap -->
+										<div class="sf-home-poster-wrap">
+
+											<!-- Link ONLY wraps the physical poster image -->
+											<a asp-controller="Movies" asp-action="MovieDetail"
+											   asp-route-id="@movie.MovieId"
+											   class="sf-home-movie-poster-link"
+											   aria-label="View details for @movie.Title">
+												<div class="sf-home-movie-poster">
+													@if (hasPoster)
+													{
+														<img src="@movie.TmdbMetadata!.PosterUrl"
+															 alt="@movie.Title poster"
+															 class="sf-home-poster-img" loading="lazy" />
+													}
+													else
+													{
+														<div class="sf-poster-placeholder">
+															<i class="bi bi-film"></i>
+														</div>
+													}
+													<span class="sf-home-rating-badge">@movie.Rating</span>
+												</div>
+											</a>
+
+											<!-- Overlay sits OUTSIDE the <a> as a sibling —
+                                                 avoids button-in-anchor (HTML0203).
+                                                 pointer-events toggled by CSS on hover. -->
+											<div class="sf-home-poster-overlay">
+												<a asp-controller="Movies" asp-action="MovieDetail"
+												   asp-route-id="@movie.MovieId"
+												   class="btn sf-btn-primary btn-sm">
+													<i class="bi bi-info-circle me-1"></i>Details
+												</a>
+												@if (hasTrailer)
+												{
+													<button type="button"
+															class="btn sf-btn-outline btn-sm mt-2 sf-trailer-btn"
+															data-youtube-key="@movie.TmdbMetadata!.TrailerYouTubeKey"
+															data-movie-title="@movie.Title"
+															data-rating="@movie.Rating"
+															data-runtime="@movie.FormattedRunTime"
+															data-detail-url="@detailUrl"
+															data-poster-url="@movie.TmdbMetadata!.PosterUrl"
+															aria-label="Watch trailer for @movie.Title">
+														<i class="bi bi-play-circle me-1"></i>Watch Trailer
+													</button>
+												}
+											</div>
+
+											<!-- Stationary corner trailer badge — also outside the <a> -->
+											@if (hasTrailer)
+											{
+												<button type="button"
+														class="sf-home-trailer-badge sf-trailer-btn"
+														data-youtube-key="@movie.TmdbMetadata!.TrailerYouTubeKey"
+														data-movie-title="@movie.Title"
+														data-rating="@movie.Rating"
+														data-runtime="@movie.FormattedRunTime"
+														data-detail-url="@detailUrl"
+														data-poster-url="@movie.TmdbMetadata!.PosterUrl"
+														aria-label="Watch trailer for @movie.Title">
+													<i class="bi bi-play-fill me-1"></i>Trailer
+												</button>
+											}
+
+										</div><!-- /.sf-home-poster-wrap -->
+										<!-- Card body -->
+										<div class="sf-home-card-body">
+											<h3 class="sf-home-card-title">
+												<a asp-controller="Movies" asp-action="MovieDetail"
+												   asp-route-id="@movie.MovieId" class="sf-home-title-link">
+													@movie.Title
+												</a>
+											</h3>
+
+											<div class="sf-home-card-meta">
+												<span class="sf-genre-pill">@movie.PrimaryGenreDisplay</span>
+												<span class="sf-runtime">
+													<i class="bi bi-clock me-1" aria-hidden="true"></i>@movie.FormattedRunTime
+												</span>
+											</div>
+
+											@if (score is not null && votes >= 10)
+											{
+												<div class="sf-home-score-row">
+													@{
+														double s5 = (double)score.Value / 2.0;
+													}
+													<span class="sf-home-score-stars" aria-label="@score.Value.ToString("F1") out of 10">
+														@for (int i = 1; i <= 5; i++)
+														{
+															if (s5 >= i)
+															{
+																<i class="bi bi-star-fill" aria-hidden="true"></i>
+															}
+															else if (s5 > i - 1)
+															{
+																<i class="bi bi-star-half" aria-hidden="true"></i>
+															}
+															else
+															{
+																<i class="bi bi-star sf-home-star-empty" aria-hidden="true"></i>
+															}
+														}
+													</span>
+													<span class="sf-home-score-num">@score.Value.ToString("F1")</span>
+													<span class="sf-home-score-denom">/ 10</span>
+												</div>
+												<div class="sf-home-score-votes">@(votes?.ToString("N0")) votes on TMDb</div>
+											}
+
+											@if (release is not null)
+											{
+												<div class="sf-home-card-year">
+													<i class="bi bi-calendar3 me-1" aria-hidden="true"></i>@release.Value.ToString("MMMM d, yyyy")
+												</div>
+											}
+
+											<!-- Showtime pills -->
+											@if (hasShowtimes)
+											{
+												<div class="sf-home-showtimes">
+													<div class="sf-home-showtimes-label">
+														<i class="bi bi-clock me-1" aria-hidden="true"></i>Next showtimes
+													</div>
+													<div class="sf-home-showtimes-pills">
+														@foreach (var st in movieShowtimes!)
+														{
+															<a asp-controller="Showtimes"
+															   asp-action="ShowtimeBooking"
+															   asp-route-id="@st.ShowtimeId"
+															   class="sf-showtime-pill"
+															   aria-label="Book @movie.Title at @st.StartTime.ToString("h:mm tt")">
+																@st.StartTime.ToString("h:mm tt")
+															</a>
+														}
+													</div>
+												</div>
+											}
+
+											<a asp-controller="Movies" asp-action="MovieDetail"
+											   asp-route-id="@movie.MovieId"
+											   class="btn sf-btn-primary btn-sm w-100 mt-auto sf-home-card-btn">
+												<i class="bi bi-ticket-perforated me-1"></i>Get Tickets
+											</a>
+										</div><!-- /.sf-home-card-body -->
+
+									</article>
+								</li>
+							}
+
+						</ul>
+					</div>
+				</div>
+			</div><!-- /.sf-featured-carousel-wrap -->
+		</div>
+	</section>
+
+	<!-- ══ TRAILER MODAL ══════════════════════════════════════════════════ -->
+	<div class="modal fade sf-trailer-modal" id="sf-trailer-modal" tabindex="-1"
+		 aria-labelledby="sf-trailer-modal-label" aria-hidden="true">
+		<div class="modal-dialog modal-lg modal-dialog-centered">
+			<div class="modal-content">
+
+				<div class="modal-header border-0 pb-0">
+					<h5 class="modal-title" id="sf-trailer-modal-label"></h5>
+					<button type="button" class="btn-close btn-close-white"
+							data-bs-dismiss="modal" aria-label="Close"></button>
+				</div>
+
+				<div class="modal-body pt-2">
+					<div class="sf-trailer-video-wrap">
+						<iframe id="sf-trailer-iframe"
+								src=""
+								title="Movie trailer"
+								frameborder="0"
+								allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+								allowfullscreen></iframe>
+					</div>
+				</div>
+
+				<div class="modal-footer sf-trailer-modal-footer border-0 pt-0">
+					<div class="sf-trailer-footer-meta">
+						<img id="sf-trailer-thumb" src="" alt="" class="sf-trailer-thumb" />
+						<div class="sf-trailer-footer-info">
+							<div class="sf-trailer-footer-title" id="sf-trailer-footer-title"></div>
+							<div class="sf-trailer-footer-sub" id="sf-trailer-footer-sub"></div>
+						</div>
+					</div>
+					<div class="sf-trailer-showtimes" id="sf-trailer-showtimes"></div>
+					<a id="sf-trailer-detail-btn" href="#"
+					   class="btn sf-btn-primary btn-sm sf-trailer-detail-btn">
+						<i class="bi bi-ticket-perforated me-1"></i>Get Tickets
+					</a>
+				</div>
+
+			</div>
+		</div>
+	</div><!-- /#sf-trailer-modal -->
+	@*
+     * JSON island — passes server-side showtime data to sf-featured-carousel.js
+     * so the trailer modal can render pills without an extra AJAX call.
+     * Shape: { [movieId: string]: Array<{ id: number; time: string }> }
+     *@
+	<script id="sf-featured-showtimes-data" type="application/json">
+		@{
+					var showtimeJson = new System.Text.StringBuilder("{");
+					bool firstMovie = true;
+					foreach (var movie in Model.FeaturedMovies)
+					{
+								if (!firstMovie) showtimeJson.Append(',');
+								firstMovie = false;
+								showtimeJson.Append($"\"{movie.MovieId}\":[");
+								if (Model.FeaturedShowtimes.TryGetValue(movie.MovieId, out var stList))
+								{
+											bool firstSt = true;
+											foreach (var st in stList)
+											{
+														if (!firstSt) showtimeJson.Append(',');
+														firstSt = false;
+														showtimeJson.Append($"{{\"id\":{st.ShowtimeId},\"time\":\"{st.StartTime:h:mm tt}\"}}");
+											}
+								}
+								showtimeJson.Append(']');
+					}
+					showtimeJson.Append('}');
+		}
+		@Html.Raw(showtimeJson.ToString())
+	</script>
+}
+
+<!-- ══ NOW SHOWING TODAY ════════════════════════════════════════════════ -->
+@if (Model.HasNowShowing)
+{
+	<section class="sf-section sf-section-alt" aria-labelledby="nowshowing-heading">
+		<div class="container-xl">
+			<div class="sf-section-header">
+				<h2 class="sf-section-title" id="nowshowing-heading">
+					<span class="sf-gold-bar"></span>Showing Today
+				</h2>
+				<a asp-controller="Movies" asp-action="MovieCatalog" class="sf-see-all">
+					All Showtimes <i class="bi bi-arrow-right ms-1"></i>
+				</a>
+			</div>
+			<div class="row g-3">
+				@foreach (var show in Model.NowShowing)
+				{
+					var hasPoster = show.Movie?.TmdbMetadata?.PosterUrl is not null;
+					<div class="col-12 col-md-6 col-xl-3">
+						<article class="sf-nowshowing-card h-100" aria-label="@show.Movie?.Title showtime">
+							<div class="sf-nowshowing-inner">
+								@if (hasPoster)
+								{
+									<img src="@show.Movie!.TmdbMetadata!.PosterUrl"
+										 alt="@show.Movie.Title poster"
+										 class="sf-nowshowing-poster" loading="lazy" />
+								}
+								else
+								{
+									<div class="sf-nowshowing-poster sf-nowshowing-poster--placeholder">
+										<i class="bi bi-film"></i>
+									</div>
+								}
+								<div class="sf-nowshowing-info">
+									<h3 class="sf-nowshowing-title">@show.Movie?.Title</h3>
+									<div class="sf-nowshowing-meta">
+										<span class="sf-genre-pill">@show.Movie?.Genre</span>
+										<span class="sf-runtime">@show.Movie?.FormattedRunTime</span>
+									</div>
+									<div class="sf-nowshowing-rows">
+										<div class="sf-showtime-row">
+											<i class="bi bi-clock"></i>
+											<span>@show.StartTime.ToString("h:mm tt")</span>
+										</div>
+										<div class="sf-showtime-row">
+											<i class="bi bi-geo-alt"></i>
+											<span>@show.TheaterScreen?.Location?.LocationName</span>
+										</div>
+										<div class="sf-showtime-row">
+											<i class="bi bi-display"></i>
+											<span>@show.TheaterScreen?.ScreenName</span>
+										</div>
+										<div class="sf-showtime-row">
+											<i class="bi bi-people"></i>
+											<span>@show.AvailableSeats seats &bull; @show.PricePerTicket.ToString("C")</span>
+										</div>
+									</div>
+								</div>
+							</div>
+							<a asp-controller="Showtimes" asp-action="ShowtimeBooking"
+							   asp-route-id="@show.ShowtimeId"
+							   class="btn sf-btn-primary w-100 mt-3"
+							   aria-label="Buy tickets for @show.Movie?.Title">
+								<i class="bi bi-ticket-perforated me-2"></i>Buy Tickets
+							</a>
+						</article>
+					</div>
+				}
+			</div>
+		</div>
+	</section>
+}
+
+<!-- ══ PERKS STRIP ══════════════════════════════════════════════════════ -->
+<section class="sf-perks-strip" aria-label="ScrumFlix perks">
+	<div class="container-xl">
+		<div class="row g-4 text-center">
+			<div class="col-6 col-md-3">
+				<div class="sf-perk">
+					<i class="bi bi-display sf-perk-icon"></i>
+					<h4 class="sf-perk-title">IMAX Screens</h4>
+					<p class="sf-perk-desc">Immersive premium format at select locations</p>
+				</div>
+			</div>
+			<div class="col-6 col-md-3">
+				<div class="sf-perk">
+					<i class="bi bi-cup-hot sf-perk-icon"></i>
+					<h4 class="sf-perk-title">Fresh Concessions</h4>
+					<p class="sf-perk-desc">18 signature items made fresh daily</p>
+				</div>
+			</div>
+			<div class="col-6 col-md-3">
+				<div class="sf-perk">
+					<i class="bi bi-geo-alt sf-perk-icon"></i>
+					<h4 class="sf-perk-title">10 DFW Locations</h4>
+					<p class="sf-perk-desc">Always a theater near you in the Metroplex</p>
+				</div>
+			</div>
+			<div class="col-6 col-md-3">
+				<div class="sf-perk">
+					<i class="bi bi-ticket-perforated sf-perk-icon"></i>
+					<h4 class="sf-perk-title">Easy Booking</h4>
+					<p class="sf-perk-desc">Buy tickets and concessions in one checkout</p>
+				</div>
+			</div>
+		</div>
+	</div>
+</section>

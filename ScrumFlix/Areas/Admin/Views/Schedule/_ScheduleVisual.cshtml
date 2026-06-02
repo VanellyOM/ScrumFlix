@@ -1,0 +1,69 @@
+@*
+ * Partial: _ScheduleVisual.cshtml
+ * Renders the Gantt timeline. Swapped by HTMX when location/month selectors change,
+ * and by SignalR ShiftsUpdated events on other clients.
+ *@
+@model ScrumFlix.Areas.Admin.ViewModels.GanttViewModel
+
+@if (Model.IsEmpty)
+{
+    <div class="sf-flash-banner sf-flash-banner--info d-flex align-items-center gap-2" role="status">
+        <i class="bi bi-info-circle-fill flex-shrink-0" aria-hidden="true"></i>
+        <span>No shifts found for the selected location and month.</span>
+    </div>
+}
+else
+{
+    @* Hour header *@
+    <div class="table-responsive">
+        <div style="min-width: @(Model.TimelineLeftPx + (Model.EndHour - Model.StartHour) * Model.HourWidthPx + 20)px; position:relative;">
+
+            @* Hour labels *@
+            <div style="position:relative; height:24px; margin-left:@(Model.TimelineLeftPx)px; border-bottom:1px solid var(--sf-border-muted);">
+                @for (int h = Model.StartHour; h <= Model.EndHour; h++)
+                {
+                    <span style="position:absolute; left:@((h - Model.StartHour) * Model.HourWidthPx)px; font-size:0.7rem; color:var(--sf-text-muted); user-select:none;">
+                        @(h % 12 == 0 ? 12 : h % 12)@(h < 12 ? "am" : "pm")
+                    </span>
+                }
+            </div>
+
+            @* Day rows *@
+            @foreach (var day in Model.Days)
+            {
+                <div style="position:relative; height:36px; border-bottom:1px solid var(--sf-border-muted); display:flex; align-items:center;">
+                    @* Date label *@
+                    <div style="position:absolute; left:0; width:@(Model.TimelineLeftPx - 8)px; font-size:0.8rem; color:var(--sf-text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                        @day.Date.ToString("ddd MM/dd")
+                    </div>
+
+                    @* Shift bars *@
+                    @foreach (var bar in day.Bars)
+                    {
+                        <div style="position:absolute; left:@(bar.LeftPx)px; width:@(bar.WidthPx)px;
+                                    height:26px; border-radius:4px; background-color:@bar.RoleColor;
+                                    display:flex; align-items:center; padding:0 6px;
+                                    font-size:0.7rem; color:#222; overflow:hidden; white-space:nowrap;
+                                    cursor:default;"
+                             title="@bar.RoleName — @bar.Label (ShiftId @bar.ShiftId)">
+                            @bar.RoleName: @bar.Label
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+
+    @* Legend *@
+    <div class="d-flex flex-wrap gap-3 mt-3">
+        <span style="display:inline-flex;align-items:center;gap:4px;font-size:0.8rem;">
+            <span style="width:14px;height:14px;border-radius:3px;background:#F08080;"></span> Admin
+        </span>
+        <span style="display:inline-flex;align-items:center;gap:4px;font-size:0.8rem;">
+            <span style="width:14px;height:14px;border-radius:3px;background:#F0E68C;"></span> Manager
+        </span>
+        <span style="display:inline-flex;align-items:center;gap:4px;font-size:0.8rem;">
+            <span style="width:14px;height:14px;border-radius:3px;background:#87CEEB;"></span> Employee
+        </span>
+    </div>
+}

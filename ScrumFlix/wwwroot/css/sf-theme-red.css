@@ -1,0 +1,349 @@
+/*
+ * File:        /wwwroot/css/sf-theme-red.css
+ * Layer:       TIER 4 — THEME: RED/BLACK
+ * Description: All [data-theme="red"] component and token overrides.
+ *              Replaces gold accents with teal/red and adjusts surface tones
+ *              for the Red & Black cinematic theme.
+ *
+ * Load order:  1. sf-base.css
+ *              2. sf-tokens.css
+ *              3. sf-layout.css
+ *              4. sf-components.css
+ *              5. sf-theme-light.css
+ *              6. sf-theme-red.css   ← THIS FILE (active when data-theme="red")
+ *
+ * Structure mirrors sf-theme-light.css exactly:
+ *   T1 · Token overrides      — semantic --sf-* variables for this theme
+ *   T2 · Button overrides     — CTA color corrections
+ *   T3 · Component accents    — individual component color swaps
+ *   T4 · Navbar               — brand-red bottom border
+ *   T5 · Seat grid            — themed seat colors
+ *
+ * WCAG 2.2 AA (verified):
+ *   Reserved stroke (#607D8B) on #161616 (red card bg) = 4.1:1 ✓ AA
+ *   Reserved non-color signal: dashed stroke                   ✓ SC 1.4.1
+ */
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   T1 · SEMANTIC TOKEN OVERRIDES
+   Only override tokens that differ from the dark theme defaults in sf-tokens.css.
+═══════════════════════════════════════════════════════════════════════════ */
+[data-theme="red"] {
+
+    /* ── Surfaces — deeper blacks for dramatic contrast ───────────────── */
+    --sf-bg-page:                   var(--primitive-black);
+    --sf-bg-surface:                #111111;
+    --sf-bg-card:                   #161616;
+    --sf-bg-card-alt:               #1C1C1C;
+    --sf-bg-overlay:                rgba(10,10,12,.92);
+    --sf-bg-input:                  #1C1C1C;
+
+    /* ── Navbar ───────────────────────────────────────────────────────── */
+    --sf-navbar-bg:                 rgba(10,10,12,.96);
+    --sf-navbar-border:             var(--primitive-red);
+
+    /* ── Borders ──────────────────────────────────────────────────────── */
+    --sf-border-color:              rgba(255,255,255,.08);
+    --sf-border-accent:             var(--primitive-red);
+
+    /* ── Text ─────────────────────────────────────────────────────────── */
+    --sf-text-primary:              var(--primitive-light-100);
+    --sf-text-heading:              var(--primitive-light-100);
+    --sf-text-muted:                var(--primitive-silver);
+    --sf-text-link:                 var(--primitive-teal);
+
+    /* ── Nav link colors ──────────────────────────────────────────────── */
+    --sf-nav-link-color:            var(--primitive-silver-light);
+    --sf-nav-link-active-color:     var(--primitive-light-100);
+    --sf-nav-link-hover-bg:         rgba(255,255,255,.06);
+
+    /* ── Input ────────────────────────────────────────────────────────── */
+    --sf-input-bg:                  #1C1C1C;
+    --sf-input-border:              rgba(255,255,255,.12);
+    --sf-input-color:               var(--primitive-light-100);
+    --sf-input-placeholder:         var(--primitive-silver);
+    --sf-input-focus-border:        var(--primitive-teal);
+    --sf-input-focus-shadow:        0 0 0 3px rgba(4,180,208,.18);
+    --sf-select-option-bg:          #1C1C1C;
+
+    /* ── Accent ───────────────────────────────────────────────────────── */
+    --sf-color-accent:              var(--primitive-red);
+    --sf-color-accent-dim:          #9A0C22;
+    --sf-color-accent-glow:         rgba(200,16,46,.18);
+    --sf-color-on-accent:           var(--primitive-white);
+    --sf-color-focus-ring:          var(--primitive-red);
+
+    /* ── Toggle ───────────────────────────────────────────────────────── */
+    --sf-toggle-bg:                 #1C1C1C;
+    --sf-toggle-border:             rgba(255,255,255,.12);
+    --sf-toggle-icon-color:         var(--primitive-silver-light);
+
+    /* ── Shadows ──────────────────────────────────────────────────────── */
+    --sf-shadow:                    0 4px 24px rgba(0,0,0,.65);
+
+    /* ── Poster placeholder ───────────────────────────────────────────── */
+    --sf-poster-placeholder-bg:     #1C1C1C;
+    --sf-poster-placeholder-icon:   rgba(255,255,255,.15);
+
+    /* ── Footer ───────────────────────────────────────────────────────── */
+    --sf-footer-bg:                 #0A0A0C;
+    --sf-footer-border:             rgba(200,16,46,.35);
+
+    /* ── Seat colors ──────────────────────────────────────────────────── */
+    --sf-seat-open-bg:              transparent;
+    --sf-seat-open-border:          #5A2020;
+    --sf-seat-sold-bg:              #1A1010;
+    --sf-seat-selected-bg:          transparent;
+    --sf-seat-selected-border:      var(--primitive-red);
+    --sf-seat-reserved-bg:          transparent;
+    --sf-seat-reserved-border:      #607D8B;   /* cool-slate 4.1:1 on #161616 ✓ AA */
+    --sf-seat-text-available:       #7A4040;
+    --sf-seat-text-selected:        var(--primitive-white);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   T2 · BUTTON OVERRIDES
+   Secondary CTA (outline) uses teal so it pops against red primary.
+═══════════════════════════════════════════════════════════════════════════ */
+[data-theme="red"] .sf-btn-outline {
+    color: var(--primitive-teal) !important;
+    border-color: var(--primitive-teal);
+}
+
+[data-theme="red"] .sf-btn-outline:hover {
+    background: var(--primitive-teal);
+    color: var(--primitive-black) !important;
+}
+
+[data-theme="red"] .sf-btn-primary {
+    background: var(--primitive-red);
+    color: var(--primitive-white) !important;
+}
+
+[data-theme="red"] .sf-btn-primary:hover:not(:disabled) {
+    background: var(--primitive-red-light);
+}
+
+[data-theme="red"] .sf-btn-cart {
+    background: var(--primitive-red);
+    color: var(--primitive-white) !important;
+}
+
+[data-theme="red"] .sf-btn-cart:hover {
+    background: var(--primitive-red-light);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   T3 · COMPONENT ACCENTS
+   Replace gold with teal or red where appropriate for this theme.
+═══════════════════════════════════════════════════════════════════════════ */
+
+/* Teal accents — informational / genre / price elements */
+[data-theme="red"] .sf-showtime-genre       { color: var(--primitive-teal); }
+[data-theme="red"] .sf-screen-label         { color: var(--primitive-teal); }
+[data-theme="red"] .sf-showtime-date-label  { color: var(--primitive-teal); }
+[data-theme="red"] .sf-slot-time            { color: var(--primitive-teal); }
+[data-theme="red"] .sf-concession-price     { color: var(--primitive-teal); }
+[data-theme="red"] .sf-cart-line-total      { color: var(--primitive-teal); }
+[data-theme="red"] .sf-confirm-amount       { color: var(--primitive-teal); }
+[data-theme="red"] .sf-summary-total span:last-child { color: var(--primitive-teal); }
+[data-theme="red"] .sf-tier-price           { color: var(--primitive-teal); }
+[data-theme="red"] .sf-stat-value           { color: var(--primitive-teal); }
+
+/* Red accents — action / icon elements */
+[data-theme="red"] .sf-showtime-row i       { color: var(--primitive-red); }
+[data-theme="red"] .sf-gold-bar             { background: var(--primitive-red); }
+[data-theme="red"] .sf-see-all              { color: var(--primitive-teal); }
+[data-theme="red"] .sf-hero-eyebrow         { color: var(--primitive-yellow-accent); }
+[data-theme="red"] .sf-brand-text           { color: var(--primitive-red) !important; }
+
+/* Gold bar → red for decorative accents */
+[data-theme="red"] .sf-section-title .sf-gold-bar { background: var(--primitive-red); }
+
+/* Search/filter active states */
+[data-theme="red"] .sf-mode-label.active {
+    background: var(--primitive-red);
+    color: var(--primitive-white);
+    border-color: var(--primitive-red);
+}
+
+[data-theme="red"] .sf-genre-chip:hover,
+[data-theme="red"] .sf-genre-chip.active {
+    background: var(--primitive-red);
+    border-color: var(--primitive-red);
+    color: var(--primitive-white);
+}
+
+/* Admin active link */
+[data-theme="red"] .sf-admin-sidebar .sf-admin-nav-link.active {
+    background: var(--primitive-red);
+    color: var(--primitive-white);
+}
+
+[data-theme="red"] .sf-pagination .page-item.active .page-link {
+    background: var(--primitive-red);
+    border-color: var(--primitive-red);
+    color: var(--primitive-white);
+}
+
+/* Screen curve */
+[data-theme="red"] .sf-screen-curve {
+    background: linear-gradient(90deg, transparent, rgba(200,16,46,.5), transparent);
+    box-shadow: 0 2px 12px rgba(200,16,46,.25);
+}
+
+/* Hero overlay — inherits dark default; no separate override needed for red theme */
+[data-theme="red"] .sf-hero-overlay  { /* inherits dark default */ }
+
+/* Hero text */
+[data-theme="red"] .sf-hero-headline { color: var(--primitive-light-100); }
+[data-theme="red"] .sf-hero-sub      { color: var(--primitive-silver-light); }
+
+/* Page header */
+[data-theme="red"] .sf-page-header   { background: #111111; border-bottom: 2px solid var(--primitive-red); }
+[data-theme="red"] .sf-page-title    { color: var(--primitive-light-100); }
+[data-theme="red"] .sf-page-subtitle { color: var(--primitive-silver); }
+
+/* Cards */
+[data-theme="red"] .sf-movie-card       { box-shadow: 0 2px 12px rgba(0,0,0,.55); }
+[data-theme="red"] .sf-movie-card:hover { box-shadow: 0 8px 28px rgba(200,16,46,.2); border-color: rgba(200,16,46,.4); }
+[data-theme="red"] .sf-showtime-card,
+[data-theme="red"] .sf-nowshowing-card  { box-shadow: 0 1px 8px rgba(0,0,0,.45); }
+[data-theme="red"] .sf-form-card        { box-shadow: 0 2px 12px rgba(0,0,0,.55); }
+[data-theme="red"] .sf-order-summary    { box-shadow: 0 2px 12px rgba(0,0,0,.55); }
+[data-theme="red"] .sf-stat-card        { box-shadow: 0 1px 8px rgba(0,0,0,.45); }
+
+/* Search input */
+[data-theme="red"] .sf-search-input       { color: var(--primitive-light-100); }
+[data-theme="red"] .sf-search-input:focus {
+    border-color: var(--primitive-teal);
+    box-shadow: 0 0 0 3px rgba(4,180,208,.18);
+}
+
+/* Genre chips & mode labels */
+[data-theme="red"] .sf-genre-chip       { color: var(--primitive-silver); }
+[data-theme="red"] .sf-mode-label       { color: var(--primitive-silver); }
+[data-theme="red"] .sf-mode-label:hover { color: var(--primitive-light-100); background: rgba(255,255,255,.06); }
+
+/* Theme picker dropdown */
+[data-theme="red"] .sf-theme-picker {
+    background: #1C1C1C;
+    border-color: rgba(255,255,255,.10);
+    box-shadow: 0 8px 24px rgba(0,0,0,.65);
+}
+[data-theme="red"] .sf-theme-picker-item             { color: var(--primitive-light-100); }
+[data-theme="red"] .sf-theme-picker-item:hover       { background: rgba(255,255,255,.06); }
+[data-theme="red"] .sf-theme-picker-item[aria-checked="true"] { color: var(--primitive-teal); }
+
+/* Perks strip */
+[data-theme="red"] .sf-perks-strip { background: #111111; border-color: rgba(200,16,46,.2); }
+
+/* Secure badge */
+[data-theme="red"] .sf-secure-badge { background: #1C1C1C; }
+
+/* Rating banners */
+[data-theme="red"] .sf-rating-banner--warning { background: rgba(245,166,35,.08); color: #F5A623; }
+[data-theme="red"] .sf-rating-banner--locked  { background: rgba(4,180,208,.06);  color: var(--primitive-teal); }
+
+/* Select dropdown arrow — light chevron on dark bg */
+[data-theme="red"] .sf-select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23969696' fill='none' stroke-width='1.5'/%3E%3C/svg%3E");
+}
+
+/* Flash banners */
+[data-theme="red"] .sf-flash-banner--info {
+    background: rgba(4,180,208,.08);
+    border-color: var(--primitive-teal) !important;
+    color: var(--primitive-teal);
+}
+[data-theme="red"] .sf-flash-banner--success {
+    background: rgba(76,175,128,.08);
+    border-color: #4CAF80 !important;
+    color: #4CAF80;
+}
+[data-theme="red"] .sf-flash-banner--error {
+    background: rgba(200,16,46,.08);
+    border-color: var(--primitive-red) !important;
+    color: #E8213F;
+}
+[data-theme="red"] .sf-flash-banner--warning {
+    background: rgba(245,197,24,.08);
+    border-color: #F0C73D !important;
+    color: #F0C73D;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   T4 · NAVBAR
+   Distinctive red bottom border identifies the Red/Black theme.
+═══════════════════════════════════════════════════════════════════════════ */
+[data-theme="red"] .sf-navbar {
+    border-bottom-color: var(--primitive-red);
+    border-bottom-width: 2px;
+}
+
+[data-theme="red"] .sf-nav-link           { color: var(--primitive-silver-light) !important; }
+[data-theme="red"] .sf-nav-link:hover,
+[data-theme="red"] .sf-nav-link.active    { color: var(--primitive-light-100) !important; background: rgba(255,255,255,.06); }
+[data-theme="red"] .navbar-toggler        { border-color: rgba(255,255,255,.12); }
+[data-theme="red"] .sf-toggler-icon       { color: var(--primitive-silver-light); }
+
+/* ── Admin sidebar ───────────────────────────────────────────────────── */
+[data-theme="red"] .sf-admin-sidebar      { background: #111111; border-right-color: rgba(200,16,46,.25); }
+[data-theme="red"] .sf-admin-nav-link     { color: var(--primitive-silver); }
+[data-theme="red"] .sf-admin-nav-link:hover { background: rgba(255,255,255,.05); color: var(--primitive-light-100); }
+[data-theme="red"] .sf-admin-nav-link.active {
+    background: var(--primitive-red);
+    color: var(--primitive-white);
+    border-left-color: #9A0C22;
+}
+
+/* ── Footer ──────────────────────────────────────────────────────────── */
+[data-theme="red"] .sf-footer             { color: var(--primitive-silver-light); }
+[data-theme="red"] .sf-footer-brand,
+[data-theme="red"] .sf-footer a          { color: var(--primitive-red); }
+[data-theme="red"] .sf-footer-heading    { color: rgba(219,215,215,.55); }
+[data-theme="red"] .sf-footer-copy       { color: rgba(219,215,215,.45); }
+[data-theme="red"] .sf-footer-tagline    { color: rgba(219,215,215,.5); }
+[data-theme="red"] .sf-footer-links a,
+[data-theme="red"] .sf-footer-links li   { color: rgba(219,215,215,.65); }
+[data-theme="red"] .sf-footer-links a:hover,
+[data-theme="red"] .sf-social-icons a:hover { color: var(--primitive-red); }
+[data-theme="red"] .sf-social-icons a    { color: rgba(219,215,215,.55); }
+[data-theme="red"] .sf-footer-divider    { border-color: rgba(200,16,46,.2); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   T5 · SEAT GRID OVERRIDES
+   SVG seat icon strokes are driven by CSS custom properties that seatPicker.js
+   reads at render time. These override the dark theme defaults in sf-tokens.css.
+   Reserved seats use a dashed stroke pattern (non-color WCAG signal, SC 1.4.1).
+═══════════════════════════════════════════════════════════════════════════ */
+
+/* Available seat — dark red-tinted stroke */
+[data-theme="red"] .sf-seat-tile {
+    --seat-available-fill:   transparent;
+    --seat-available-stroke: #5A2020;
+}
+
+/* Selected seat — brand red stroke, clearly chosen */
+[data-theme="red"] .sf-seat-tile.sf-seat-selected {
+    --seat-selected-fill:   transparent;
+    --seat-selected-stroke: var(--primitive-red);
+}
+
+/* Legend swatches */
+[data-theme="red"] .sf-seat-open {
+    background: transparent;
+    border-color: #5A2020;
+}
+
+[data-theme="red"] .sf-seat-open:hover {
+    background: transparent;
+    border-color: var(--primitive-red);
+}
+
+[data-theme="red"] .sf-seat-selected {
+    background: transparent !important;
+    border-color: var(--primitive-red) !important;
+}
+
+[data-theme="red"] .sf-seat-row-label { color: var(--primitive-silver); }

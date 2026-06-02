@@ -1,0 +1,18 @@
+@*
+ * File: /ScrumFlix/Views/Shared/Components/FooterLocations/Default.cshtml
+ *
+ * NOTE: Does NOT use sf-footer-links because that class sets display:flex
+ * which overrides column-count. sf-footer-locations-grid handles both
+ * the 2-column layout AND the inherited link styling.
+ *@
+@model IEnumerable<string>
+
+@if (Model.Any())
+{
+    <ul class="list-unstyled sf-footer-locations-grid">
+        @foreach (var name in Model)
+        {
+            <li>@name</li>
+        }
+    </ul>
+}

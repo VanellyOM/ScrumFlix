@@ -1,0 +1,503 @@
+/*
+ * File:        /wwwroot/css/sf-layout.css
+ * Layer:       TIER 2 — LAYOUT
+ * Description: Structural grid, spacing, and page-zone rules.
+ *              No decorative color — uses semantic tokens only.
+ *              Responsive breakpoints aligned with Bootstrap 5.3:
+ *              xs <576, sm ≥576, md ≥768, lg ≥992, xl ≥1200, xxl ≥1400
+ *
+ * Load order:  1. sf-base.css
+ *              2. sf-tokens.css
+ *              3. sf-layout.css  ← THIS FILE
+ *              4. sf-components.css
+ *              5. sf-theme-*.css
+ */
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   L1 · PAGE SCAFFOLD
+═══════════════════════════════════════════════════════════════════════════ */
+
+/* Ensure footer always stays at bottom regardless of content length */
+.sf-page-wrapper {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+.sf-page-wrapper > main {
+    flex: 1;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   L2 · CONTAINER OVERRIDES
+   Harmonize with Bootstrap's container system; add project-specific widths.
+═══════════════════════════════════════════════════════════════════════════ */
+.container,
+.container-fluid,
+.container-xl,
+.container-xxl {
+    /* Handled by Bootstrap — do NOT duplicate width/margin here */
+    /* Override only padding to match design spec */
+    --bs-gutter-x: 1.5rem;
+}
+
+/* Narrow reading container for forms, login, confirmations */
+.sf-container-narrow {
+    max-width: 520px;
+    margin-inline: auto;
+    padding-inline: 1rem;
+}
+
+/* Medium container for detail pages, booking */
+.sf-container-md {
+    max-width: 860px;
+    margin-inline: auto;
+    padding-inline: 1rem;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   L3 · SECTION SPACING
+═══════════════════════════════════════════════════════════════════════════ */
+.sf-section {
+    padding-block: 4rem;
+}
+
+.sf-section-sm {
+    padding-block: 2.5rem;
+}
+
+.sf-section-alt {
+    background-color: var(--sf-bg-surface);
+}
+
+.sf-section-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.sf-section-title {
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    margin: 0;
+}
+
+@media (max-width: 480px) {
+    .sf-section {
+        padding-block: 2.5rem;
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   L4 · NAVBAR LAYOUT
+═══════════════════════════════════════════════════════════════════════════ */
+.sf-navbar {
+    padding: .75rem 0;
+    z-index: 1030;
+}
+
+.sf-brand {
+    display: flex;
+    align-items: center;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   L5 · HERO LAYOUT
+═══════════════════════════════════════════════════════════════════════════ */
+.sf-hero {
+    position: relative;
+    min-height: clamp(420px, 55vw, 640px);
+    display: flex;
+    align-items: center;
+    background: url('/images/movie_theatre_background.png') center / cover no-repeat;
+    overflow: hidden;
+}
+
+.sf-hero-overlay {
+    position: absolute;
+    inset: 0;
+    background: var(--sf-bg-hero-overlay);
+}
+
+.sf-hero-content {
+    position: relative;
+    z-index: 1;
+    max-width: 580px;
+    padding: 3rem 1rem;
+}
+
+@media (max-width: 768px) {
+    .sf-hero {
+        min-height: 380px;
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   L6 · CARD GRID
+═══════════════════════════════════════════════════════════════════════════ */
+.sf-movie-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 1.5rem;
+}
+
+.sf-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   L7 · PAGE HEADER ZONE
+═══════════════════════════════════════════════════════════════════════════ */
+.sf-page-header {
+    background: var(--sf-bg-surface);
+    border-bottom: 1px solid var(--sf-border-color);
+    padding: 2.5rem 0 2rem;
+}
+
+.sf-page-title {
+    font-size: clamp(2rem, 5vw, 3rem);
+    margin: 0;
+}
+
+.sf-page-subtitle {
+    color: var(--sf-text-muted);
+    margin: .5rem 0 0;
+    font-size: 1.05rem;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   L8 · FOOTER LAYOUT
+═══════════════════════════════════════════════════════════════════════════ */
+.sf-footer {
+    padding: 3.5rem 0 2rem;
+    margin-top: auto;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   L9 · BOOKING / CART SPLIT LAYOUT
+═══════════════════════════════════════════════════════════════════════════ */
+.sf-order-summary {
+    position: sticky;
+    top: 90px;
+}
+
+@media (max-width: 768px) {
+    .sf-order-summary {
+        position: static;
+    }
+
+    .sf-cart-item {
+        flex-direction: column;
+    }
+
+    .sf-cart-item-controls {
+        margin-left: 0;
+        width: 100%;
+        justify-content: space-between;
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   L10 · SEAT GRID LAYOUT — SVG SEAT SYSTEM
+   Seats render as inline SVG cinema-chair icons. Size is fluid via CSS
+   custom property --sf-seat-size, which collapses on smaller screens.
+   Row labels sit on both sides of each row for quick row identification.
+   Size increased 50% from original (46px → 69px desktop base).
+═══════════════════════════════════════════════════════════════════════════ */
+
+/* Desktop seat size — 50% larger than previous 46px */
+:root { --sf-seat-size: 46px; }
+
+.sf-seat-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: center;
+    width: auto;           /* ← theater layout width: reduce to shrink, increase to expand */
+    max-width: 100%;       /* ← caps absolute growth on very wide screens */
+    margin-inline: auto;  /* ← keeps grid centered within the column */
+    overflow-x: auto;
+    padding-bottom: 4px;
+}
+
+.sf-seat-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+/* The SVG seat tile — available and selected states (button) */
+.sf-seat-tile {
+    position: relative;
+    width: var(--sf-seat-size) !important;
+    height: var(--sf-seat-size) !important;
+    min-width: var(--sf-seat-size) !important;
+    min-height: var(--sf-seat-size) !important;
+    flex: 0 0 var(--sf-seat-size) !important;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    padding: 0;
+    border-radius: 0;
+    transition: transform 0.15s ease, filter 0.15s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sf-seat-tile svg {
+    width: 75%;
+    height: 75%;
+    pointer-events: none;
+}
+
+/* Seat label inside each tile (rendered by JS as an absolute span) */
+.sf-seat-tile-label {
+    position: absolute;
+    bottom: 52%;          /* ← label height: higher = further up the seat back; lower = toward cushion */
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: clamp(11px, calc(var(--sf-seat-size) * 0.22), 17px);
+    font-weight: 700;
+    color: var(--sf-seat-text-available, var(--sf-text-muted));
+    pointer-events: none;
+    line-height: 1;
+    white-space: nowrap;
+    letter-spacing: .02em;
+    font-family: var(--sf-font-body);
+    user-select: none;
+}
+
+.sf-seat-tile:not(.sf-seat-ghost):not([disabled]):hover {
+    transform: translateY(-3px);
+    filter: brightness(1.2);
+}
+
+.sf-seat-tile:focus-visible {
+    outline: 2px solid var(--sf-color-focus-ring);
+    outline-offset: 2px;
+    border-radius: 3px;
+}
+
+/* Reserved tile — visible non-interactive span with orange corner-bracket icon.
+   Orange signals "temporarily held mid-checkout" — urgent but not permanent.
+   Distinct from sold red which signals "permanently gone". */
+.sf-seat-reserved-tile {
+    position: relative;
+    width: var(--sf-seat-size) !important;
+    height: var(--sf-seat-size) !important;
+    min-width: var(--sf-seat-size) !important;
+    min-height: var(--sf-seat-size) !important;
+    flex: 0 0 var(--sf-seat-size) !important;
+    cursor: not-allowed;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(217,119,6,.10);
+    border-radius: 10px;
+}
+
+.sf-seat-reserved-tile svg {
+    width: 92%;
+    height: 92%;
+    pointer-events: none;
+}
+
+/* Sold / Blocked tile — visible non-interactive span with high-contrast red X icon.
+   Red (#C8102E) signals "permanently gone" — stronger than reserved orange which
+   signals "temporarily held". Mirrors reserved tile sizing exactly. */
+.sf-seat-sold-tile {
+    position: relative;
+    width: var(--sf-seat-size) !important;
+    height: var(--sf-seat-size) !important;
+    min-width: var(--sf-seat-size) !important;
+    min-height: var(--sf-seat-size) !important;
+    flex: 0 0 var(--sf-seat-size) !important;
+    cursor: not-allowed;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(200,16,46,.10);
+    border-radius: 10px;
+}
+
+.sf-seat-sold-tile svg {
+    width: 88%;
+    height: 88%;
+    pointer-events: none;
+}
+
+/* Gap / aisle — invisible but takes up space */
+.sf-seat-gap {
+    width: var(--sf-seat-size) !important;
+    height: var(--sf-seat-size) !important;
+    min-width: var(--sf-seat-size) !important;
+    min-height: var(--sf-seat-size) !important;
+    flex: 0 0 var(--sf-seat-size) !important;
+    pointer-events: none;
+    background: transparent;
+    visibility: hidden;
+}
+
+/* Ghost (sold/blocked/inactive) — invisible placeholder */
+.sf-seat-ghost {
+    width: var(--sf-seat-size) !important;
+    height: var(--sf-seat-size) !important;
+    min-width: var(--sf-seat-size) !important;
+    min-height: var(--sf-seat-size) !important;
+    flex: 0 0 var(--sf-seat-size) !important;
+    pointer-events: none;
+    visibility: hidden;
+    background: transparent;
+    border: none;
+}
+
+/* Old .sf-seat kept for backward compat / legend fallback only */
+.sf-seat {
+    width: 18px;
+    height: 16px;
+    border-radius: 3px 3px 0 0;
+    cursor: default;
+    flex-shrink: 0;
+}
+
+/* ── Row labels ──────────────────────────────────────────────────────────── */
+.sf-seat-row-label {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--sf-text-muted);
+    flex-shrink: 0;
+    letter-spacing: .05em;
+    font-family: var(--sf-font-body);
+}
+
+/* ── Legend swatch ───────────────────────────────────────────────────────── */
+.sf-legend-swatch {
+    display: inline-flex;
+    vertical-align: middle;
+    width: 40px;
+    height: 40px;
+    margin-right: 8px;
+    flex-shrink: 0;
+}
+
+.sf-legend-swatch svg {
+    width: 100%;
+    height: 100%;
+}
+
+/* ── Responsive seat sizing — scaled proportionally from new 69px base ───── */
+@media (max-width: 991px) {
+    :root { --sf-seat-size: 71px; }
+}
+
+@media (max-width: 768px) {
+    :root { --sf-seat-size: 60px; }
+    .sf-seat-row-label { font-size: .65rem; }
+}
+
+@media (max-width: 480px) {
+    :root { --sf-seat-size: 48px; }
+    .sf-seat-row { gap: 4px; }
+    .sf-seat-tile-label { font-size: 7px; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   L11 · CASCADE FILTER BAR (Genre → Title dropdowns)
+═══════════════════════════════════════════════════════════════════════════ */
+.sf-cascade-bar {
+    align-items: flex-end;
+    gap: .6rem;
+    border-radius: var(--sf-radius-lg);
+    padding: .85rem 1.1rem;
+}
+
+.sf-cascade-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: .3rem;
+    flex: 1;
+    min-width: 160px;
+}
+
+@media (max-width: 576px) {
+    .sf-cascade-bar {
+        flex-direction: column;
+    }
+
+    .sf-cascade-arrow {
+        transform: rotate(90deg);
+        align-self: center;
+        padding-bottom: 0;
+    }
+
+    .sf-cascade-btn {
+        width: 100%;
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   L12 · ADMIN DASHBOARD LAYOUT
+═══════════════════════════════════════════════════════════════════════════ */
+.sf-admin-layout {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    min-height: calc(100vh - 60px);
+}
+
+.sf-admin-sidebar {
+    border-right: 1px solid var(--sf-border-color);
+    padding: 1.5rem 0;
+    position: sticky;
+    top: 60px;
+    height: calc(100vh - 60px);
+    overflow-y: auto;
+}
+
+.sf-admin-main {
+    padding: 2rem;
+    overflow-x: auto;
+}
+
+@media (max-width: 992px) {
+    .sf-admin-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .sf-admin-sidebar {
+        position: static;
+        height: auto;
+        border-right: none;
+        border-bottom: 1px solid var(--sf-border-color);
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   L13 · UTILITY LAYOUT HELPERS
+═══════════════════════════════════════════════════════════════════════════ */
+.sf-divider {
+    height: 1px;
+    background: var(--sf-border-color);
+    border: none;
+    margin: 1.5rem 0;
+}
+
+.sf-summary-divider {
+    height: 1px;
+    background: var(--sf-border-color);
+    margin: .5rem 0;
+}

@@ -1,0 +1,235 @@
+@*
+ * File: /ScrumFlix/Views/Cart/OrderConfirmation.cshtml
+ *
+ * The old syntax was rendering as literal visible text in the browser.
+ *
+ * Sprint S1 — ViewBag Purge:
+ *   - @model OrderConfirmationViewModel (strongly typed, no ViewBag)
+ *   - Model.HasTickets, Model.TicketCount, Model.IssuedCodes, Model.QrCodes, Model.OrderTotal
+*@
+@model ScrumFlix.ViewModels.OrderConfirmationViewModel
+@using ScrumFlix.ViewModels
+@{
+    ViewData["Title"] = "Order Confirmed";
+}
+
+<section class="sf-section">
+    <div class="container-xl">
+        <div class="row justify-content-center">
+            <div class="col-lg-7 col-xl-6 text-center">
+
+                @* ── Confirmation icon + heading ─────────────────────── *@
+                <div class="sf-confirm-icon" aria-hidden="true">
+                    <i class="bi bi-check-circle-fill"></i>
+                </div>
+                <h1 class="sf-confirm-title mt-4">Order Confirmed!</h1>
+                <p class="sf-confirm-sub">
+                    Thank you for choosing ScrumFlix Theatres. Enjoy the show!
+                </p>
+
+                @* ── Order total ─────────────────────────────────────── *@
+                @if (Model.OrderTotal != null)
+                {
+                    <div class="sf-confirm-total mt-4">
+                        @* @if (Model.OrderSubtotal != null)
+                        {
+                            <div class="d-flex justify-content-between w-100 mb-1"
+                                 style="font-size:.85rem;opacity:.75;">
+                                <span>Subtotal</span>
+                                <span>@Model.OrderSubtotal</span>
+                            </div>
+                            <div class="d-flex justify-content-between w-100 mb-2"
+                                 style="font-size:.85rem;opacity:.75;">
+                                <span>Sales Tax (8.25%)</span>
+                                <span>@Model.OrderTax</span>
+                            </div>
+                        } *@
+                        <span class="sf-confirm-label">Order Total</span>
+                        <span class="sf-confirm-amount">@Model.OrderTotal</span>
+                    </div>
+                }
+
+                @* ── QR ticket codes ─────────────────────────────────── *@
+                @if (Model.HasTickets)
+                {
+                    <div class="mt-5 mb-2">
+                        <h2 class="sf-section-title justify-content-center mb-4">
+                            <span class="sf-gold-bar" aria-hidden="true"></span>
+                            Your @(Model.TicketCount == 1 ? "Ticket" : $"{Model.TicketCount} Tickets")
+                        </h2>
+                        <p class="sf-text-muted mb-4" style="font-size:.9rem;">
+                            Show this QR code at the theater entrance. One per ticket.
+                        </p>
+                    </div>
+
+                    <div class="d-flex flex-column gap-4 align-items-center">
+                        @for (int i = 0; i < Model.IssuedCodes.Count; i++)
+                        {
+                            var code = Model.IssuedCodes[i];
+                            var qr   = i < Model.QrCodes.Count ? Model.QrCodes[i] : null;
+
+                            <div class="sf-ticket-qr-card" aria-label="Ticket @(i + 1) of @Model.TicketCount">
+
+                                @if (!string.IsNullOrEmpty(qr))
+                                {
+                                    <div class="sf-ticket-qr-wrap">
+                                        <img src="data:image/png;base64,@qr"
+                                             alt="QR code for ticket number @code"
+                                             class="sf-ticket-qr-img"
+                                             width="200" height="200" />
+                                    </div>
+                                }
+
+                                <div class="sf-ticket-qr-meta">
+                                    <span class="sf-label mb-1 d-block">TICKET CODE</span>
+                                    <span class="sf-ticket-code" aria-label="Ticket code @code">
+                                        @code
+                                    </span>
+                                    @{
+                                        var seatLabel = Model.GetSeatLabel(i);
+                                    }
+                                    @if (!string.IsNullOrEmpty(seatLabel))
+                                    {
+                                        <div class="mt-2">
+                                            <span class="sf-label d-block" style="font-size:.75rem;">SEAT</span>
+                                            <span class="sf-gold fw-bold fs-5" aria-label="Seat @seatLabel">
+                                                @seatLabel
+                                            </span>
+                                        </div>
+                                    }
+                                    @if (Model.TicketCount > 1)
+                                    {
+                                        <span class="sf-text-muted d-block mt-1" style="font-size:.8rem;">
+                                            Ticket @(i + 1) of @Model.TicketCount
+                                        </span>
+                                    }
+                                </div>
+
+                            </div>
+                        }
+                    </div>
+
+                    <p class="sf-text-muted mt-4" style="font-size:.8rem;">
+                        Screenshot or print this page to keep your QR codes.
+                        Codes are tied to your booking and valid for one entry each.
+                    </p>
+                }
+
+                @* ── Concession pre-purchase receipt QR ──────────────── *@
+                @if (Model.HasConcessions && Model.ConcessionQrCode != null)
+                {
+                    <div class="sf-concession-qr mt-5">
+                        <h2 class="sf-section-title justify-content-center mb-3">
+                            <span class="sf-gold-bar" aria-hidden="true"></span>
+                            Concession Pre-Purchase Receipt
+                        </h2>
+                        <p class="sf-text-muted mb-4" style="font-size:.9rem;">
+                            Show this QR code at the concession stand to collect your pre-purchased items.
+                        </p>
+                        <div class="d-flex justify-content-center">
+                            <img src="data:image/png;base64,@Model.ConcessionQrCode"
+                                 alt="Concession order QR code"
+                                 class="sf-qr-image"
+                                 width="200" height="200" />
+                        </div>
+                    </div>
+                }
+
+                @* ── Order breakdown ─────────────────────────────────── *@
+                @if (Model.OrderItems.Any())
+                {
+                    <div class="mt-5 text-start">
+                        <h2 class="sf-section-title justify-content-center mb-4">
+                            <span class="sf-gold-bar" aria-hidden="true"></span>Order Summary
+                        </h2>
+
+                        @if (Model.HasTickets)
+                        {
+                            <div class="mb-3">
+                                <h3 class="sf-label mb-2" style="font-size:.8rem; letter-spacing:.1em;">TICKETS</h3>
+                                @foreach (var item in Model.OrderItems.Where(i => !i.IsConcession))
+                                {
+                                    <div class="sf-summary-row py-2 border-bottom">
+                                        <div class="text-start">
+                                            <div class="fw-semibold">@item.MovieName</div>
+                                            @if (!string.IsNullOrEmpty(item.FormattedShowTime))
+                                            {
+                                                <div class="sf-text-muted" style="font-size:.85rem;">
+                                                    <i class="bi bi-clock me-1"></i>@item.FormattedShowTime
+                                                </div>
+                                            }
+                                            @if (!string.IsNullOrEmpty(item.LocationName))
+                                            {
+                                                <div class="sf-text-muted" style="font-size:.85rem;">
+                                                    <i class="bi bi-geo-alt me-1"></i>@item.LocationName
+                                                </div>
+                                            }
+                                            @if (!string.IsNullOrEmpty(item.SeatNumbers))
+                                            {
+                                                <div class="sf-text-muted" style="font-size:.85rem;">
+                                                    <i class="bi bi-grid me-1"></i>Seat(s): @item.SeatNumbers
+                                                </div>
+                                            }
+                                            <div class="sf-text-muted" style="font-size:.85rem;">
+                                                @item.Quantity × @item.UnitPrice.ToString("C")
+                                            </div>
+                                        </div>
+                                        <div class="fw-bold">@item.LineTotal.ToString("C")</div>
+                                    </div>
+                                }
+                            </div>
+                        }
+
+                        @if (Model.HasConcessions)
+                        {
+                            <div class="mb-3">
+                                <h3 class="sf-label mb-2" style="font-size:.8rem; letter-spacing:.1em;">CONCESSIONS</h3>
+                                @foreach (var item in Model.OrderItems.Where(i => i.IsConcession))
+                                {
+                                    <div class="sf-summary-row py-2 border-bottom">
+                                        <div class="text-start">
+                                            <div class="fw-semibold">@item.DisplayName</div>
+                                            <div class="sf-text-muted" style="font-size:.85rem;">
+                                                @item.Quantity × @item.UnitPrice.ToString("C")
+                                            </div>
+                                        </div>
+                                        <div class="fw-bold">@item.LineTotal.ToString("C")</div>
+                                    </div>
+                                }
+                            </div>
+                        }
+
+                        @if (Model.OrderSubtotal != null)
+                        {
+                            <div class="sf-summary-row py-2 border-bottom">
+                                <span class="sf-text-muted" style="font-size:.9rem;">Subtotal</span>
+                                <span class="sf-text-muted" style="font-size:.9rem;">@Model.OrderSubtotal</span>
+                            </div>
+                            <div class="sf-summary-row py-2 border-bottom">
+                                <span class="sf-text-muted" style="font-size:.9rem;">Sales Tax (8.25%)</span>
+                                <span class="sf-text-muted" style="font-size:.9rem;">@Model.OrderTax</span>
+                            </div>
+                        }
+                        <div class="sf-summary-row sf-summary-total mt-2">
+                            <span>Order Total</span>
+                            <span class="sf-gold">@Model.OrderTotal</span>
+                        </div>
+                    </div>
+                }
+
+                @* ── Action buttons ──────────────────────────────────── *@
+                <div class="d-flex justify-content-center flex-wrap gap-3 mt-5">
+                    <a asp-controller="Home" asp-action="HomeDashboard"
+                       class="btn sf-btn-primary btn-lg">
+                        <i class="bi bi-house-door me-2" aria-hidden="true"></i>Back to Home
+                    </a>
+                    <a asp-controller="Movies" asp-action="MovieCatalog"
+                       class="btn sf-btn-outline btn-lg">
+                        <i class="bi bi-film me-2" aria-hidden="true"></i>Browse Movies
+                    </a>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</section>

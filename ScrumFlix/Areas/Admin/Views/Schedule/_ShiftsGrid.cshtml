@@ -1,0 +1,54 @@
+@*
+ * Partial: _ShiftsGrid.cshtml
+ * Swapped by HTMX and by SignalR ShiftsUpdated event.
+ *@
+@model List<ScrumFlix.Areas.Admin.ViewModels.ShiftRowViewModel>
+
+@if (!Model.Any())
+{
+    <p class="sf-text-muted mt-3">No shifts defined yet. Add one using the form.</p>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table sf-admin-table" aria-label="Shifts">
+            <thead>
+                <tr>
+                    <th scope="col">Location</th>
+                    <th scope="col">Role</th>
+                    <th scope="col">Start</th>
+                    <th scope="col">End</th>
+                    <th scope="col">Duration</th>
+                    <th scope="col" class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var s in Model)
+                {
+                    var duration = (s.EndTime - s.StartTime).TotalHours;
+                    <tr hx-get="/Admin/Schedule/GetShift/@s.ShiftId"
+                        hx-target="#shift-form-container"
+                        hx-trigger="click"
+                        style="cursor:pointer;"
+                        title="Click to edit">
+                        <td>@s.LocationName</td>
+                        <td>@s.RoleName</td>
+                        <td>@s.StartTime.ToString("MM/dd/yyyy h:mm tt")</td>
+                        <td>@s.EndTime.ToString("MM/dd/yyyy h:mm tt")</td>
+                        <td>@duration.ToString("0.0")h</td>
+                        <td class="text-end" onclick="event.stopPropagation()">
+                            <form method="post" action="/Admin/Schedule/DeleteShift"
+                                  onsubmit="return confirm('Delete this shift? This cannot be undone.');">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="shiftId" value="@s.ShiftId" />
+                                <button type="submit" class="btn btn-sm sf-btn-danger">
+                                    <i class="bi bi-trash" aria-hidden="true"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

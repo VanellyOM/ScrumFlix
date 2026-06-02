@@ -1,0 +1,109 @@
+@*
+ * File: /ScrumFlix/Views/Concessions/LocationConflict.cshtml
+ * Description: Conflict resolution page shown when a user tries to add a ticket at a theater
+ *              that differs from the location of concession items already in their cart.
+ *              Presents two mutually exclusive choices: switch concessions to the ticket's
+ *              theater, or browse movies at the concessions' current theater instead.
+ *
+ * Sprint S1 — ViewBag Purge:
+ *   - Added: @model LocationConflictViewModel
+ *   - Removed: ViewBag.TicketLocationName cast (only that key was used in this view)
+ *   - Replaced: ticketLocationName local variable with Model.TicketLocationDisplayName
+ *     (TicketLocationDisplayName provides the same "the selected theater" fallback
+ *      that the view previously applied inline via ?? operator)
+ *   - All markup unchanged.
+ *
+ * Note: ViewBag.TicketLocationId and ViewBag.ConcessionLocationId were set by the
+ * controller but not used in this view's markup (they are consumed by
+ * RelocateConcessions via TempData, not rendered). They are preserved in
+ * LocationConflictViewModel for completeness and future use.
+*@
+@model ScrumFlix.ViewModels.LocationConflictViewModel
+@{
+    ViewData["Title"] = "Location Mismatch";
+}
+
+<div class="sf-page-header">
+    <div class="container-xl">
+        <h1 class="sf-page-title">
+            <i class="bi bi-geo-alt me-3"></i>Theater Location Mismatch
+        </h1>
+        <p class="sf-page-subtitle">
+            Your cart has concessions and a ticket at different theaters. Please choose how to continue.
+        </p>
+    </div>
+</div>
+
+<section class="sf-section">
+    <div class="container-xl">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+
+                <!-- Context card -->
+                <div class="sf-conflict-notice d-flex align-items-start gap-3 mb-5">
+                    <i class="bi bi-exclamation-triangle-fill text-warning fs-3 flex-shrink-0 mt-1"></i>
+                    <div>
+                        <h5 class="mb-1">You have concessions and a ticket at different theaters</h5>
+                        <p class="mb-0 text-muted">
+                            Your concessions are set to <strong>one theater</strong> and the ticket
+                            you're adding is for <strong>@Model.TicketLocationDisplayName</strong>.
+                            Concessions and tickets must be at the same location — please choose one of the options below.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Choice A: Switch concessions to ticket's theater -->
+                <form asp-controller="Concessions" asp-action="RelocateConcessions" method="post" class="mb-4">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="resolution" value="switchConcessions" />
+                    <div class="sf-conflict-option">
+                        <div class="sf-conflict-option-icon" aria-hidden="true">
+                            <i class="bi bi-ticket-perforated"></i>
+                        </div>
+                        <div class="sf-conflict-option-body">
+                            <h5 class="mb-1">Keep this ticket &amp; switch concessions theater</h5>
+                            <p class="text-muted mb-3">
+                                Your current concessions will be removed from the cart and your ticket
+                                for <strong>@Model.TicketLocationDisplayName</strong> will be added. You can then
+                                re-add concessions for that theater.
+                            </p>
+                            <button type="submit" class="btn sf-btn-primary">
+                                <i class="bi bi-arrow-repeat me-2"></i>Switch Concessions to @Model.TicketLocationDisplayName
+                            </button>
+                        </div>
+                    </div>
+                </form>
+
+                <!-- Choice B: Browse movies at the concessions' theater -->
+                <form asp-controller="Concessions" asp-action="RelocateConcessions" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="resolution" value="switchMovies" />
+                    <div class="sf-conflict-option">
+                        <div class="sf-conflict-option-icon" aria-hidden="true">
+                            <i class="bi bi-film"></i>
+                        </div>
+                        <div class="sf-conflict-option-body">
+                            <h5 class="mb-1">Keep my concessions &amp; find a movie at their theater</h5>
+                            <p class="text-muted mb-3">
+                                The ticket you just selected will be discarded. You'll be taken to
+                                the movie listings for your concessions' theater so you can pick a
+                                show there instead.
+                            </p>
+                            <button type="submit" class="btn sf-btn-outline">
+                                <i class="bi bi-search me-2"></i>Browse Movies at My Concessions Theater
+                            </button>
+                        </div>
+                    </div>
+                </form>
+
+                <!-- Escape hatch -->
+                <div class="text-center mt-4">
+                    <a asp-controller="Cart" asp-action="CartReview" class="sf-back-link">
+                        <i class="bi bi-arrow-left me-1"></i>Back to cart (no changes)
+                    </a>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</section>

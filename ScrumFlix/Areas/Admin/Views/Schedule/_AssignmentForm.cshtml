@@ -1,0 +1,90 @@
+@*
+ * Partial: _AssignmentForm.cshtml
+ * Add/edit a schedule assignment. Swapped by HTMX.
+ *@
+@model ScrumFlix.Areas.Admin.ViewModels.AssignmentFormViewModel
+
+@{
+    bool isEdit = Model.AssignmentId > 0;
+    string action = isEdit ? "/Admin/Schedule/UpdateAssignment" : "/Admin/Schedule/AddAssignment";
+}
+
+<form method="post" action="@action"
+      hx-post="@action"
+      hx-target="#assignments-grid"
+      hx-swap="innerHTML">
+    @Html.AntiForgeryToken()
+    @if (isEdit)
+    {
+        <input type="hidden" name="AssignmentId" value="@Model.AssignmentId" />
+    }
+
+    @if (!ViewData.ModelState.IsValid)
+    {
+        <div class="sf-flash-banner sf-flash-banner--danger mb-3" role="alert">
+            <ul class="mb-0 ps-3">
+                @foreach (var state in ViewData.ModelState.Values)
+                {
+                    foreach (var error in state.Errors)
+                    {
+                        <li>@error.ErrorMessage</li>
+                    }
+                }
+            </ul>
+        </div>
+    }
+
+    <div class="mb-3">
+        <label class="form-label sf-label" for="af-name">Assignment Name</label>
+        <input id="af-name" type="text" name="AssignmentName" class="form-control sf-input"
+               value="@Model.AssignmentName" maxlength="100" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label sf-label" for="af-emp">Employee</label>
+        <select id="af-emp" name="UserId" class="form-select sf-input" required>
+            <option value="">— Select Employee —</option>
+            @foreach (var e in Model.Employees)
+            {
+                <option value="@e.Value" selected="@e.Selected">@e.Text</option>
+            }
+        </select>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label sf-label" for="af-shift">Shift</label>
+        <select id="af-shift" name="ShiftId" class="form-select sf-input" required>
+            <option value="">— Select Shift —</option>
+            @foreach (var s in Model.Employees)
+            {
+                <option value="@s.Value" selected="@s.Selected">@s.Text</option>
+            }
+        </select>
+        @* Note: Employees list reused placeholder; Shifts list is separate *@
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label sf-label" for="af-show">Showtime (optional)</label>
+        <select id="af-show" name="ShowtimeId" class="form-select sf-input">
+            @foreach (var st in Model.Showtimes)
+            {
+                <option value="@st.Value" selected="@st.Selected">@st.Text</option>
+            }
+        </select>
+    </div>
+
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn sf-btn-primary">
+            <i class="bi @(isEdit ? "bi-pencil" : "bi-plus-lg") me-1" aria-hidden="true"></i>
+            @(isEdit ? "Update" : "Add Assignment")
+        </button>
+        @if (isEdit)
+        {
+            <button type="button" class="btn sf-btn-ghost"
+                    hx-get="/Admin/Schedule/ShiftsGrid"
+                    hx-target="#assignments-grid">
+                Cancel
+            </button>
+        }
+    </div>
+</form>

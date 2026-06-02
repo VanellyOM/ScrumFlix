@@ -1,0 +1,169 @@
+/*
+ * File:        /wwwroot/css/sf-base.css
+ * Layer:       TIER 0 — BASE (Reset + Primitive Defaults)
+ * Description: Low-specificity reset and document-level rules that apply
+ *              regardless of theme. No color values live here — use tokens only.
+ *              Loaded FIRST, before Bootstrap overrides or theme layers.
+ *
+ * Load order:  1. sf-base.css   ← THIS FILE
+ *              2. sf-tokens.css
+ *              3. sf-layout.css
+ *              4. sf-components.css
+ *              5. sf-theme-dark.css  | sf-theme-light.css | sf-theme-red.css
+ */
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   T0-1 · BOX MODEL
+═══════════════════════════════════════════════════════════════════════════ */
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   T0-2 · ROOT DOCUMENT
+═══════════════════════════════════════════════════════════════════════════ */
+html {
+    scroll-behavior: smooth;
+    text-size-adjust: 100%;
+    -webkit-text-size-adjust: 100%;
+    /* Prevent layout shift when scrollbar appears */
+    scrollbar-gutter: stable;
+    /* Increasing base size from 100% (16px) to 106.25% (17px) 
+       or 112.5% (18px) for better legibility */
+    font-size: 112.5%;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   T0-3 · BODY SCAFFOLD
+   Color/font values deferred to tokens; only structural rules here.
+═══════════════════════════════════════════════════════════════════════════ */
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    line-height: 1.6;
+    font-size: 1rem;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* Theming applied by sf-tokens.css via custom properties */
+    background-color: var(--sf-bg-page);
+    color: var(--sf-text-primary);
+    font-family: var(--sf-font-body);
+    transition: background-color var(--sf-transition-theme), color var(--sf-transition-theme);
+}
+
+main {
+    flex: 1;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   T0-4 · MEDIA PRIMITIVES
+═══════════════════════════════════════════════════════════════════════════ */
+img,
+picture,
+video,
+canvas,
+svg {
+    display: block;
+    max-width: 100%;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   T0-5 · TYPOGRAPHY PRIMITIVES
+   Font-family/color resolved by tokens; only structural defaults here.
+═══════════════════════════════════════════════════════════════════════════ */
+h1, h2, h3, h4, h5, h6 {
+    font-family: var(--sf-font-display);
+    letter-spacing: .04em;
+    line-height: 1.1;
+    color: var(--sf-text-heading);
+    overflow-wrap: break-word;
+}
+
+p {
+    overflow-wrap: break-word;
+}
+
+a {
+    color: var(--sf-color-accent);
+    text-decoration: none;
+    transition: opacity var(--sf-transition);
+}
+
+    a:hover {
+        opacity: .8;
+    }
+
+/* WCAG 2.2 — :focus-visible ring (replaces outline:none anti-pattern) */
+:focus-visible {
+    outline: 3px solid var(--sf-color-focus-ring);
+    outline-offset: 3px;
+    border-radius: 3px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   T0-6 · INTERACTIVE PRIMITIVES
+═══════════════════════════════════════════════════════════════════════════ */
+button,
+[type="button"],
+[type="submit"],
+[type="reset"] {
+    cursor: pointer;
+    font-family: inherit;
+}
+
+input,
+select,
+textarea {
+    font-family: inherit;
+    font-size: inherit;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   T0-7 · ACCESSIBILITY UTILITIES (theme-agnostic)
+═══════════════════════════════════════════════════════════════════════════ */
+
+/* Visually hidden but screen-reader accessible */
+.visually-hidden,
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0,0,0,0);
+    white-space: nowrap;
+    border-width: 0;
+}
+
+/* Skip-to-main-content link (revealed on focus) */
+.skip-link {
+    position: absolute;
+    top: -9999px;
+    left: 0;
+    z-index: 9999;
+    padding: .75rem 1.5rem;
+    font-weight: 700;
+    background: var(--sf-color-accent);
+    color: var(--sf-color-on-accent);
+    border-radius: 0 0 var(--sf-radius) 0;
+}
+
+    .skip-link:focus {
+        top: 0;
+    }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   T0-8 · REDUCED MOTION
+═══════════════════════════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+        scroll-behavior: auto !important;
+    }
+}

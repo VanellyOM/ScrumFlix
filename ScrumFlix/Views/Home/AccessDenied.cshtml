@@ -1,0 +1,25 @@
+@{
+    ViewData["Title"] = "Access Denied";
+}
+
+<div class="container-xl py-5 text-center">
+    <div style="max-width:520px; margin:0 auto;">
+        <div style="font-size:3.5rem; color:var(--sf-color-danger,#e74c3c); margin-bottom:1rem;">
+            <i class="bi bi-shield-lock"></i>
+        </div>
+        <span style="font-size:4rem; font-weight:800; color:var(--sf-gold,#c9a84c); display:block; line-height:1;">403</span>
+        <h1 style="font-size:1.6rem; font-weight:700; margin:.75rem 0 .5rem;">Access Denied</h1>
+        <p style="color:var(--sf-text-muted); margin:0 auto 1.5rem;">
+            Your role doesn't have permission to access this area.
+            If you believe this is an error, contact your system administrator.
+        </p>
+        <div class="d-flex gap-2 flex-wrap justify-content-center">
+            <a asp-controller="Home" asp-action="HomeDashboard" class="btn sf-btn-primary">
+                <i class="bi bi-house-door me-1"></i>Home
+            </a>
+            <a asp-area="Admin" asp-controller="AdminHome" asp-action="AdminDashboard" class="btn sf-btn-outline">
+                <i class="bi bi-speedometer2 me-1"></i>Dashboard
+            </a>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,91 @@
+@*
+ * File: Views/Home/Error.cshtml
+ * Customer-friendly error page for 4xx errors (404, 403, 401, etc.).
+ * Uses the normal _Layout so the navbar and footer are present.
+ * 500+ errors use Error500.cshtml (no layout — avoids layout failures masking the error).
+ *
+ * ShowDetail panel is shown in Development env or for logged-in staff users.
+ *@
+@model ScrumFlix.ViewModels.ErrorViewModel
+@{
+    ViewData["Title"] = Model.FriendlyTitle;
+}
+
+<div class="container-xl py-5">
+    <div style="max-width:620px; margin:0 auto; text-align:center;">
+
+        <div style="font-size:3.5rem; color:var(--sf-gold,#c9a84c); margin-bottom:.5rem;">
+            <i class="bi @Model.IconClass" aria-hidden="true"></i>
+        </div>
+
+        <span style="font-size:5rem; font-weight:800; color:var(--sf-gold,#c9a84c);
+                     display:block; line-height:1; letter-spacing:-.02em;">
+            @Model.StatusCode
+        </span>
+
+        <h1 style="font-size:1.6rem; font-weight:700; margin:.75rem 0 .5rem;">
+            @Model.FriendlyTitle
+        </h1>
+
+        <p style="color:var(--sf-text-muted); max-width:460px; margin:0 auto 1.75rem;">
+            @Model.FriendlyMessage
+        </p>
+
+        <div class="d-flex flex-wrap gap-2 justify-content-center">
+            <a asp-controller="Home" asp-action="HomeDashboard" class="btn sf-btn-primary">
+                <i class="bi bi-house-door me-1" aria-hidden="true"></i>Home
+            </a>
+            <a asp-controller="Movies" asp-action="MovieCatalog" class="btn sf-btn-outline">
+                <i class="bi bi-film me-1" aria-hidden="true"></i>Movies
+            </a>
+            @if (Model.StatusCode == 403 || Model.StatusCode == 401)
+            {
+                <a asp-controller="Account" asp-action="Login" class="btn sf-btn-ghost">
+                    <i class="bi bi-door-open me-1" aria-hidden="true"></i>Sign In
+                </a>
+            }
+            else
+            {
+                <a href="javascript:history.back()" class="btn sf-btn-ghost">
+                    <i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Go Back
+                </a>
+            }
+        </div>
+
+        @if (Model.ShowDetail)
+        {
+            <div class="card mt-5 p-4 text-start"
+                 style="background:var(--sf-surface-2,#13131f);
+                        border:1px solid var(--sf-border-muted,rgba(255,255,255,.1));
+                        border-radius:8px; max-width:620px; margin:2rem auto 0;">
+                <h2 style="font-size:.9rem; font-weight:700; margin-bottom:.75rem;
+                            color:var(--sf-gold,#c9a84c);">
+                    <i class="bi bi-bug me-1" aria-hidden="true"></i>Developer / Staff Detail
+                </h2>
+                <dl style="display:grid; grid-template-columns:max-content 1fr;
+                            gap:.25rem .75rem; font-size:.8rem; margin:0;">
+                    <dt style="color:var(--sf-text-muted)">Status</dt>
+                    <dd style="margin:0;"><code>@Model.StatusCode</code></dd>
+
+                    <dt style="color:var(--sf-text-muted)">Path</dt>
+                    <dd style="margin:0;"><code>@Model.OriginalPath</code></dd>
+
+                    <dt style="color:var(--sf-text-muted)">Request ID</dt>
+                    <dd style="margin:0;"><code>@Model.RequestId</code></dd>
+
+                    @if (Model.IsStaff)
+                    {
+                        <dt style="color:var(--sf-text-muted)">Session</dt>
+                        <dd style="margin:0;"><code>Staff session active</code></dd>
+                    }
+                </dl>
+                <p style="margin-top:.75rem; font-size:.75rem; color:var(--sf-text-muted);">
+                    Full stack trace is in <strong>Serilog</strong> logs
+                    (console in Development, MySQL in Production).
+                    Search by Request ID above.
+                </p>
+            </div>
+        }
+
+    </div>
+</div>

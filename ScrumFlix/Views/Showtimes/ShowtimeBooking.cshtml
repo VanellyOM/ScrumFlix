@@ -1,0 +1,308 @@
+@*
+ * File: /ScrumFlix/Views/Showtimes/ShowtimeBooking.cshtml
+ *
+ * SEAT GRID REWRITE:
+ *   Previously: used a counter (seatN < sold) to mark the first N seats as taken.
+ *   This was arbitrary — the first seats always showed as taken regardless of which
+ *   seats were actually sold/reserved in the DB.
+ *
+ *   Now: drives the grid from actual ShowtimeSeat records (Status = Available/Reserved/Sold/Blocked).
+ *   Seats are positioned by Seat.RowNumber and Seat.ColumnNumber from the DB.
+ *   Unavailable seats (anything that is not SeatStatus.Available) are rendered as
+ *   invisible ghost tiles — they take up grid space to preserve layout but have
+ *   visibility:hidden and pointer-events:none, so the user cannot see or interact
+ *   with them. This removes the confusing "35% opacity taken" look entirely.
+ *
+ *   If no ShowtimeSeat rows are seeded (HasSeatsSeeded = false), a simple
+ *   quantity-only form is shown instead of the seat grid, matching the existing
+ *   "box office only" degraded path.
+ *
+ * booking.js expects: #qtyInput, #btnMinus, #btnPlus, #lineTotal, #priceDisplay
+ * seatPicker.js expects: #seatGrid (.sf-seat-tile[data-label]), #seatNumbersInput
+*@
+@model ShowtimeBookingViewModel
+@using ScrumFlix.Domain
+@{
+    if (Model.Showtime == null) { return; }
+    var show     = Model.Showtime;
+    ViewData["Title"] = $"Book — {show.Movie?.Title}";
+
+    var isSoldOut    = show.AvailableSeats == 0;
+    var qtyMax       = Math.Min(20, show.AvailableSeats);
+    var hasRealSeats = show.ShowtimeSeats.Any();
+
+    // Build a lookup: [rowNumber][colNumber] → ShowtimeSeat (or null for empty grid positions)
+    // Only populated when ShowtimeSeat rows are seeded.
+    var seatMap = new Dictionary<int, Dictionary<int, ShowtimeSeat?>>();
+    int maxRow = 0, maxCol = 0;
+
+    if (hasRealSeats)
+    {
+        foreach (var ss in show.ShowtimeSeats.Where(s => s.Seat != null))
+        {
+            int r = ss.Seat!.RowNumber;
+            int c = ss.Seat.ColumnNumber;
+            if (!seatMap.ContainsKey(r)) seatMap[r] = new();
+            seatMap[r][c] = ss;
+            if (r > maxRow) maxRow = r;
+            if (c > maxCol) maxCol = c;
+        }
+    }
+}
+
+<div class="container-xl pt-4">
+    <a asp-controller="Movies" asp-action="MovieDetail" asp-route-id="@show.MovieId" class="sf-back-link">
+        <i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Back to @show.Movie?.Title
+    </a>
+</div>
+
+<div class="sf-page-header">
+    <div class="container-xl">
+        <h1 class="sf-page-title">@show.Movie?.Title</h1>
+        <div class="d-flex flex-wrap gap-3 mt-2 sf-page-subtitle">
+            <span><i class="bi bi-calendar3 me-1" aria-hidden="true"></i>@show.StartTime.ToString("dddd, MMMM d")</span>
+            <span><i class="bi bi-clock me-1" aria-hidden="true"></i>@show.StartTime.ToString("h:mm tt")</span>
+            <span><i class="bi bi-geo-alt me-1" aria-hidden="true"></i>@show.TheaterScreen?.Location?.LocationName</span>
+            <span><i class="bi bi-display me-1" aria-hidden="true"></i>@show.TheaterScreen?.ScreenName</span>
+        </div>
+    </div>
+</div>
+
+<section class="sf-section">
+    <div class="container-xl">
+        <div class="row g-5">
+
+            @* ── Seat Grid ──────────────────────────────────────────── *@
+            <div class="col-lg-8">
+                <h2 class="sf-section-title mb-4">
+                    <span class="sf-gold-bar" aria-hidden="true"></span>Theater Layout
+                </h2>
+
+                <div class="sf-screen-label" aria-hidden="true"><span>SCREEN</span></div>
+                <div class="sf-screen-curve" aria-hidden="true"></div>
+
+                @if (!hasRealSeats)
+                {
+                    @* No seat data seeded — show a placeholder grid message *@
+                    <div class="sf-empty-state py-5 text-center">
+                        <i class="bi bi-grid-3x3-gap fs-1 mb-3" style="color:var(--sf-text-muted)"></i>
+                        <p class="sf-text-muted">
+                            Seat map not available for this screening.<br />
+                            Select your quantity below and we'll assign seats at the box office.
+                        </p>
+                    </div>
+                }
+                else
+                {
+                    <div class="sf-seat-grid"
+                         id="seatGrid"
+                         role="group"
+                         aria-label="Seat selection grid. @show.AvailableSeats seats available.">
+
+                        @for (int r = 1; r <= maxRow; r++)
+                        {
+                            @* Derive row label from the first seat in this row *@
+                            var rowLabel = seatMap.ContainsKey(r) && seatMap[r].Values.Any(s => s?.Seat != null)
+                                ? seatMap[r].Values.First(s => s?.Seat != null)!.Seat!.RowLabel
+                                : ((char)('A' + r - 1)).ToString();
+
+                            <div class="sf-seat-row" data-row="@rowLabel">
+
+                                @* Row label on the left *@
+                                <span class="sf-seat-row-label" aria-hidden="true">@rowLabel</span>
+
+                                @for (int c = 1; c <= maxCol; c++)
+                                {
+                                    seatMap.TryGetValue(r, out var colMap);
+                                    // Ensure ss is definitely assigned
+                                    ShowtimeSeat? ss = null;
+                                    if (colMap != null)
+                                    {
+                                        colMap.TryGetValue(c, out ss);
+                                    }
+
+                                    if (ss == null)
+                                    {
+                                        @* Gap / aisle — invisible placeholder preserves grid geometry *@
+                                        <span class="sf-seat sf-seat-gap" aria-hidden="true"></span>
+                                    }
+                                    else if (ss.IsAvailable && (ss.Seat?.IsActive ?? false))
+                                    {
+                                        @* AVAILABLE — interactive button *@
+                                        var lbl = ss.Seat!.DisplayLabel;
+                                        <button type="button"
+                                                class="sf-seat sf-seat-open sf-seat-tile"
+                                                data-label="@lbl"
+                                                data-taken="false"
+                                                aria-label="Seat @lbl — available"
+                                                aria-pressed="false"
+                                                title="@lbl — Available"
+                                                @(isSoldOut ? "disabled" : "")></button>
+                                    }
+                                    else if (ss.IsReserved)
+                                    {
+                                        @* RESERVED — visible but non-interactive.
+                                           Rendered as a span (not button) so it takes grid space
+                                           and displays the reserved SVG icon via seatPicker.js. *@
+                                        var resLbl = ss.Seat?.DisplayLabel ?? "";
+                                        <span class="sf-seat sf-seat-tile sf-seat-reserved-tile"
+                                              data-label="@resLbl"
+                                              data-seat-state="reserved"
+                                              aria-label="Seat @resLbl — reserved"
+                                              title="@resLbl — Reserved"
+                                              aria-disabled="true"></span>
+                                    }
+                                    else if (ss.IsSold || ss.Status == SeatStatus.Blocked)
+                                    {
+                                        @* SOLD / BLOCKED — visible non-interactive tile with X icon.
+                                           Rendered as a span (not button) so it takes grid space and
+                                           displays the sold SVG icon via seatPicker.js.
+                                           Distinct from the gap/inactive ghost so customers can see
+                                           which seats are taken vs which positions are simply empty. *@
+                                        var soldLbl = ss.Seat?.DisplayLabel ?? "";
+                                        <span class="sf-seat sf-seat-tile sf-seat-sold-tile"
+                                              data-label="@soldLbl"
+                                              data-seat-state="sold"
+                                              aria-label="Seat @soldLbl — unavailable"
+                                              title="@soldLbl — Unavailable"
+                                              aria-hidden="true"></span>
+                                    }
+                                    else
+                                    {
+                                        @* INACTIVE / structural gap — invisible placeholder.
+                                           Only reaches here for Seat.IsActive = false rows or
+                                           unexpected status values. visibility:hidden preserves
+                                           grid geometry without showing any icon. *@
+                                        <span class="sf-seat sf-seat-ghost"
+                                              aria-hidden="true"
+                                              title="Unavailable"></span>
+                                    }
+                                }
+
+                                @* Row label mirror on the right *@
+                                <span class="sf-seat-row-label" aria-hidden="true">@rowLabel</span>
+                            </div>
+                        }
+                    </div>
+
+                    @* Legend *@
+                    <div class="sf-seat-legend mt-3" aria-label="Seat legend">
+                        <span class="sf-legend-item">
+                            <span class="sf-legend-swatch" data-seat-state="available" aria-hidden="true"></span>
+                            Available
+                        </span>
+                        <span class="sf-legend-item">
+                            <span class="sf-legend-swatch" data-seat-state="reserved" aria-hidden="true"></span>
+                            Reserved
+                        </span>
+                        <span class="sf-legend-item">
+                            <span class="sf-legend-swatch" data-seat-state="sold" aria-hidden="true"></span>
+                            Unavailable
+                        </span>
+                        <span class="sf-legend-item">
+                            <span class="sf-legend-swatch" data-seat-state="selected" aria-hidden="true"></span>
+                            Your Selection
+                        </span>
+                    </div>
+
+                    <p class="mt-3 sf-seats-summary">
+                        <strong class="sf-gold">@show.AvailableSeats</strong> of @show.Capacity seats available
+                    </p>
+                }
+            </div>
+
+            @* ── Booking Form ────────────────────────────────────────── *@
+            <div class="col-lg-4">
+                <h2 class="sf-section-title mb-4">
+                    <span class="sf-gold-bar" aria-hidden="true"></span>Select Tickets
+                </h2>
+
+                <form asp-controller="Showtimes" asp-action="AddTicketToCart" method="post"
+                      class="sf-form-card">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" asp-for="ShowtimeId" />
+                    <input type="hidden" asp-for="SeatNumbers" id="seatNumbersInput" />
+
+                    <div asp-validation-summary="ModelOnly"
+                         class="sf-flash-banner sf-flash-banner--error d-flex align-items-start gap-2 mb-3"
+                         role="alert">
+                        <i class="bi bi-exclamation-triangle-fill flex-shrink-0 mt-1" aria-hidden="true"></i>
+                        <div></div>
+                    </div>
+
+                    @* Price *@
+                    <div class="mb-4">
+                        <p class="sf-label mb-1">Price Per Ticket</p>
+                        <span class="fw-bold fs-5"
+                              id="priceDisplay"
+                              data-price="@Model.PricePerTicket.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)">
+                            @Model.PricePerTicket.ToString("C")
+                        </span>
+                    </div>
+
+                    @* Quantity *@
+                    <div class="mb-4">
+                        <label asp-for="Quantity" class="sf-label"></label>
+                        <div class="sf-qty-control">
+                            <button type="button" id="btnMinus" class="sf-qty-btn"
+                                    aria-label="Decrease quantity"
+                                    @(isSoldOut ? "disabled" : "")>−</button>
+                            <input asp-for="Quantity"
+                                   id="qtyInput"
+                                   class="sf-qty-input"
+                                   type="number"
+                                   min="1"
+                                   max="@qtyMax"
+                                   readonly
+                                   aria-label="Ticket quantity" />
+                            <button type="button" id="btnPlus" class="sf-qty-btn"
+                                    aria-label="Increase quantity"
+                                    @(isSoldOut ? "disabled" : "")>+</button>
+                        </div>
+                        <span asp-validation-for="Quantity" class="sf-validation"></span>
+                    </div>
+
+                    @* Selected seats display *@
+                    <div id="selectedSeatsDisplay" class="mb-3" style="display:none">
+                        <p class="sf-label mb-1">Selected Seats</p>
+                        <span id="selectedSeatsText" class="sf-text-muted"></span>
+                        <span id="seatCountWarning" class="sf-validation ms-2" style="display:none">
+                            Maximum seats reached for selected quantity.
+                        </span>
+                    </div>
+
+                    @* Live total *@
+                    <div class="sf-summary-row mb-4">
+                        <span class="sf-text-muted">Total</span>
+                        <strong id="lineTotal" class="sf-gold">@Model.LineTotal.ToString("C")</strong>
+                    </div>
+
+                    @* Submit *@
+                    <button type="submit"
+                            class="btn sf-btn-primary w-100 btn-lg sf-btn-display"
+                            @(isSoldOut ? (object)"disabled" : null)>
+                        <i class="bi bi-cart-plus me-2" aria-hidden="true"></i>
+                        @(isSoldOut ? "Sold Out" : "Add to Cart")
+                    </button>
+
+                    <button type="submit"
+                            name="postAction"
+                            value="addAndGoToConcessions"
+                            id="addConcessionsBtn"
+                            class="btn sf-btn-outline w-100 mt-2"
+                            @(isSoldOut ? (object)"disabled" : null)>
+                        <i class="bi bi-cup-straw me-2" aria-hidden="true"></i>
+                        Add Concessions Too
+                    </button>
+                </form>
+            </div>
+
+        </div>
+    </div>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/booking.js" asp-append-version="true"></script>
+    <script src="~/js/seatPicker.js" asp-append-version="true"></script>
+}

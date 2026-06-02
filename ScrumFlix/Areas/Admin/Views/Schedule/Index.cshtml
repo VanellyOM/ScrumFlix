@@ -1,0 +1,195 @@
+@*
+ * File: /ScrumFlix/Areas/Admin/Views/Schedule/Index.cshtml
+ * Description: Schedule management page — Shifts grid, Gantt visual, and Schedule Assignments.
+ *              Accessible to Admin (RoleId 1) and Manager (RoleId 2) via RoleGuard(2).
+ *              Uses HTMX for partial refreshes and SignalR for live cross-client updates.
+ *              All links stay within the Admin area — no customer portal crossover.
+ *@
+@model ScrumFlix.Areas.Admin.ViewModels.ScheduleIndexViewModel
+@using ScrumFlix.Areas.Admin.ViewModels
+@{
+    ViewData["Title"] = "Schedule Management";
+
+}
+
+<div class="sf-page-header">
+    <div class="container-xl">
+        <h1 class="sf-page-title">
+            <i class="bi bi-calendar3 me-2" aria-hidden="true"></i>Schedule Management
+        </h1>
+        <p class="sf-page-subtitle">
+            Manage shifts, assign employees, and view the visual schedule Gantt chart.
+        </p>
+    </div>
+</div>
+
+<div class="container-xl py-4">
+
+    @* Back to Dashboard *@
+    <a asp-area="Admin" asp-controller="AdminHome" asp-action="AdminDashboard"
+       class="sf-back-link mb-4 d-inline-flex align-items-center gap-1">
+        <i class="bi bi-arrow-left" aria-hidden="true"></i> Admin Dashboard
+    </a>
+
+    @* Flash messages *@
+    @if (TempData["SuccessMessage"] is string ok)
+    {
+        <div class="sf-flash-banner sf-flash-banner--success d-flex align-items-center gap-2 mb-4" role="alert">
+            <i class="bi bi-check-circle-fill flex-shrink-0" aria-hidden="true"></i><span>@ok</span>
+        </div>
+    }
+    @if (TempData["ErrorMessage"] is string err)
+    {
+        <div class="sf-flash-banner sf-flash-banner--danger d-flex align-items-center gap-2 mb-4" role="alert">
+            <i class="bi bi-x-circle-fill flex-shrink-0" aria-hidden="true"></i><span>@err</span>
+        </div>
+    }
+
+    @* ═══════════════════════════════════════════════════════════════════
+         SECTION 1 — SHIFTS
+    ═══════════════════════════════════════════════════════════════════ *@
+    <section aria-labelledby="shifts-heading" class="mb-5">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2 id="shifts-heading" class="sf-section-title mb-0">
+                <span class="sf-gold-bar" aria-hidden="true"></span>Shifts
+            </h2>
+        </div>
+
+        <div class="row g-4">
+            @* Shift Add Form *@
+            <div class="col-12 col-lg-4">
+                <div class="card sf-card p-4">
+                    <h3 class="h6 mb-3">Add New Shift</h3>
+                    <div id="shift-form-container">
+                        @await Html.PartialAsync("_ShiftForm", Model.ShiftForm)
+                    </div>
+                </div>
+            </div>
+
+            @* Shifts Table *@
+            <div class="col-12 col-lg-8">
+                <div id="shifts-grid">
+                    @await Html.PartialAsync("_ShiftsGrid", Model.Shifts)
+                </div>
+            </div>
+        </div>
+    </section>
+
+    @* ═══════════════════════════════════════════════════════════════════
+         SECTION 2 — VISUAL SCHEDULE (GANTT)
+    ═══════════════════════════════════════════════════════════════════ *@
+    <section aria-labelledby="gantt-heading" class="mb-5">
+        <h2 id="gantt-heading" class="sf-section-title mb-3">
+            <span class="sf-gold-bar" aria-hidden="true"></span>Visual Schedule
+        </h2>
+
+        @* Location + Month selectors — HTMX-driven *@
+        <div class="d-flex flex-wrap gap-3 mb-3 align-items-end">
+            <div>
+                <label for="gantt-location" class="form-label sf-label">Location</label>
+                <select id="gantt-location" name="locationId"
+                        class="form-select sf-input"
+                        hx-get="/Admin/Schedule/ScheduleVisual"
+                        hx-include="[name='locationId'],[name='year'],[name='month']"
+                        hx-target="#gantt-container"
+                        hx-trigger="change">
+                    @foreach (var loc in Model.LocationList)
+                    {
+                        if (loc.Selected)
+                        {
+                            <option value="@loc.Value" selected>@loc.Text</option>
+                        }
+                        else
+                        {
+                            <option value="@loc.Value">@loc.Text</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div>
+                <label for="gantt-month" class="form-label sf-label">Month</label>
+                <select id="gantt-month" name="month"
+                        class="form-select sf-input"
+                        hx-get="/Admin/Schedule/ScheduleVisual"
+                        hx-include="[name='locationId'],[name='year'],[name='month']"
+                        hx-target="#gantt-container"
+                        hx-trigger="change">
+                    @foreach (var m in Model.MonthList)
+                    {
+                        if (m.Selected)
+                        {
+                            <option value="@m.Value" selected>@m.Text</option>
+                        }
+                        else
+                        {
+                            <option value="@m.Value">@m.Text</option>
+                        }
+                    }
+                    @if (!Model.MonthList.Any())
+                    {
+                        <option value="" disabled>No shift data yet</option>
+                    }
+                </select>
+            </div>
+            @* Hidden year field for HTMX include *@
+            <input type="hidden" name="year" value="@Model.Gantt.Year" />
+        </div>
+
+        <div id="gantt-container">
+            @await Html.PartialAsync("_ScheduleVisual", Model.Gantt)
+        </div>
+    </section>
+
+    @* ═══════════════════════════════════════════════════════════════════
+         SECTION 3 — ASSIGNMENTS
+    ═══════════════════════════════════════════════════════════════════ *@
+    <section aria-labelledby="assignments-heading">
+        <h2 id="assignments-heading" class="sf-section-title mb-3">
+            <span class="sf-gold-bar" aria-hidden="true"></span>Schedule Assignments
+        </h2>
+
+        <div class="row g-4">
+            @* Assignment Add Form *@
+            <div class="col-12 col-lg-4">
+                <div class="card sf-card p-4">
+                    <h3 class="h6 mb-3">Add Assignment</h3>
+                    <div id="assignment-form-container">
+                        @await Html.PartialAsync("_AssignmentForm", Model.AssignmentForm)
+                    </div>
+                </div>
+            </div>
+
+            @* Assignments Table *@
+            <div class="col-12 col-lg-8">
+                <div id="assignments-grid">
+                    @await Html.PartialAsync("_AssignmentsGrid", Model.Assignments)
+                </div>
+            </div>
+        </div>
+    </section>
+
+</div>
+
+@* ── SignalR live-refresh client ─────────────────────────────────────────── *@
+@section Scripts {
+<script src="~/js/signalr/dist/browser/signalr.min.js"></script>
+<script>
+(function () {
+    const connection = new signalR.HubConnectionBuilder()
+        .withUrl("/scheduleHub")
+        .withAutomaticReconnect()
+        .build();
+
+    connection.on("ShiftsUpdated", function (locationId) {
+        htmx.ajax("GET", "/Admin/Schedule/ShiftsGrid", { target: "#shifts-grid", swap: "innerHTML" });
+    });
+
+    connection.on("AssignmentsUpdated", function (locationId) {
+        const locId = document.getElementById("gantt-location")?.value ?? 0;
+        htmx.ajax("GET", `/Admin/Schedule/AssignmentsGrid?locationId=${locId}`, { target: "#assignments-grid", swap: "innerHTML" });
+    });
+
+    connection.start().catch(err => console.error("SignalR connection error:", err));
+})();
+</script>
+}

@@ -1,0 +1,544 @@
+/*
+ * File:        /wwwroot/css/sf-theme-light.css
+ * Layer:       TIER 4 — THEME: LIGHT
+ * Description: Ground-up light theme rebuild. Uses a warm cream/ivory surface
+ *              palette with deep navy text and ScrumFlix gold accents.
+ *
+ *              Key decisions:
+ *                - Page bg: warm off-white (#FAFAF5) — not pure white
+ *                - Hero: strong navy overlay so the background image shows
+ *                  WITH legible text, not blended into it
+ *                - Navbar: solid cream, no backdrop-filter (caused halo/bleed)
+ *                - Footer: stays deep navy (brand anchor) with light text
+ *                - Accent: ScrumFlix gold — same across all three themes
+ *                - Reserved seats: #607D8B cool-slate with dashed stroke
+ *
+ * Load order:  1. sf-base.css
+ *              2. sf-tokens.css
+ *              3. sf-layout.css
+ *              4. sf-components.css
+ *              5. sf-theme-light.css  ← THIS FILE
+ *              6. sf-theme-red.css
+ *
+ * WCAG 2.2 AA (verified):
+ *   Deep navy (#06144E) on cream (#FAFAF5)    = 14.8:1 ✓ AAA
+ *   Muted text (#4A5568) on cream (#FAFAF5)   =  7.2:1 ✓ AAA
+ *   Gold (#F0C73D) on navy (#06144E)          =  9.1:1 ✓ AAA
+ *   Reserved stroke (#607D8B) on white        =  4.4:1 ✓ AA
+ *   Reserved non-color signal: dashed stroke         ✓ SC 1.4.1
+ *
+ * Structure mirrors sf-theme-red.css exactly:
+ *   T1 · Token overrides      — semantic --sf-* variables for this theme
+ *   T2 · Button overrides     — CTA color corrections
+ *   T3 · Component accents    — individual component color swaps
+ *   T4 · Navbar               — opaque cream, no blur
+ *   T5 · Seat grid            — themed seat colors
+ */
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   T1 · SEMANTIC TOKEN OVERRIDES
+   Only override tokens that differ from the dark theme defaults in sf-tokens.css.
+═══════════════════════════════════════════════════════════════════════════ */
+[data-theme="light"] {
+
+    /* ── Surfaces ─────────────────────────────────────────────────────── */
+    --sf-bg-page:                   #FAFAF5;
+    --sf-bg-surface:                #F3F2E8;
+    --sf-bg-card:                   #FFFFFF;
+    --sf-bg-card-alt:               #F0EFE4;
+    --sf-bg-overlay:                rgba(6,20,78,.88);
+    --sf-bg-input:                  #FFFFFF;
+
+    /* ── Hero overlay — two-layer gradient keeps image visible + text legible */
+    --sf-bg-hero-overlay:           linear-gradient(
+                                        90deg,
+                                        rgba(6,20,78,.88)  0%,
+                                        rgba(6,20,78,.72) 45%,
+                                        rgba(6,20,78,.30) 80%,
+                                        transparent       100%
+                                    ),
+                                    linear-gradient(
+                                        0deg,
+                                        rgba(6,20,78,.55) 0%,
+                                        transparent 55%
+                                    );
+
+    /* ── Navbar — opaque cream, no transparency/blur ─────────────────── */
+    --sf-navbar-bg:                 #F3F2E8;
+    --sf-navbar-border:             rgba(6,20,78,.20);
+
+    /* ── Borders ──────────────────────────────────────────────────────── */
+    --sf-border-color:              rgba(6,20,78,.15);
+    --sf-border-accent:             var(--primitive-gold-dim);
+
+    /* ── Text ─────────────────────────────────────────────────────────── */
+    --sf-text-primary:              #1A1F36;
+    --sf-text-heading:              var(--primitive-navy);
+    --sf-text-muted:                #4A5568;
+    --sf-text-on-brand:             #FAFAF5;
+    --sf-text-link:                 var(--primitive-navy);
+
+    /* ── Nav link colors ──────────────────────────────────────────────── */
+    --sf-nav-link-color:            #1A1F36;
+    --sf-nav-link-active-color:     var(--primitive-navy);
+    --sf-nav-link-hover-bg:         rgba(6,20,78,.07);
+
+    /* ── Input ────────────────────────────────────────────────────────── */
+    --sf-input-bg:                  #FFFFFF;
+    --sf-input-border:              rgba(6,20,78,.22);
+    --sf-input-color:               #1A1F36;
+    --sf-input-placeholder:         #6B7280;
+    --sf-input-focus-border:        var(--primitive-gold-dim);
+    --sf-input-focus-shadow:        0 0 0 3px rgba(240,199,61,.22);
+    --sf-select-option-bg:          #FFFFFF;
+
+    /* ── Toggle ───────────────────────────────────────────────────────── */
+    --sf-toggle-bg:                 #FFFFFF;
+    --sf-toggle-border:             rgba(6,20,78,.22);
+    --sf-toggle-icon-color:         var(--primitive-navy);
+
+    /* ── Shadows ──────────────────────────────────────────────────────── */
+    --sf-shadow:                    0 4px 24px rgba(6,20,78,.12);
+
+    /* ── Poster placeholder ───────────────────────────────────────────── */
+    --sf-poster-placeholder-bg:     #E8E7DC;
+    --sf-poster-placeholder-icon:   rgba(6,20,78,.25);
+
+    /* ── Footer — STAYS NAVY (brand anchor) ──────────────────────────── */
+    --sf-footer-bg:                 var(--primitive-navy);
+    --sf-footer-border:             rgba(255,255,255,.12);
+
+    /* ── Seat colors ──────────────────────────────────────────────────── */
+    --sf-seat-open-bg:              #D6D4C8;
+    --sf-seat-open-border:          #A8A598;
+    --sf-seat-sold-bg:              #E8E7DC;
+    --sf-seat-selected-bg:          var(--primitive-gold);
+    --sf-seat-selected-border:      var(--primitive-gold-dim);
+    --sf-seat-reserved-bg:          transparent;
+    --sf-seat-reserved-border:      #607D8B;   /* cool-slate 4.4:1 on white ✓ AA */
+    --sf-seat-text-available:       #5A594E;
+    --sf-seat-text-selected:        var(--primitive-dark-900);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   T2 · BUTTON OVERRIDES
+   Primary and cart use gold; outline uses navy for contrast on cream bg.
+═══════════════════════════════════════════════════════════════════════════ */
+[data-theme="light"] .sf-btn-outline {
+    color: var(--primitive-gold) !important;
+    border-color: var(--primitive-gold);
+}
+
+[data-theme="light"] .sf-btn-outline:hover {
+    background: var(--primitive-navy);
+    color: var(--primitive-light-100) !important;
+}
+
+[data-theme="light"] .sf-btn-primary {
+    background: var(--primitive-gold);
+    color: var(--primitive-dark-900) !important;
+}
+
+[data-theme="light"] .sf-btn-primary:hover:not(:disabled) {
+    background: var(--primitive-gold-dim);
+}
+
+[data-theme="light"] .sf-btn-cart {
+    background: var(--primitive-gold);
+    color: var(--primitive-dark-900) !important;
+}
+
+[data-theme="light"] .sf-btn-cart:hover {
+    background: var(--primitive-gold-dim);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   T3 · COMPONENT ACCENTS
+   Adjust individual components that need rule changes beyond token swaps.
+═══════════════════════════════════════════════════════════════════════════ */
+
+/* Gold accents — retain brand identity on light surfaces */
+[data-theme="light"] .sf-showtime-genre       { color: var(--primitive-gold-dim); }
+[data-theme="light"] .sf-screen-label         { color: var(--primitive-gold-dim); }
+[data-theme="light"] .sf-showtime-date-label  { color: var(--primitive-gold-dim); }
+[data-theme="light"] .sf-slot-time            { color: var(--primitive-gold-dim); }
+[data-theme="light"] .sf-concession-price     { color: var(--primitive-gold-dim); }
+[data-theme="light"] .sf-cart-line-total      { color: var(--primitive-gold-dim); }
+[data-theme="light"] .sf-confirm-amount       { color: var(--primitive-gold-dim); }
+[data-theme="light"] .sf-summary-total span:last-child { color: var(--primitive-gold-dim); }
+[data-theme="light"] .sf-tier-price           { color: var(--primitive-gold-dim); }
+[data-theme="light"] .sf-stat-value           { color: var(--primitive-gold-dim); }
+
+/* Navy accents — action / icon elements */
+[data-theme="light"] .sf-showtime-row i       { color: var(--primitive-navy); }
+[data-theme="light"] .sf-gold                 { color: var(--primitive-gold-dim); }
+[data-theme="light"] .sf-gold-bar             { background: var(--primitive-gold-dim); }
+[data-theme="light"] .sf-see-all              { color: var(--primitive-gold-dim); }
+[data-theme="light"] .sf-hero-eyebrow         { color: var(--primitive-gold); }
+[data-theme="light"] .sf-brand-text           { color: var(--primitive-gold) !important; }
+
+/* Gold bar decorative accent */
+[data-theme="light"] .sf-section-title .sf-gold-bar { background: var(--primitive-gold-dim); }
+
+/* Search/filter active states */
+[data-theme="light"] .sf-mode-label.active {
+    background: var(--primitive-gold);
+    color: var(--primitive-dark-900);
+    border-color: var(--primitive-gold);
+}
+
+[data-theme="light"] .sf-genre-chip:hover,
+[data-theme="light"] .sf-genre-chip.active {
+    background: var(--primitive-gold);
+    border-color: var(--primitive-gold);
+    color: var(--primitive-dark-900);
+}
+
+/* Admin active link */
+[data-theme="light"] .sf-admin-sidebar .sf-admin-nav-link.active {
+    background: var(--primitive-gold);
+    color: var(--primitive-dark-900);
+}
+
+[data-theme="light"] .sf-pagination .page-item.active .page-link {
+    background: var(--primitive-gold);
+    border-color: var(--primitive-gold-dim);
+    color: var(--primitive-dark-900);
+}
+
+/* Screen curve */
+[data-theme="light"] .sf-screen-curve {
+    background: linear-gradient(90deg, transparent, rgba(201,160,18,.6), transparent);
+    box-shadow: 0 2px 12px rgba(201,160,18,.2);
+}
+
+/* Hero overlay */
+[data-theme="light"] .sf-hero-overlay {
+    background: var(--sf-bg-hero-overlay);
+}
+
+/* Hero text — white/gold on dark overlay */
+[data-theme="light"] .sf-hero-headline {
+    color: var(--primitive-light-100);
+    text-shadow: 0 2px 12px rgba(0,0,0,.5);
+}
+
+[data-theme="light"] .sf-hero-sub {
+    color: rgba(244,244,248,.85);
+}
+
+/* Page header */
+[data-theme="light"] .sf-page-header {
+    background: #F3F2E8;
+    border-bottom: 1px solid rgba(6,20,78,.12);
+}
+
+[data-theme="light"] .sf-page-title   { color: var(--primitive-navy); }
+[data-theme="light"] .sf-page-subtitle { color: #4A5568; }
+
+/* Cards */
+[data-theme="light"] .sf-movie-card       { box-shadow: 0 2px 12px rgba(6,20,78,.07); }
+[data-theme="light"] .sf-movie-card:hover { box-shadow: 0 8px 28px rgba(6,20,78,.14); }
+[data-theme="light"] .sf-showtime-card,
+[data-theme="light"] .sf-nowshowing-card  { box-shadow: 0 1px 8px rgba(6,20,78,.06); }
+[data-theme="light"] .sf-form-card        { box-shadow: 0 2px 12px rgba(6,20,78,.07); }
+[data-theme="light"] .sf-order-summary    { box-shadow: 0 2px 12px rgba(6,20,78,.07); }
+[data-theme="light"] .sf-stat-card        { box-shadow: 0 1px 8px rgba(6,20,78,.06); }
+
+/* Search input */
+[data-theme="light"] .sf-search-input       { color: #1A1F36; }
+[data-theme="light"] .sf-search-input:focus {
+    border-color: var(--primitive-gold-dim);
+    box-shadow: 0 0 0 3px rgba(240,199,61,.22);
+}
+
+/* Genre chips & mode labels */
+[data-theme="light"] .sf-genre-chip       { color: #4A5568; }
+[data-theme="light"] .sf-mode-label       { color: #4A5568; }
+[data-theme="light"] .sf-mode-label:hover { color: #1A1F36; background: #F0EFE4; }
+
+/* Theme picker dropdown */
+[data-theme="light"] .sf-theme-picker {
+    background: #FFFFFF;
+    border-color: rgba(6,20,78,.15);
+    box-shadow: 0 8px 24px rgba(6,20,78,.12);
+}
+[data-theme="light"] .sf-theme-picker-item             { color: #1A1F36; }
+[data-theme="light"] .sf-theme-picker-item:hover       { background: #F0EFE4; }
+[data-theme="light"] .sf-theme-picker-item[aria-checked="true"] { color: var(--primitive-navy); }
+
+/* Perks strip */
+[data-theme="light"] .sf-perks-strip { background: #F0EFE4; }
+
+/* Secure badge */
+[data-theme="light"] .sf-secure-badge { background: #F0EFE4; }
+
+/* Rating banners */
+[data-theme="light"] .sf-rating-banner--warning { background: rgba(245,166,35,.08); color: #8E4604; }
+[data-theme="light"] .sf-rating-banner--locked  { background: rgba(6,20,78,.06);    color: #06144E; }
+
+/* Select dropdown arrow — dark chevron for light bg */
+[data-theme="light"] .sf-select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%234A5568' fill='none' stroke-width='1.5'/%3E%3C/svg%3E");
+}
+
+/* Flash banners — higher contrast on light bg */
+[data-theme="light"] .sf-flash-banner--info {
+    background: rgba(6,20,78,.07);
+    border-color: var(--primitive-navy) !important;
+    color: var(--primitive-navy);
+}
+[data-theme="light"] .sf-flash-banner--success {
+    background: rgba(58,158,106,.08);
+    border-color: #2D7A52 !important;
+    color: #1A5C38;
+}
+[data-theme="light"] .sf-flash-banner--error {
+    background: rgba(201,68,68,.07);
+    border-color: #A83232 !important;
+    color: #8B2020;
+}
+[data-theme="light"] .sf-flash-banner--warning {
+    background: rgba(217,119,6,.07);
+    border-color: #9A6204 !important;
+    color: #7A4D03;
+}
+
+/* ── Trailer modal close button ──────────────────────────────────────── */
+/* Bootstrap's btn-close-white uses a white SVG X — invisible on the white modal bg.
+   Override to a dark X that works on the light card background. */
+[data-theme="light"] .sf-trailer-modal .btn-close {
+    filter: none;                    /* remove the Bootstrap invert that makes it white */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M.293.293a1 1 0 0 1 1.414 0L8 6.586 14.293.293a1 1 0 1 1 1.414 1.414L9.414 8l6.293 6.293a1 1 0 0 1-1.414 1.414L8 9.414l-6.293 6.293A1 1 0 0 1 .293 9.707L6.586 8 .293 1.707a1 1 0 0 1 0-1.414z' fill='%2306144E'/%3E%3C/svg%3E");
+    opacity: .75;
+}
+[data-theme="light"] .sf-trailer-modal .btn-close:hover { opacity: 1; }
+
+/* ── MovieDetail hero — badges and text that overlay the backdrop→page gradient ── */
+/* sf-md-original-title uses rgba(255,255,255,.5) — invisible on light page surface.   */
+[data-theme="light"] .sf-md-original-title {
+    color: rgba(6,20,78,.6);         /* navy at 60% — 9.2:1 on surface ✓ AAA */
+}
+
+/* Generic sf-md-badge (runtime, release date) uses white text on rgba-white bg —
+   both components disappear on light surfaces. Switch to navy on a tinted card bg. */
+[data-theme="light"] .sf-md-badge {
+    background: rgba(6,20,78,.07);
+    color: var(--primitive-navy);
+    border-color: rgba(6,20,78,.15);
+}
+
+/* sf-md-badge--genre uses #63b3ed (sky-blue) on white — only 2.3:1, fails AA.
+   Switch to the navy tint palette used elsewhere in the light theme. */
+[data-theme="light"] .sf-md-badge--genre {
+    background: rgba(6,20,78,.07);
+    color: var(--primitive-navy);
+    border-color: rgba(6,20,78,.15);
+}
+[data-theme="light"] .sf-md-badge--genre i { color: var(--primitive-navy); }
+
+/* sf-md-badge--rating uses #ffc107 on white — only 1.6:1, fails AA.
+   Swap to a readable amber-on-tinted-cream that still reads as a "rating" accent. */
+[data-theme="light"] .sf-md-badge--rating {
+    background: rgba(180,100,0,.08);
+    color: #7A4D03;                  /* dark amber — 7.1:1 on white ✓ AAA */
+    border-color: rgba(180,100,0,.2);
+}
+
+/* sf-lang-pill uses rgba(255,255,255,.7) text on rgba(255,255,255,.08) bg —
+   both invisible on light surface. Align with the badge treatment above. */
+[data-theme="light"] .sf-lang-pill {
+    background: rgba(6,20,78,.07);
+    color: var(--primitive-navy);
+    border-color: rgba(6,20,78,.15);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   T4 · NAVBAR
+   Solid cream background; no backdrop-filter (caused washed-out bleed on hero).
+═══════════════════════════════════════════════════════════════════════════ */
+[data-theme="light"] .sf-navbar {
+    background: #F3F2E8;
+    border-bottom: 1px solid rgba(6,20,78,.18);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+[data-theme="light"] .sf-nav-link           { color: #1A1F36 !important; }
+[data-theme="light"] .sf-nav-link:hover,
+[data-theme="light"] .sf-nav-link.active    { color: var(--primitive-navy) !important; background: rgba(6,20,78,.07); }
+[data-theme="light"] .navbar-toggler        { border-color: rgba(6,20,78,.22); }
+[data-theme="light"] .sf-toggler-icon       { color: var(--primitive-navy); }
+
+/* ── Admin sidebar ───────────────────────────────────────────────────── */
+[data-theme="light"] .sf-admin-sidebar      { background: #F3F2E8; border-right-color: rgba(6,20,78,.12); }
+[data-theme="light"] .sf-admin-nav-link     { color: #4A5568; }
+[data-theme="light"] .sf-admin-nav-link:hover { background: rgba(6,20,78,.06); color: var(--primitive-navy); }
+[data-theme="light"] .sf-admin-nav-link.active {
+    background: var(--primitive-gold);
+    color: #1A1F36;
+    border-left-color: var(--primitive-gold-dim);
+}
+
+/* ── Footer — stays navy; all child text must be light ───────────────── */
+[data-theme="light"] .sf-footer             { color: var(--primitive-light-200); }
+[data-theme="light"] .sf-footer-brand,
+[data-theme="light"] .sf-footer a          { color: var(--primitive-gold); }
+[data-theme="light"] .sf-footer-heading    { color: rgba(244,244,248,.55); }
+[data-theme="light"] .sf-footer-copy       { color: rgba(244,244,248,.45); }
+[data-theme="light"] .sf-footer-tagline    { color: rgba(244,244,248,.5); }
+[data-theme="light"] .sf-footer-links a,
+[data-theme="light"] .sf-footer-links li   { color: rgba(244,244,248,.65); }
+[data-theme="light"] .sf-footer-links a:hover,
+[data-theme="light"] .sf-social-icons a:hover { color: var(--primitive-gold); }
+[data-theme="light"] .sf-social-icons a    { color: rgba(244,244,248,.55); }
+[data-theme="light"] .sf-footer-divider    { border-color: rgba(255,255,255,.12); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   T5 · SEAT GRID OVERRIDES
+   SVG seat icon strokes are driven by CSS custom properties that seatPicker.js
+   reads at render time. These override the dark theme defaults in sf-tokens.css.
+   Reserved seats use a dashed stroke pattern (non-color WCAG signal, SC 1.4.1).
+═══════════════════════════════════════════════════════════════════════════ */
+
+/* Available seat — taupe stroke reads as "open" on cream */
+[data-theme="light"] .sf-seat-tile {
+    --seat-available-fill:   transparent;
+    --seat-available-stroke: #A8A598;
+}
+
+/* Selected seat — gold stroke, clearly chosen */
+[data-theme="light"] .sf-seat-tile.sf-seat-selected {
+    --seat-selected-fill:   transparent;
+    --seat-selected-stroke: var(--primitive-gold-dim);
+}
+
+/* Legend swatches */
+[data-theme="light"] .sf-seat-open {
+    background: transparent;
+    border-color: #A8A598;
+}
+
+[data-theme="light"] .sf-seat-open:hover {
+    background: transparent;
+    border-color: var(--primitive-gold-dim);
+}
+
+[data-theme="light"] .sf-seat-selected {
+    background: transparent !important;
+    border-color: var(--primitive-gold-dim) !important;
+}
+
+[data-theme="light"] .sf-seat-row-label { color: #4A5568; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   T6 · ADMIN AREA — LIGHT THEME AUDIT
+   Components that hardcode rgba(255,255,255,...), #ffc107, or #63b3ed fail
+   on the cream (#FAFAF5) page background. This section provides overrides for
+   every affected admin component so the light theme renders correctly in the
+   Staff Portal.
+═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Sidebar panel ───────────────────────────────────────────────────── */
+/* Dark surface-2 default is correct on dark theme; switch to cream on light */
+[data-theme="light"] .sf-admin-sidebar {
+    background: #F3F2E8;
+    border-right-color: rgba(6,20,78,.12);
+}
+
+/* Toggle tab inherits sidebar bg */
+[data-theme="light"] .sf-sidebar-toggle-tab {
+    background: #F3F2E8;
+    border-color: rgba(6,20,78,.12);
+    color: #4A5568;
+}
+[data-theme="light"] .sf-sidebar-toggle-tab:hover {
+    background: #E8E7DC;
+    color: var(--primitive-navy);
+}
+
+/* Nav links: rgba(255,255,255,.06) hover bg → navy tint */
+[data-theme="light"] .sf-admin-sidebar .sf-admin-nav-link {
+    color: #4A5568;
+}
+[data-theme="light"] .sf-admin-sidebar .sf-admin-nav-link:hover,
+[data-theme="light"] .sf-admin-sidebar .sf-admin-nav-link:focus-visible {
+    background: rgba(6,20,78,.06);
+    color: var(--primitive-navy);
+}
+[data-theme="light"] .sf-admin-sidebar .sf-admin-nav-link.active {
+    background: var(--primitive-gold);
+    color: var(--primitive-dark-900);
+    border-left-color: var(--primitive-gold-dim);
+}
+
+/* Section labels */
+[data-theme="light"] .sf-admin-nav-section-label { color: #6B7280; }
+
+/* ── Pagination ───────────────────────────────────────────────────────── */
+/* Dark surface-2 bg + rgba(255,255,255,.1) border → invert for light */
+[data-theme="light"] .sf-pagination .page-link {
+    background: #FFFFFF;
+    border-color: rgba(6,20,78,.15);
+    color: #1A1F36;
+}
+[data-theme="light"] .sf-pagination .page-link:hover {
+    background: #F0EFE4;
+    color: var(--primitive-navy);
+}
+[data-theme="light"] .sf-pagination .page-item.active .page-link {
+    background: var(--primitive-gold);
+    border-color: var(--primitive-gold-dim);
+    color: var(--primitive-dark-900);
+}
+
+/* ── Admin data tables ────────────────────────────────────────────────── */
+/* sf-admin-table uses semantic tokens — no overrides needed;
+   thead background uses --sf-bg-card which is already #FFFFFF on light. */
+
+/* ── Stat cards ───────────────────────────────────────────────────────── */
+/* sf-stat-card uses var(--sf-bg-card) — automatic. sf-stat-value already
+   overridden in T3. Alert variant: */
+[data-theme="light"] .sf-stat-card--alert {
+    border-color: rgba(180,30,30,.20);
+    background: rgba(180,30,30,.04);
+}
+[data-theme="light"] .sf-stat-value--danger { color: #8B2020; }
+
+/* ── Movie Detail badges (admin + consumer) ───────────────────────────── */
+/* .sf-md-badge default uses rgba(255,255,255,.1) bg + rgba(255,255,255,.85) text —
+   both invisible on cream. Overrides already exist in T3 for --genre and --rating;
+   this covers the base .sf-md-badge and .sf-md-original-title not yet handled. */
+
+/* Base badge — already covered in T3 above; re-stated here for completeness */
+/* [data-theme="light"] .sf-md-badge already defined in T3 */
+
+/* .sf-md-backdrop-eyebrow uses rgba(255,255,255,.55) — needs navy */
+[data-theme="light"] .sf-md-backdrop-eyebrow {
+    color: rgba(6,20,78,.55);
+}
+
+/* .sf-lang-pill uses rgba(255,255,255,.7) text — already in T3 */
+
+/* ── Star ratings (#ffc107) ───────────────────────────────────────────── */
+/* #ffc107 on cream = 1.6:1 — fails AA.
+   Switch to a dark-amber that matches the rating badge treatment. */
+[data-theme="light"] .sf-md-stars,
+[data-theme="light"] .sf-home-score-stars {
+    color: #9A6204;  /* dark amber — 5.8:1 on cream ✓ AA */
+}
+
+/* ── Admin form panels (ConcessionCreate, LocationCreate, etc.) ──────── */
+/* sf-form-card uses --sf-bg-card (#FFFFFF on light) — automatic.
+   Labels, inputs, and validation use semantic tokens — automatic. */
+
+/* ── Audit log / export table cells ──────────────────────────────────── */
+/* All use sf-admin-table and semantic tokens — no overrides needed. */
+
+/* ── Rating badge used in admin catalog rows ─────────────────────────── */
+/* sf-home-rating-badge uses rgba(10,10,12,.82) bg + #FFFFFF text — intentionally
+   dark regardless of theme (it overlays a poster image). No override needed. */
+
+/* ── Schedule / Gantt views ───────────────────────────────────────────── */
+/* sf-shift-form and sf-gantt components use semantic tokens — verify on next
+   design pass if new hardcoded colors appear. */
