@@ -81,8 +81,8 @@ public class HomeController : ConsumerControllerBase
             // poster, backdrop, and trailer are all required for a complete
             // carousel card. Movies missing any one field look broken.
             .Where(m => m.TmdbMetadata != null
-                     && m.TmdbMetadata.PosterPath        != null
-                     && m.TmdbMetadata.BackdropPath      != null
+                     && m.TmdbMetadata.PosterPath != null
+                     && m.TmdbMetadata.BackdropPath != null
                      && m.TmdbMetadata.TrailerYouTubeKey != null)
             .Take(10)            // carousel supports up to 10 featured movies
             .AsNoTracking()
@@ -110,19 +110,41 @@ public class HomeController : ConsumerControllerBase
             );
 
         // Now Showing: active showtimes starting today, with full nav data
-        var nowShowing = await _db.Showtimes
+        //var nowShowing = await _db.Showtimes
+        //    .Where(st => st.IsActive
+        //              && st.StartTime >= today
+        //              && st.StartTime < todayEnd)
+        //    .Include(st => st.Movie)
+        //        .ThenInclude(m => m!.TmdbMetadata)    // poster images on showtime cards
+        //    .Include(st => st.TheaterScreen)
+        //        .ThenInclude(ts => ts!.Location)
+        //    .Include(st => st.Tickets)        // needed for AvailableSeats fallback
+        //    .OrderBy(st => st.StartTime)
+        //    .Take(8)
+        //    .AsNoTracking()
+        //    .ToListAsync();
+
+        // Fetch more candidates than needed, then shuffle server-side.
+        // 24 covers 3 full location slots × 8 time slots — plenty to pick from
+        // without loading the whole table.
+        var candidates = await _db.Showtimes
             .Where(st => st.IsActive
                       && st.StartTime >= today
                       && st.StartTime < todayEnd)
             .Include(st => st.Movie)
-                .ThenInclude(m => m!.TmdbMetadata)    // poster images on showtime cards
+                .ThenInclude(m => m!.TmdbMetadata)
             .Include(st => st.TheaterScreen)
                 .ThenInclude(ts => ts!.Location)
-            .Include(st => st.Tickets)        // needed for AvailableSeats fallback
-            .OrderBy(st => st.StartTime)
-            .Take(8)
+            .Include(st => st.Tickets)
+            .OrderBy(st => st.StartTime)   // stable DB order before shuffle
+            .Take(24)
             .AsNoTracking()
             .ToListAsync();
+
+        var nowShowing = candidates
+            .OrderBy(_ => Guid.NewGuid())  // in-memory shuffle
+            .Take(8)
+            .ToList();
 
         var vm = new HomeDashboardViewModel
         {

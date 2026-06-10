@@ -2,6 +2,8 @@
 // Staff Portal movie management — catalog view, create, edit, and delete.
 // Updated: genre management via MovieFormViewModel with multiselect genre dropdown
 // and MovieGenres join table instead of the legacy plain-text Genre field.
+// Updated: MovieDelete performs a safe ordered cascade before removing the movie,
+// because all FK relationships are configured with OnDelete(DeleteBehavior.Restrict).
 
 namespace ScrumFlix.Areas.Admin.Controllers;
 
@@ -335,7 +337,19 @@ public class MoviesController : StaffControllerBase
 
     /// <summary>
     /// POST /Admin/Movies/MovieDelete
-    /// Deletes a movie permanently and redirects back to the Admin MovieCatalog.
+    /// Permanently removes a movie and all its dependent data in the correct
+    /// FK order, since every relationship uses OnDelete(DeleteBehavior.Restrict).
+    ///
+    /// Deletion order:
+    ///   1. SeatReservations  (child of ShowtimeSeat — must go first)
+    ///   2. Tickets           (child of Showtime + ShowtimeSeat)
+    ///   3. ShowtimeSeats     (child of Showtime)
+    ///   4. ScheduleAssignments (child of Showtime)
+    ///   5. Showtimes
+    ///   6. MovieGenres       (join rows — child of Movie)
+    ///   7. MovieTmdbMetadata (one-to-one enrichment)
+    ///   8. Movie             (the root)
+    ///
     /// Admin role required (destructive action).
     /// </summary>
     [HttpPost, ValidateAntiForgeryToken]
@@ -344,17 +358,148 @@ public class MoviesController : StaffControllerBase
         if (RoleGuard(1) is { } r) return r;   // Admin only — destructive
 
         var movie = await _db.Movies.FindAsync(id);
-        if (movie != null)
+        if (movie == null)
         {
-            _db.Movies.Remove(movie);
-            await _db.SaveChangesAsync();
-
-            _logger.LogWarning("Staff {User} deleted MovieId={MovieId} '{Title}'.",
-                CurrentUserName, id, movie.Title);
-
-            TempData["SuccessMessage"] = $"'{movie.Title}' has been removed from the catalog.";
+            TempData["ErrorMessage"] = "Movie not found.";
+            return RedirectToAction(nameof(MovieCatalog));
         }
 
+        var title = movie.Title;
+
+        // ── 1. Collect showtime IDs for this movie ─────────────────────────
+        var showtimeIds = await _db.Showtimes
+            .Where(s => s.MovieId == id)
+            .Select(s => s.ShowtimeId)
+            .ToListAsync();
+
+        if (showtimeIds.Count > 0)
+        {
+            // ── 2. ShowtimeSeat IDs (needed to find SeatReservations) ───────
+            var showtimeSeatIds = await _db.ShowtimeSeats
+                .Where(ss => showtimeIds.Contains(ss.ShowtimeId))
+                .Select(ss => ss.ShowtimeSeatId)
+                .ToListAsync();
+
+            // ── 3. Delete SeatReservations (child of ShowtimeSeat) ──────────
+            if (showtimeSeatIds.Count > 0)
+            {
+                var reservations = await _db.SeatReservations
+                    .Where(r => showtimeSeatIds.Contains(r.ShowtimeSeatId))
+                    .ToListAsync();
+                _db.SeatReservations.RemoveRange(reservations);
+                await _db.SaveChangesAsync();
+            }
+
+            // ── 4. Delete Tickets (child of Showtime + ShowtimeSeat) ────────
+            var tickets = await _db.Tickets
+                .Where(t => showtimeIds.Contains(t.ShowtimeId))
+                .ToListAsync();
+            _db.Tickets.RemoveRange(tickets);
+            await _db.SaveChangesAsync();
+
+            // ── 5. Delete ShowtimeSeats ─────────────────────────────────────
+            var showtimeSeats = await _db.ShowtimeSeats
+                .Where(ss => showtimeIds.Contains(ss.ShowtimeId))
+                .ToListAsync();
+            _db.ShowtimeSeats.RemoveRange(showtimeSeats);
+            await _db.SaveChangesAsync();
+
+            // ── 6. Delete ScheduleAssignments ──────────────────────────────
+            var assignments = await _db.ScheduleAssignments
+                .Where(a => a.ShowtimeId.HasValue && showtimeIds.Contains(a.ShowtimeId.Value))
+                .ToListAsync();
+            _db.ScheduleAssignments.RemoveRange(assignments);
+            await _db.SaveChangesAsync();
+
+            // ── 7. Delete Showtimes ─────────────────────────────────────────
+            var showtimes = await _db.Showtimes
+                .Where(s => showtimeIds.Contains(s.ShowtimeId))
+                .ToListAsync();
+            _db.Showtimes.RemoveRange(showtimes);
+            await _db.SaveChangesAsync();
+        }
+
+        // ── 8. Delete MovieGenres (join rows) ──────────────────────────────
+        var movieGenres = await _db.MovieGenres
+            .Where(mg => mg.MovieId == id)
+            .ToListAsync();
+        _db.MovieGenres.RemoveRange(movieGenres);
+        await _db.SaveChangesAsync();
+
+        // ── 9. Delete TmdbMetadata (one-to-one) ────────────────────────────
+        var tmdbMeta = await _db.MovieTmdbMetadata
+            .FirstOrDefaultAsync(m => m.MovieId == id);
+        if (tmdbMeta != null)
+        {
+            _db.MovieTmdbMetadata.Remove(tmdbMeta);
+            await _db.SaveChangesAsync();
+        }
+
+        // ── 10. Delete the Movie itself ────────────────────────────────────
+        _db.Movies.Remove(movie);
+        await _db.SaveChangesAsync();
+
+        _logger.LogWarning(
+            "Staff {User} deleted MovieId={MovieId} '{Title}' along with {ShowtimeCount} showtime(s).",
+            CurrentUserName, id, title, showtimeIds.Count);
+
+        TempData["SuccessMessage"] = $"'{title}' and all associated showtimes have been permanently removed.";
         return RedirectToAction(nameof(MovieCatalog));
+    }
+
+    // ── Preview (modal) ────────────────────────────────────────────────────
+
+    /// <summary>
+    /// GET /Admin/Movies/MovieDetailPreview/{id}
+    /// Returns the _MovieDetailPartial rendered without a layout, for injection
+    /// into the Admin MovieCatalog preview modal via fetch().
+    /// Requires Manager or Admin role (same as MovieCatalog).
+    /// </summary>
+    public async Task<IActionResult> MovieDetailPreview(int id)
+    {
+        if (RoleGuard(2) is { } r) return r;
+
+        var movie = await _db.Movies
+            .Include(m => m.TmdbMetadata)
+            .Include(m => m.MovieGenres)
+                .ThenInclude(mg => mg.Genre)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(m => m.MovieId == id);
+
+        if (movie == null) return NotFound();
+
+        var shows = await _db.Showtimes
+            .Where(st => st.MovieId == id && st.IsActive && st.StartTime >= DateTime.Today)
+            .Include(st => st.TheaterScreen)
+                .ThenInclude(ts => ts!.Location)
+            .Include(st => st.Tickets)
+            .Include(st => st.ShowtimeSeats)
+            .AsNoTracking()
+            .OrderBy(st => st.StartTime)
+            .ToListAsync();
+
+        var availableLocations = await _db.Locations
+            .Where(l => l.IsActive && l.TheaterScreens
+                .Any(ts => ts.Showtimes
+                    .Any(st => st.MovieId == id
+                            && st.IsActive
+                            && st.StartTime >= DateTime.Today)))
+            .OrderBy(l => l.LocationName)
+            .AsNoTracking()
+            .ToListAsync();
+
+        var vm = new MovieDetailViewModel
+        {
+            Movie              = movie,
+            TmdbMetadata       = movie.TmdbMetadata,
+            UpcomingShows      = shows,
+            AvailableLocations = availableLocations,
+            SelectedLocationId = null   // modal always shows all locations
+        };
+
+        // Signal the partial to suppress back links and adjust CTA behaviour
+        ViewData["IsModalPreview"] = true;
+
+        return PartialView("~/Views/Movies/_MovieDetailPartial.cshtml", vm);
     }
 }

@@ -1,0 +1,541 @@
+@*
+ * File:  Views/Movies/_MovieDetailPartial.cshtml
+ * Model: ScrumFlix.ViewModels.MovieDetailViewModel
+ *
+ * Shared content partial used by two surfaces:
+ *   1. Consumer MovieDetail.cshtml  — full page, inside _Layout
+ *   2. Admin MovieCatalog preview   — loaded into a Bootstrap modal via fetch
+ *      from Admin/Movies/MovieDetailPreview
+ *
+ * The partial auto-detects its context via ViewData["IsModalPreview"] (bool).
+ * When true:
+ *   - The back link is suppressed (the modal header has a close button instead)
+ *   - The "Edit" admin button links to the Admin area rather than consumer area
+ *   - Showtime booking links still work; they open in a new tab from the modal
+ *   - The backdrop hero is rendered but constrained by the modal's own scroll container
+ *
+ * CSP: no inline scripts. sf-movie-detail.js is loaded by the full-page wrapper;
+ *      the modal variant needs no JS beyond Bootstrap (already global).
+ *@
+@model ScrumFlix.ViewModels.MovieDetailViewModel
+@using ScrumFlix.ViewModels
+
+@{
+	var tm = Model.TmdbMetadata;
+
+	var byLocation = Model.UpcomingShows
+		.GroupBy(s => s.TheaterScreen?.Location?.LocationName ?? "Unknown Location")
+		.OrderBy(g => g.Key).ToList();
+
+	var groupedByDate = Model.UpcomingShows
+		.GroupBy(s => s.StartTime.Date)
+		.OrderBy(g => g.Key).ToList();
+
+	Func<DateTime, string> DayLabel = d =>
+		d.Date == DateTime.Today ? "Today" :
+		d.Date == DateTime.Today.AddDays(1) ? "Tomorrow" :
+		d.ToString("dddd, MMMM d");
+
+	var layoutVm = Context.Items["LayoutViewModel"] as LayoutViewModel ?? new LayoutViewModel();
+	var isStaff = layoutVm.RoleId is not null;
+	var isAdmin = layoutVm.RoleId == 1;
+
+	// IsModalPreview is set by Admin/Movies/MovieDetailPreview action via ViewData
+	var isModal = ViewData["IsModalPreview"] as bool? ?? false;
+
+	double popPct = tm?.Popularity is not null
+		? Math.Min((double)tm.Popularity / 300.0 * 100.0, 100.0)
+		: 0;
+
+	double starFill = tm?.VoteAverage is not null ? (double)tm.VoteAverage / 2.0 : 0;
+
+	string langDisplay = tm?.OriginalLanguage?.ToUpperInvariant() switch
+	{
+		"EN" => "English",
+		"FR" => "French",
+		"ES" => "Spanish",
+		"DE" => "German",
+		"JA" => "Japanese",
+		"KO" => "Korean",
+		"ZH" => "Chinese",
+		"IT" => "Italian",
+		"PT" => "Portuguese",
+		"HI" => "Hindi",
+		"RU" => "Russian",
+		var x when x is not null => x,
+		_ => "—"
+	};
+}
+
+@* ── Back link (full-page only) ───────────────────────────────────────── *@
+@if (!isModal)
+{
+	<div class="container-xl pt-3 pb-1" style="position:relative; z-index:5;">
+		<a asp-controller="Movies" asp-action="MovieCatalog" class="sf-back-link">
+			<i class="bi bi-arrow-left me-1"></i>Back to Movies
+		</a>
+	</div>
+}
+
+@* ══════════════════════════════════════════════════════════════════════════
+   SECTION 1 — BACKDROP HERO
+══════════════════════════════════════════════════════════════════════════ *@
+<div class="sf-md-backdrop @(isModal ? "sf-md-backdrop--modal" : "")" aria-hidden="true">
+	@if (Model.HasBackdrop)
+	{
+		<img src="@tm!.BackdropUrl"
+			 alt=""
+			 class="sf-md-backdrop-img"
+			 loading="eager" />
+	}
+	<div class="sf-md-backdrop-fade"></div>
+	@if (!Model.HasBackdrop)
+	{
+		<div style="position:absolute; inset:0;
+		background:linear-gradient(135deg,#0d0d1a 0%,#1a1035 50%,#0d1a2e 100%);"></div>
+	}
+	<div class="sf-md-backdrop-eyebrow">
+		<i class="bi bi-film me-2"></i>Now Showing at ScrumFlix Theatres
+	</div>
+</div>
+
+@* ══════════════════════════════════════════════════════════════════════════
+   SECTION 2 — HERO STRIP
+══════════════════════════════════════════════════════════════════════════ *@
+<div class="sf-md-hero">
+	<div class="container-xl">
+		<div class="d-flex gap-4 align-items-end flex-wrap">
+
+			@* Poster *@
+			<div class="sf-md-poster-wrap flex-shrink-0">
+				@if (Model.HasPoster)
+				{
+					<img src="@tm!.PosterUrl"
+						 alt="@Model.Movie.Title poster"
+						 class="sf-md-poster" />
+				}
+				else
+				{
+					<div class="sf-md-poster-placeholder">
+						<i class="bi bi-film"></i>
+					</div>
+				}
+			</div>
+
+			@* Metadata column *@
+			<div class="flex-grow-1" style="min-width:0;">
+				<h1 class="sf-md-title">@Model.Movie.Title</h1>
+
+				@if (tm?.OriginalTitle is not null
+					 && !string.Equals(tm.OriginalTitle, Model.Movie.Title,
+									   StringComparison.OrdinalIgnoreCase))
+				{
+					<p class="sf-md-original-title">@tm.OriginalTitle</p>
+				}
+
+				<div class="sf-md-badges">
+					<span class="sf-md-badge sf-md-badge--mpa">@Model.Movie.Rating</span>
+
+					@foreach (var mg in Model.Movie.MovieGenres.Take(3))
+					{
+						<span class="sf-md-badge sf-md-badge--genre">
+							<i class="bi bi-tag me-1" aria-hidden="true"></i>@(mg.Genre?.Name ?? Model.Movie.Genre)
+						</span>
+					}
+					@if (!Model.Movie.MovieGenres.Any())
+					{
+						<span class="sf-md-badge sf-md-badge--genre">
+							<i class="bi bi-tag me-1" aria-hidden="true"></i>@Model.Movie.Genre
+						</span>
+					}
+
+					<span class="sf-md-badge">
+						<i class="bi bi-clock me-1" aria-hidden="true"></i>@Model.Movie.FormattedRunTime
+					</span>
+
+					@if (tm?.ReleaseDate is not null)
+					{
+						<span class="sf-md-badge">
+							<i class="bi bi-calendar3 me-1" aria-hidden="true"></i>
+							@tm.ReleaseDate.Value.ToString("MMMM d, yyyy")
+						</span>
+					}
+
+					@if (tm?.OriginalLanguage is not null)
+					{
+						<span class="sf-lang-pill" title="Original language">
+							@(tm.OriginalLanguage.ToUpperInvariant())
+						</span>
+					}
+
+					@if (Model.HasReliableRating)
+					{
+						<span class="sf-md-badge sf-md-badge--rating">
+							<i class="bi bi-star-fill me-1" aria-hidden="true"></i>
+							@Model.VoteAverageDisplay
+							<span style="opacity:.6; font-weight:400; font-size:.72rem; margin-left:.15rem;">/ 10</span>
+						</span>
+					}
+				</div>
+
+				<p class="sf-md-description">@Model.Movie.Description</p>
+
+				<div class="d-flex gap-2 flex-wrap">
+					@if (Model.UpcomingShows.Any())
+					{
+						@if (isModal)
+						{
+							@* In modal: link opens the real consumer page in a new tab *@
+							<a href="@Url.Action("MovieDetail", "Movies", new { area = "", id = Model.Movie.MovieId })"
+							   target="_blank" rel="noopener noreferrer"
+							   class="btn sf-btn-primary">
+								<i class="bi bi-ticket-perforated me-2"></i>Get Tickets
+								<i class="bi bi-box-arrow-up-right ms-2" style="font-size:.7rem;" aria-hidden="true"></i>
+							</a>
+						}
+						else
+						{
+							<a href="#showtimes" class="btn sf-btn-primary">
+								<i class="bi bi-ticket-perforated me-2"></i>Get Tickets
+							</a>
+						}
+					}
+					@if (Model.HasTrailer)
+					{
+						<a href="#trailer" class="btn sf-btn-outline">
+							<i class="bi bi-play-circle me-2"></i>Watch Trailer
+						</a>
+					}
+					@if (isAdmin)
+					{
+						@* Modal: link to Admin edit. Full page: link to consumer edit shim (redirects to admin). *@
+						<a asp-area="Admin" asp-controller="Movies" asp-action="MovieEdit"
+						   asp-route-id="@Model.Movie.MovieId"
+						   class="btn sf-btn-ghost btn-sm align-self-center ms-2" title="Edit movie">
+							<i class="bi bi-pencil me-1"></i>Edit
+						</a>
+					}
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<hr class="sf-md-divider" />
+
+@* ══════════════════════════════════════════════════════════════════════════
+   SECTION 3 — TMDB FACTS STRIP
+══════════════════════════════════════════════════════════════════════════ *@
+@if (tm is not null)
+{
+	<div class="container-xl py-0">
+		<div class="sf-md-facts">
+
+			@if (tm.ReleaseDate is not null)
+			{
+				<div class="sf-md-fact">
+					<div class="sf-md-fact-label">Release Date</div>
+					<div class="sf-md-fact-value">@tm.ReleaseDate.Value.ToString("MMM d, yyyy")</div>
+				</div>
+			}
+
+			<div class="sf-md-fact">
+				<div class="sf-md-fact-label">Runtime</div>
+				<div class="sf-md-fact-value">@Model.Movie.FormattedRunTime</div>
+				<div class="sf-md-fact-sub">@Model.Movie.RuntimeMinutes minutes</div>
+			</div>
+
+			<div class="sf-md-fact">
+				<div class="sf-md-fact-label">Rating</div>
+				<div class="sf-md-fact-value">@Model.Movie.Rating</div>
+			</div>
+
+			@if (Model.HasReliableRating)
+			{
+				<div class="sf-md-fact">
+					<div class="sf-md-fact-label">TMDb Score</div>
+					<div class="sf-md-fact-value d-flex align-items-center gap-2">
+						<span>@Model.VoteAverageDisplay / 10</span>
+						<span class="sf-md-stars" aria-label="@starFill out of 5 stars">
+							@for (int i = 1; i <= 5; i++)
+							{
+								if (starFill >= i)
+								{
+									<i class="bi bi-star-fill" aria-hidden="true"></i>
+								}
+								else if (starFill >= i - 0.5)
+								{
+									<i class="bi bi-star-half" aria-hidden="true"></i>
+								}
+								else
+								{
+									<i class="bi bi-star" style="opacity:.3" aria-hidden="true"></i>
+								}
+							}
+						</span>
+					</div>
+					<div class="sf-md-fact-sub">@(tm.VoteCount?.ToString("N0") ?? "0") votes</div>
+				</div>
+			}
+
+			@if (tm.Popularity is not null)
+			{
+				<div class="sf-md-fact">
+					<div class="sf-md-fact-label">Popularity</div>
+					<div class="sf-md-fact-value">@tm.Popularity.Value.ToString("F0")</div>
+					<div class="sf-md-pop-bar" role="progressbar"
+						 aria-valuenow="@((int)popPct)" aria-valuemin="0" aria-valuemax="100"
+						 title="Popularity score: @tm.Popularity.Value.ToString("F0") (higher = more popular on TMDb)">
+						<div class="sf-md-pop-fill" style="width:@(popPct.ToString("F1") + "%")"></div>
+					</div>
+				</div>
+			}
+
+			@if (tm.OriginalLanguage is not null)
+			{
+				<div class="sf-md-fact">
+					<div class="sf-md-fact-label">Language</div>
+					<div class="sf-md-fact-value">@langDisplay</div>
+					<div class="sf-md-fact-sub">@tm.OriginalLanguage.ToUpperInvariant()</div>
+				</div>
+			}
+
+			<div class="sf-md-fact">
+				<div class="sf-md-fact-label">Genre</div>
+				<div class="sf-md-fact-value">@Model.Movie.PrimaryGenreDisplay</div>
+			</div>
+
+			@if (isStaff)
+			{
+				<div class="sf-md-fact">
+					<div class="sf-md-fact-label">TMDb ID</div>
+					<div class="sf-md-fact-value">
+						<a href="https://www.themoviedb.org/movie/@tm.TMDbMovieId"
+						   target="_blank" rel="noopener noreferrer"
+						   class="sf-text-link" style="font-size:.85rem;">
+							#@tm.TMDbMovieId <i class="bi bi-box-arrow-up-right ms-1" style="font-size:.65rem;"></i>
+						</a>
+					</div>
+					@if (tm.LastSyncedUtc is not null)
+					{
+						<div class="sf-md-fact-sub">Synced @tm.LastSyncedUtc.Value.ToLocalTime().ToString("MM/dd/yy")</div>
+					}
+				</div>
+			}
+		</div>
+	</div>
+}
+else
+{
+	@if (isStaff)
+	{
+		<div class="container-xl py-3">
+			<div class="sf-flash-banner sf-flash-banner--info d-flex align-items-center gap-2" role="status"
+				 style="max-width:700px;">
+				<i class="bi bi-cloud-slash flex-shrink-0"></i>
+				<span>
+					TMDb metadata not yet synced for this title. Run a sync from the
+					<a asp-area="Admin" asp-controller="AdminHome" asp-action="AdminDashboard"
+					   class="sf-text-link">TMDb Sync</a> panel.
+				</span>
+			</div>
+		</div>
+	}
+}
+
+@* ══════════════════════════════════════════════════════════════════════════
+   SECTION 4 — TRAILER
+══════════════════════════════════════════════════════════════════════════ *@
+<section class="sf-section" id="trailer" aria-labelledby="trailer-heading">
+	<div class="container-xl">
+		<h2 class="sf-section-title mb-4" id="trailer-heading">
+			<span class="sf-gold-bar" aria-hidden="true"></span>Official Trailer
+		</h2>
+		@if (Model.HasTrailer)
+		{
+			<div class="sf-md-trailer-wrap ratio ratio-16x9">
+				<iframe src="@tm!.TrailerEmbedUrl"
+						title="@Model.Movie.Title — Official Trailer"
+						allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+						allowfullscreen loading="lazy">
+				</iframe>
+			</div>
+		}
+		else
+		{
+			<div class="sf-trailer-placeholder" role="img" aria-label="Trailer unavailable">
+				<div class="sf-trailer-inner">
+					<i class="bi bi-play-circle fs-1"></i>
+					<p class="mt-2 mb-0">Official Trailer</p>
+					<small class="text-muted">
+						@(tm is null
+							? "Metadata not yet synced — run a TMDb sync from the Admin area."
+							: "No trailer available from TMDb for this title.")
+					</small>
+				</div>
+			</div>
+		}
+	</div>
+</section>
+
+@* ══════════════════════════════════════════════════════════════════════════
+   SECTION 5 — SHOWTIMES
+══════════════════════════════════════════════════════════════════════════ *@
+<section class="sf-section sf-section-alt" id="showtimes" aria-labelledby="showtimes-heading">
+	<div class="container-xl">
+		<h2 class="sf-section-title mb-4" id="showtimes-heading">
+			<span class="sf-gold-bar" aria-hidden="true"></span>Upcoming Showtimes
+		</h2>
+
+		@if (!Model.UpcomingShows.Any() && !Model.AvailableLocations.Any())
+		{
+			<div class="sf-empty-state">
+				<i class="bi bi-calendar-x fs-1"></i>
+				<p class="mt-3">No upcoming showtimes scheduled for this movie.</p>
+				@if (!isModal)
+				{
+					<a asp-controller="Movies" asp-action="MovieCatalog"
+					   class="btn sf-btn-outline mt-2">Browse Other Movies</a>
+				}
+			</div>
+		}
+		else
+		{
+			@* Location tabs — full-page only; modal shows all locations unfiltered *@
+			@if (!isModal && Model.AvailableLocations.Any())
+			{
+				<div class="sf-location-tabs mb-4" role="navigation" aria-label="Filter by theater location">
+					<a asp-controller="Movies" asp-action="MovieDetail"
+					   asp-route-id="@Model.Movie.MovieId"
+					   class="sf-genre-chip @(!Model.IsLocationFiltered ? "active" : "")">
+						<i class="bi bi-geo-alt me-1" aria-hidden="true"></i>All Locations
+					</a>
+					@foreach (var loc in Model.AvailableLocations)
+					{
+						<a asp-controller="Movies" asp-action="MovieDetail"
+						   asp-route-id="@Model.Movie.MovieId"
+						   asp-route-locationId="@loc.LocationId"
+						   class="sf-genre-chip @(Model.SelectedLocationId == loc.LocationId ? "active" : "")">
+							<i class="bi bi-building me-1" aria-hidden="true"></i>@loc.LocationName
+						</a>
+					}
+				</div>
+			}
+
+			@if (!Model.UpcomingShows.Any())
+			{
+				<div class="sf-empty-state">
+					<i class="bi bi-calendar-x fs-1"></i>
+					<p class="mt-3">No upcoming showtimes at this location.</p>
+					@if (!isModal)
+					{
+						<a asp-controller="Movies" asp-action="MovieDetail"
+						   asp-route-id="@Model.Movie.MovieId"
+						   class="btn sf-btn-outline mt-2">View All Locations</a>
+					}
+				</div>
+			}
+			else if (Model.IsLocationFiltered && !isModal)
+			{
+				@* Single location: group by date (full-page only) *@
+				@foreach (var dayGroup in groupedByDate)
+				{
+					<div class="sf-showtime-day mb-4">
+						<h3 class="sf-showtime-day-label">@DayLabel(dayGroup.Key)</h3>
+						<div class="row g-3">
+							@foreach (var show in dayGroup.OrderBy(s => s.StartTime))
+							{
+								bool hasSeats = MovieDetailViewModel.HasSeatsSeeded(show);
+								bool isSoldOut = show.AvailableSeats == 0;
+								bool canBook = hasSeats && !isSoldOut;
+								string tip = isSoldOut ? "Sold out" : !hasSeats ? "Purchase at the box office" : "";
+								string lbl = isSoldOut ? "Sold Out" : !hasSeats ? "Box Office Only" : "Buy Tickets";
+								string css = "btn sf-btn-primary w-100 mt-3" + (canBook ? "" : " disabled");
+								<div class="col-12 col-md-6 col-xl-4">
+									<div class="sf-showtime-card">
+										<div class="sf-showtime-details">
+											<div class="sf-showtime-row"><i class="bi bi-clock"></i><span>@show.StartTime.ToString("h:mm tt")</span></div>
+											<div class="sf-showtime-row"><i class="bi bi-display"></i><span>@show.TheaterScreen?.ScreenName</span></div>
+											<div class="sf-showtime-row"><i class="bi bi-people"></i><span>@show.AvailableSeats seats available</span></div>
+											<div class="sf-showtime-row"><i class="bi bi-tag"></i><span>@show.PricePerTicket.ToString("C") per ticket</span></div>
+										</div>
+										@if (canBook)
+										{
+											<a asp-controller="Showtimes" asp-action="ShowtimeBooking"
+											   asp-route-id="@show.ShowtimeId" class="@css" title="@tip">
+												<i class="bi bi-ticket-perforated me-2"></i>@lbl
+											</a>
+										}
+										else
+										{
+											<button type="button" class="@css" disabled title="@tip">
+												<i class="bi bi-ticket-perforated me-2"></i>@lbl
+											</button>
+										}
+									</div>
+								</div>
+							}
+						</div>
+					</div>
+				}
+			}
+			else
+			{
+				@* All locations: group by location then date *@
+				@foreach (var locGroup in byLocation)
+				{
+					<div class="sf-showtime-location mb-5">
+						<h3 class="sf-showtime-location-label mb-3">
+							<i class="bi bi-geo-alt-fill me-2 sf-gold" aria-hidden="true"></i>@locGroup.Key
+						</h3>
+						@foreach (var dayGroup in locGroup.GroupBy(s => s.StartTime.Date).OrderBy(g => g.Key))
+						{
+							<div class="sf-showtime-day mb-4">
+								<h4 class="sf-showtime-day-label">@DayLabel(dayGroup.Key)</h4>
+								<div class="row g-3">
+									@foreach (var show in dayGroup.OrderBy(s => s.StartTime))
+									{
+										bool hasSeats = MovieDetailViewModel.HasSeatsSeeded(show);
+										bool isSoldOut = show.AvailableSeats == 0;
+										bool canBook = hasSeats && !isSoldOut;
+										string tip = isSoldOut ? "Sold out" : !hasSeats ? "Purchase at the box office" : "";
+										string lbl = isSoldOut ? "Sold Out" : !hasSeats ? "Box Office Only" : "Buy Tickets";
+										string css = "btn sf-btn-primary w-100 mt-3" + (canBook ? "" : " disabled");
+										<div class="col-12 col-md-6 col-xl-4">
+											<div class="sf-showtime-card">
+												<div class="sf-showtime-details">
+													<div class="sf-showtime-row"><i class="bi bi-clock"></i><span>@show.StartTime.ToString("h:mm tt")</span></div>
+													<div class="sf-showtime-row"><i class="bi bi-display"></i><span>@show.TheaterScreen?.ScreenName</span></div>
+													<div class="sf-showtime-row"><i class="bi bi-people"></i><span>@show.AvailableSeats seats available</span></div>
+													<div class="sf-showtime-row"><i class="bi bi-tag"></i><span>@show.PricePerTicket.ToString("C") per ticket</span></div>
+												</div>
+												@if (canBook)
+												{
+													<a asp-controller="Showtimes"
+													   asp-action="ShowtimeBooking"
+													   asp-route-id="@show.ShowtimeId"
+													   class="@css"
+													   title="@tip"
+													   target="@(isModal ? "_blank" : null)"
+													   rel="@(isModal ? "noopener noreferrer" : null)">
+														<i class="bi bi-ticket-perforated me-2"></i>@lbl
+													</a>
+												}
+												else
+												{
+													<button type="button" class="@css" disabled title="@tip">
+														<i class="bi bi-ticket-perforated me-2"></i>@lbl
+													</button>
+												}
+											</div>
+										</div>
+									}
+								</div>
+							</div>
+						}
+					</div>
+				}
+			}
+		}
+	</div>
+</section>

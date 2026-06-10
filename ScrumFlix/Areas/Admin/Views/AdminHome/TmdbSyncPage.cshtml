@@ -233,7 +233,7 @@
                     @Html.AntiForgeryToken()
                     <input type="hidden" name="forceAll" value="true" />
                     <button type="submit"
-                            class="btn sf-btn-secondary"
+                            class="btn sf-btn-outline"
                             @(!Model.ApiKeyConfigured ? "disabled" : "")
                             title="@(!Model.ApiKeyConfigured
                                       ? "Configure Tmdb:ApiKey first"
