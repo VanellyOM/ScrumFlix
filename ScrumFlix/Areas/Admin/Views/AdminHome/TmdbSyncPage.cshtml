@@ -212,9 +212,7 @@
             </p>
             <div class="d-flex flex-wrap gap-3">
                 <form asp-area="Admin" asp-controller="AdminHome" asp-action="TmdbSyncRun"
-                      method="post">
-                    @Html.AntiForgeryToken()
-                    <input type="hidden" name="forceAll" value="false" />
+                      method="post" class="sf-sync-trigger-form">
                     <button type="submit"
                             class="btn sf-btn-primary"
                             @(!Model.ApiKeyConfigured ? "disabled" : "")
@@ -231,7 +229,7 @@
                 </form>
 
                 <form asp-area="Admin" asp-controller="AdminHome" asp-action="TmdbSyncRun"
-                      method="post">
+                      method="post" class="sf-sync-trigger-form">
                     @Html.AntiForgeryToken()
                     <input type="hidden" name="forceAll" value="true" />
                     <button type="submit"
@@ -252,6 +250,33 @@
                     Sync buttons disabled — TMDb API key not configured.
                 </p>
             }
+
+            @* ── Spinner + live counters (shown only while sync is running) ── *@
+            <div id="sync-progress-wrap" class="d-none mt-4">
+                <div class="d-flex flex-column align-items-center gap-3">
+                    <div id="tmdb-sync-spinner"
+                         class="sf-spinner sf-spinner--lg"
+                         role="progressbar"
+                         aria-valuemin="0"
+                         aria-valuemax="100"
+                         aria-valuenow="0">
+                        <svg class="sf-spinner__svg" viewBox="0 0 100 100">
+                            <circle class="sf-spinner__track" cx="50" cy="50" r="45"></circle>
+                            <circle class="sf-spinner__ring"  cx="50" cy="50" r="45"></circle>
+                        </svg>
+                        <span class="sf-spinner__pct">0%</span>
+                    </div>
+                    <p id="sync-status-msg" class="sf-spinner__status sf-text-muted mb-0">
+                        Waiting&hellip;
+                    </p>
+                    <div class="d-flex gap-4 sf-text-muted" style="font-size:0.85rem;">
+                        <span>Synced: <strong id="cnt-synced">0</strong></span>
+                        <span>Skipped: <strong id="cnt-skipped">0</strong></span>
+                        <span>Failed: <strong id="cnt-failed">0</strong></span>
+                        <span>Total: <strong id="cnt-total">0</strong></span>
+                    </div>
+                </div>
+            </div>
         </div>
     </section>
 
@@ -305,6 +330,7 @@
         }
         else
         {
+            <div class="sf-admin-table-wrap">
             <div class="table-responsive">
                 <table class="table sf-admin-table align-middle" aria-label="Movie sync status">
                     <thead>
@@ -431,6 +457,7 @@
                     </tbody>
                 </table>
             </div>
+            </div>
 
             @* Pagination *@
             @if (Model.TotalPages > 1)
@@ -463,3 +490,19 @@
         }
     </section>
 </div>
+
+@section Head {
+    @* sf-spinner.css is loaded globally in _AdminLayout — no per-page load needed *@
+}
+
+@section Scripts {
+    @* SignalR loaded per-page — not globally in _Layout *@
+    <environment include="Development">
+        <script src="~/js/signalr/dist/browser/signalr.js"></script>
+    </environment>
+    <environment exclude="Development">
+        <script src="~/js/signalr/dist/browser/signalr.min.js"></script>
+    </environment>
+    @* sf-spinner.js is loaded globally by _AdminLayout — no per-page load needed *@
+    <script src="~/js/sf-tmdb-sync.js" asp-append-version="true"></script>
+}

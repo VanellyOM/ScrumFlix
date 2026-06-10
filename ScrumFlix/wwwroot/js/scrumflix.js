@@ -224,7 +224,7 @@
 
     // ── Init ───────────────────────────────────────────────────────────────
     document.addEventListener('DOMContentLoaded', function () {
-        refreshCartBadge();
+        if (typeof refreshCartBadge === 'function') refreshCartBadge();
         bindSeatHover();
         initFlashBanners();
         initNavHighlight();

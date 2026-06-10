@@ -32,6 +32,9 @@
  */
 
 
+using Microsoft.AspNetCore.SignalR;
+using ScrumFlix.Hubs;
+
 namespace ScrumFlix.Areas.Admin.Controllers;
 
 [Area("Admin")]
@@ -46,16 +49,20 @@ public class AdminHomeController : StaffControllerBase
     /// Initializes AdminHomeController with database context, TMDb sync service,
     /// application configuration, and structured logger.
     /// </summary>
+    private readonly IHubContext<TmdbProgressHub> _tmdbHub;
+
     public AdminHomeController(
         AppDbContext db,
         ITmdbSyncService tmdb,
         IConfiguration config,
-        ILogger<AdminHomeController> logger)
+        ILogger<AdminHomeController> logger,
+        IHubContext<TmdbProgressHub> tmdbHub)
     {
-        _db = db;
-        _tmdb = tmdb;
-        _config = config;
-        _logger = logger;
+        _db      = db;
+        _tmdb    = tmdb;
+        _config  = config;
+        _logger  = logger;
+        _tmdbHub = tmdbHub;
     }
 
     // ── Auth guard ─────────────────────────────────────────────────────────
@@ -111,6 +118,21 @@ public class AdminHomeController : StaffControllerBase
     /// </summary>
     /// <param name="forceAll">When <see langword="true"/>, re-syncs all movies regardless of existing metadata.</param>
     /// <param name="movieId">Optional single-movie TMDb sync target.</param>
+    /// <summary>
+    /// POST /Admin/AdminHome/TmdbSyncRun
+    /// Triggers an on-demand TMDb sync with real-time SignalR progress broadcast.
+    ///
+    /// Each movie processed calls IProgress&lt;TmdbSyncProgressReport&gt; which pushes
+    /// a "TmdbSyncProgress" event to all clients in TmdbProgressHub.SyncGroup.
+    /// The TmdbSyncPage.cshtml spinner receives these events via sfSpinner.fromSignalR().
+    ///
+    /// On completion or error, a "TmdbSyncComplete" or "TmdbSyncError" event is sent
+    /// so the spinner can transition to its complete/error state without polling.
+    ///
+    /// Single-movie syncs (movieId provided) do not emit per-movie progress events —
+    /// they complete too quickly. The redirect back to TmdbSyncPage carries the result
+    /// in TempData as before.
+    /// </summary>
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> TmdbSyncRun(bool forceAll = false, int? movieId = null)
     {
@@ -129,6 +151,7 @@ public class AdminHomeController : StaffControllerBase
 
             if (movieId.HasValue)
             {
+                // Single-movie sync — no per-movie progress needed, fast enough to skip
                 var success = await _tmdb.SyncMovieAsync(movieId.Value);
                 result = success
                     ? new TmdbSyncResult(1, 0, 0)
@@ -136,7 +159,42 @@ public class AdminHomeController : StaffControllerBase
             }
             else
             {
-                result = await _tmdb.SyncAllMoviesAsync(forceAll);
+                // Full catalog sync — wire progress to SignalR hub broadcasts
+                var progressReporter = new Progress<TmdbSyncProgressReport>(async report =>
+                {
+                    try
+                    {
+                        await _tmdbHub.Clients
+                            .Group(TmdbProgressHub.SyncGroup)
+                            .SendAsync("TmdbSyncProgress", new
+                            {
+                                percent = report.Percent,
+                                message = report.Message,
+                                synced  = report.Synced,
+                                skipped = report.Skipped,
+                                failed  = report.Failed,
+                                total   = report.Total
+                            });
+                    }
+                    catch (Exception ex)
+                    {
+                        // Non-fatal — log and continue; the sync must not abort for a hub error
+                        _logger.LogWarning(ex, "TmdbSyncRun: failed to broadcast progress event.");
+                    }
+                });
+
+                result = await _tmdb.SyncAllMoviesAsync(forceAll, progressReporter);
+
+                // Broadcast completion so the spinner transitions to its complete state
+                await _tmdbHub.Clients
+                    .Group(TmdbProgressHub.SyncGroup)
+                    .SendAsync("TmdbSyncComplete", new
+                    {
+                        synced    = result.Synced,
+                        skipped   = result.Skipped,
+                        failed    = result.Failed,
+                        wasForced = forceAll
+                    });
             }
 
             if (result.Failed == 0)
@@ -156,12 +214,22 @@ public class AdminHomeController : StaffControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "TMDb sync triggered by Admin User {UserId} failed.", CurrentUserId);
+
+            // Broadcast error so the spinner shows the error state immediately
+            try
+            {
+                await _tmdbHub.Clients
+                    .Group(TmdbProgressHub.SyncGroup)
+                    .SendAsync("TmdbSyncError", new { message = "Sync failed — check application logs." });
+            }
+            catch { /* swallow — the real error is already logged above */ }
+
             TempData["ErrorMessage"] = "TMDb sync encountered an unexpected error. Check the application logs.";
         }
 
         // Rebuild dashboard stats and embed the sync result into the ViewModel
         var vm = await BuildDashboardViewModelAsync();
-        vm.TmdbSync.LastSyncResult = result;
+        vm.TmdbSync.LastSyncResult    = result;
         vm.TmdbSync.LastSyncWasForced = forceAll;
 
         return View("AdminDashboard", vm);
@@ -290,25 +358,20 @@ public class AdminHomeController : StaffControllerBase
             .AsNoTracking()
             .ToListAsync();
 
-        var recentUsers = await _db.Users
-            .Include(u => u.Role)
-            .OrderBy(u => u.UserName)
-            .AsNoTracking()
-            .ToListAsync();
-
         return new AdminDashboardViewModel
         {
-            TicketsSoldToday = ticketsToday,
-            RevenueToday = revenueToday,
-            ActiveShowtimes = activeShowtimes,
+            TicketsSoldToday     = ticketsToday,
+            RevenueToday         = revenueToday,
+            ActiveShowtimes      = activeShowtimes,
             ConcessionsSoldToday = concessionsSoldToday,
-            LowStockCount = lowStockCount,
-            TotalMovies = totalMovies,
-            TotalLocations = totalLocations,
-            TotalUsers = totalUsers,
-            ConcessionItems = concessionItems,
-            RecentUsers = recentUsers,
-            TmdbSync = await BuildTmdbSyncViewModelAsync()
+            LowStockCount        = lowStockCount,
+            TotalMovies          = totalMovies,
+            TotalLocations       = totalLocations,
+            TotalUsers           = totalUsers,
+            ConcessionItems      = concessionItems,
+            // RecentUsers not loaded — the dashboard no longer renders a user table.
+            // Full user management lives on AdminManage/Users.
+            TmdbSync             = await BuildTmdbSyncViewModelAsync()
         };
     }
 

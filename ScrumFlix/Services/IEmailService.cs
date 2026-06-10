@@ -62,19 +62,23 @@ public interface IEmailService
     /// <param name="ticketCodes">Issued ticket codes (empty for concession-only orders).</param>
     /// <param name="qrCodeBase64s">Base64 PNG QR images, parallel-indexed with ticketCodes.</param>
     /// <param name="seatLabels">Seat labels parallel-indexed with ticketCodes (empty string = GA).</param>
+    /// <param name="screenNames">Screen names parallel-indexed with ticketCodes (e.g. "Screen 1").</param>
     /// <param name="orderItems">Full cart snapshot — tickets and concessions.</param>
+    /// <param name="concessionQrBase64">Base64 PNG QR for the concession receipt. Null when no concessions.</param>
     /// <param name="cancellationToken">Optional cancellation token.</param>
     Task SendPurchaseReceiptAsync(
-        string              toEmail,
-        string              orderSubtotal,
-        string              orderTax,
-        string              orderTotal,
-        DateTime            timeOfSale,
-        List<long>          ticketCodes,
-        List<string>        qrCodeBase64s,
-        List<string>        seatLabels,
+        string               toEmail,
+        string               orderSubtotal,
+        string               orderTax,
+        string               orderTotal,
+        DateTime             timeOfSale,
+        List<long>           ticketCodes,
+        List<string>         qrCodeBase64s,
+        List<string>         seatLabels,
+        List<string>         screenNames,
         List<ReceiptLineItem> orderItems,
-        CancellationToken   cancellationToken = default);
+        string?              concessionQrBase64 = null,
+        CancellationToken    cancellationToken = default);
 
 
     /// <param name="subject">Email subject line.</param>
@@ -135,6 +139,7 @@ public sealed class ReceiptLineItem
     public string?  MovieName     { get; init; }
     public DateTime? ShowTime     { get; init; }
     public string?  LocationName  { get; init; }
+    public string?  ScreenName    { get; init; }
     public string?  SeatNumbers   { get; init; }
 
     public string FormattedShowTime =>

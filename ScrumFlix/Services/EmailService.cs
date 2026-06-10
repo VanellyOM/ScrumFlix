@@ -171,7 +171,9 @@ public sealed class EmailService : IEmailService
         List<long>           ticketCodes,
         List<string>         qrCodeBase64s,
         List<string>         seatLabels,
+        List<string>         screenNames,
         List<ReceiptLineItem> orderItems,
+        string?              concessionQrBase64 = null,
         CancellationToken    cancellationToken = default)
     {
         var hasTickets     = ticketCodes.Any();
@@ -191,7 +193,7 @@ public sealed class EmailService : IEmailService
         // The correct approach is to attach each PNG as an inline MIME part and
         // reference it via cid: in the HTML src attribute, which is universally
         // supported across all major email clients.
-        var qrParts = new List<(string Cid, byte[] Png)>();
+        List<(string Cid, byte[] Png)> qrParts = [];
         for (int i = 0; i < qrCodeBase64s.Count; i++)
         {
             if (string.IsNullOrEmpty(qrCodeBase64s[i])) continue;
@@ -218,7 +220,8 @@ public sealed class EmailService : IEmailService
             for (int i = 0; i < ticketCodes.Count; i++)
             {
                 var code      = ticketCodes[i];
-                var seatLabel = i < seatLabels.Count ? seatLabels[i] : string.Empty;
+                var seatLabel  = i < seatLabels.Count  ? seatLabels[i]  : string.Empty;
+                var screenName = i < screenNames.Count ? screenNames[i] : string.Empty;
 
                 // Use cid: reference if we have a QR part; empty cell otherwise
                 string qrCell;
@@ -240,6 +243,13 @@ public sealed class EmailService : IEmailService
                         "<p style=\"color:" + TextMuted + ";font-size:12px;margin:0;\">" +
                         "(QR unavailable)</p></td>";
                 }
+
+                var screenHtml = string.IsNullOrEmpty(screenName) ? string.Empty :
+                    "<div style=\"margin-top:8px;\">" +
+                    "<span style=\"font-size:11px;font-weight:700;color:" + TextMuted + ";" +
+                    "text-transform:uppercase;letter-spacing:.1em;\">Screen</span><br/>" +
+                    "<span style=\"font-size:14px;color:" + TextPrimary + ";\">" +
+                    EscapeHtml(screenName) + "</span></div>";
 
                 var seatHtml = string.IsNullOrEmpty(seatLabel) ? string.Empty :
                     "<div style=\"margin-top:10px;\">" +
@@ -265,7 +275,7 @@ public sealed class EmailService : IEmailService
                     "font-family:'Courier New',monospace;" +
                     "color:" + TextPrimary + ";letter-spacing:3px;\">" +
                     code.ToString("D6") + "</span>" +
-                    seatHtml + counterHtml +
+                    screenHtml + seatHtml + counterHtml +
                     "</td></tr></table>\n");
             }
         }
@@ -280,6 +290,9 @@ public sealed class EmailService : IEmailService
             var locRow     = string.IsNullOrEmpty(ti.LocationName) ? string.Empty :
                 "<div style=\"font-size:13px;color:" + TextMuted + ";\">&#128205; " +
                 EscapeHtml(ti.LocationName) + "</div>";
+            var screenRow  = string.IsNullOrEmpty(ti.ScreenName) ? string.Empty :
+                "<div style=\"font-size:13px;color:" + TextMuted + ";\">&#128250; " +
+                EscapeHtml(ti.ScreenName) + "</div>";
             var seatNumRow = string.IsNullOrEmpty(ti.SeatNumbers) ? string.Empty :
                 "<div style=\"font-size:13px;color:" + TextMuted + ";\">Seat(s): " +
                 EscapeHtml(ti.SeatNumbers) + "</div>";
@@ -290,7 +303,7 @@ public sealed class EmailService : IEmailService
                 "font-family:'Segoe UI',Arial,sans-serif;vertical-align:top;\">" +
                 "<div style=\"font-weight:700;font-size:15px;color:" + TextPrimary + ";\">" +
                 EscapeHtml(ti.MovieName ?? ti.DisplayName) + "</div>" +
-                showRow + locRow + seatNumRow +
+                showRow + locRow + screenRow + seatNumRow +
                 "<div style=\"font-size:13px;color:" + TextMuted + ";\">" +
                 ti.Quantity + " &times; " + ti.UnitPrice.ToString("C") + "</div></td>" +
                 "<td style=\"padding:12px 16px;border-bottom:1px solid " + BorderColor + ";" +
@@ -377,6 +390,39 @@ public sealed class EmailService : IEmailService
                 "font-size:12px;color:#ffffff;text-transform:uppercase;letter-spacing:1px;\">" +
                 "Amount</th></tr></thead><tbody>\n" +
                 concRows + "</tbody></table>\n");
+
+            // ── Concession QR receipt card ─────────────────────────────────
+            // Attached as an inline CID image alongside the ticket QR codes.
+            if (!string.IsNullOrEmpty(concessionQrBase64))
+            {
+                var concCid = "qrconc@scrumflix";
+                // Add to qrParts so it's included in the multipart/related block.
+                try
+                {
+                    var pngBytes = Convert.FromBase64String(concessionQrBase64);
+                    qrParts.Add((concCid, pngBytes));
+
+                    body.Append(
+                        "<h2 style=\"margin:0 0 6px;" +
+                        "font-family:'Segoe UI',Arial,sans-serif;" +
+                        "font-size:16px;font-weight:700;color:" + TextPrimary + ";" +
+                        "text-transform:uppercase;letter-spacing:.08em;\">" +
+                        "&#127903; Concession Pre-Purchase Receipt</h2>\n" +
+                        "<p style=\"margin:0 0 12px;font-size:13px;color:" + TextMuted + ";\">" +
+                        "Show this QR code at the concession stand to collect your pre-purchased items.</p>\n" +
+                        "<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\"" +
+                        " style=\"border:1px solid " + BorderColor + ";border-radius:10px;" +
+                        "overflow:hidden;margin-bottom:28px;background:#ffffff;\"><tr>" +
+                        "<td style=\"padding:24px;text-align:center;\">" +
+                        "<img src=\"cid:" + concCid + "\"" +
+                        " width=\"180\" height=\"180\" alt=\"Concession receipt QR code\"" +
+                        " style=\"display:block;margin:0 auto;border:0;\" />" +
+                        "<p style=\"margin:12px 0 0;font-size:12px;color:" + TextMuted + ";\">" +
+                        "Scan at the concession stand counter.</p>" +
+                        "</td></tr></table>\n");
+                }
+                catch { /* malformed base64 — skip QR card silently */ }
+            }
         }
 
         body.Append(
@@ -401,7 +447,7 @@ public sealed class EmailService : IEmailService
             EscapeHtml(orderTotal) + "</td></tr>" +
             "<tr><td colspan=\"2\" style=\"font-family:'Segoe UI',Arial,sans-serif;" +
             "font-size:12px;color:" + TextMuted + ";\">" +
-            "Purchased: " + timeOfSale.ToLocalTime().ToString("ddd MMM d, yyyy h:mm tt") +
+            "Purchased: " + FormatCentralTime(timeOfSale) +
             "</td></tr></table>\n");
 
         body.Append(
@@ -436,8 +482,7 @@ public sealed class EmailService : IEmailService
         plain.AppendLine("Subtotal:    " + orderSubtotal);
         plain.AppendLine("Sales Tax:   " + orderTax);
         plain.AppendLine("Order Total: " + orderTotal);
-        plain.AppendLine("Purchased: " +
-            timeOfSale.ToLocalTime().ToString("ddd MMM d, yyyy h:mm tt"));
+        plain.AppendLine("Purchased: " + FormatCentralTime(timeOfSale));
         plain.AppendLine();
         plain.AppendLine("Enjoy the show!");
         plain.Append("--- ScrumFlix");
@@ -867,4 +912,19 @@ public sealed class EmailService : IEmailService
     /// <summary>Escapes HTML special characters for safe inline embedding.</summary>
     private static string EscapeHtml(string input)
         => System.Net.WebUtility.HtmlEncode(input);
+
+    /// <summary>
+    /// Formats a UTC <see cref="DateTime"/> as US Central Time for display in emails.
+    /// Appends the correct abbreviation (CDT in summer, CST in winter).
+    /// Pomelo/MySQL strips Kind on read-back — Unspecified is treated as UTC.
+    /// </summary>
+    private static string FormatCentralTime(DateTime utc)
+    {
+        if (utc.Kind == DateTimeKind.Unspecified)
+            utc = DateTime.SpecifyKind(utc, DateTimeKind.Utc);
+        var centralTz = TimeZoneInfo.FindSystemTimeZoneById("Central Standard Time");
+        var local     = TimeZoneInfo.ConvertTimeFromUtc(utc, centralTz);
+        var abbr      = centralTz.IsDaylightSavingTime(local) ? "CDT" : "CST";
+        return local.ToString("ddd MMM d, yyyy h:mm tt") + " " + abbr;
+    }
 }

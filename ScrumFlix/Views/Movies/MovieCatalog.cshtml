@@ -5,6 +5,8 @@
  *   - Cascading Genre → Movie Title dropdowns (AJAX via sf-movie-catalog.js)
  *   - Genre chip pills (synced, clears search on click)
  *   - MPA rating badge on each card (sf-rating-badge) — display only, no blocking logic
+ *   - Trailer badge on poster overlay when TrailerYouTubeKey is available,
+ *     using the same sf-trailer-btn / sf-trailer-modal pattern as HomeDashboard.
  *
  * Sprint 5 — Movie Catalog Fix:
  *   - Age-restriction overlays removed from card rendering loop.
@@ -12,6 +14,12 @@
  *   - sf-poster-overlay Details button is now always rendered unconditionally.
  *   - movieDropdown gains data-selected-movie attribute for JS state restoration.
  *   - @section Scripts wired to sf-movie-catalog.js (replaces empty block).
+ *
+ * Trailer integration:
+ *   - sf-trailer-btn added to poster overlay when TrailerYouTubeKey is present.
+ *   - sf-trailer-modal markup added at bottom of page (mirrors HomeDashboard).
+ *   - sf-featured-carousel.js added to Scripts section — it owns the modal
+ *     delegation logic and is safe to load on any page with the modal present.
  *@
 @model MovieCatalogViewModel
 @{
@@ -152,6 +160,9 @@
 			<div class="row g-4">
 				@foreach (var movie in Model.Movies)
 				{
+					var hasTrailer  = movie.TmdbMetadata?.TrailerYouTubeKey is not null;
+					var detailUrl   = Url.Action("MovieDetail", "Movies", new { id = movie.MovieId }) ?? "#";
+
 					<div class="col-6 col-md-4 col-lg-3 col-xl-2">
 						<article class="sf-movie-card h-100"
 								 aria-label="@movie.Title">
@@ -174,6 +185,22 @@
 								<div class="sf-poster-overlay">
 									<a asp-controller="Movies" asp-action="MovieDetail" asp-route-id="@movie.MovieId"
 									   class="btn sf-btn-primary btn-sm w-100">Details</a>
+
+									@if (hasTrailer)
+									{
+										<button type="button"
+												class="btn sf-btn-outline btn-sm w-100 mt-1 sf-trailer-btn"
+												data-youtube-key="@movie.TmdbMetadata!.TrailerYouTubeKey"
+												data-movie-title="@movie.Title"
+												data-rating="@movie.Rating"
+												data-runtime="@movie.FormattedRunTime"
+												data-detail-url="@detailUrl"
+												data-poster-url="@movie.TmdbMetadata!.PosterUrl"
+												aria-label="Watch trailer for @movie.Title">
+											<i class="bi bi-play-circle me-1"></i>Trailer
+										</button>
+									}
+
 									@if (isAdmin)
 									{
 										<a asp-controller="Movies" asp-action="MovieEdit" asp-route-id="@movie.MovieId"
@@ -184,6 +211,22 @@
 								</div>
 
 								<span class="sf-rating-badge">@movie.Rating</span>
+
+								@* Stationary corner trailer badge — mirrors HomeDashboard pattern *@
+								@if (hasTrailer)
+								{
+									<button type="button"
+											class="sf-home-trailer-badge sf-trailer-btn"
+											data-youtube-key="@movie.TmdbMetadata!.TrailerYouTubeKey"
+											data-movie-title="@movie.Title"
+											data-rating="@movie.Rating"
+											data-runtime="@movie.FormattedRunTime"
+											data-detail-url="@detailUrl"
+											data-poster-url="@movie.TmdbMetadata!.PosterUrl"
+											aria-label="Watch trailer for @movie.Title">
+										<i class="bi bi-play-fill me-1"></i>Trailer
+									</button>
+								}
 							</div>
 
 							<div class="sf-movie-card-body">
@@ -213,6 +256,49 @@
 	</div>
 </section>
 
+<!-- ══ TRAILER MODAL ══════════════════════════════════════════════════════════ -->
+<div class="modal fade sf-trailer-modal" id="sf-trailer-modal" tabindex="-1"
+	 aria-labelledby="sf-trailer-modal-label" aria-hidden="true">
+	<div class="modal-dialog modal-lg modal-dialog-centered">
+		<div class="modal-content">
+
+			<div class="modal-header border-0 pb-0">
+				<h5 class="modal-title" id="sf-trailer-modal-label"></h5>
+				<button type="button" class="btn-close btn-close-white"
+						data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+
+			<div class="modal-body pt-2">
+				<div class="sf-trailer-video-wrap">
+					<iframe id="sf-trailer-iframe"
+							src=""
+							title="Movie trailer"
+							frameborder="0"
+							allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+							allowfullscreen></iframe>
+				</div>
+			</div>
+
+			<div class="modal-footer sf-trailer-modal-footer border-0 pt-0">
+				<div class="sf-trailer-footer-meta">
+					<img id="sf-trailer-thumb" src="" alt="" class="sf-trailer-thumb" />
+					<div class="sf-trailer-footer-info">
+						<div class="sf-trailer-footer-title" id="sf-trailer-footer-title"></div>
+						<div class="sf-trailer-footer-sub"   id="sf-trailer-footer-sub"></div>
+					</div>
+				</div>
+				<div class="sf-trailer-showtimes" id="sf-trailer-showtimes"></div>
+				<a id="sf-trailer-detail-btn" href="#"
+				   class="btn sf-btn-primary btn-sm sf-trailer-detail-btn">
+					<i class="bi bi-ticket-perforated me-1"></i>Get Tickets
+				</a>
+			</div>
+
+		</div>
+	</div>
+</div>
+
 @section Scripts {
-	<script src="~/js/sf-movie-catalog.js" asp-append-version="true"></script>
+	<script src="~/js/sf-movie-catalog.js"      asp-append-version="true"></script>
+	<script src="~/js/sf-featured-carousel.js"  asp-append-version="true"></script>
 }

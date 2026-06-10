@@ -2023,6 +2023,63 @@
     }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   ADMIN TOPBAR
+   Replaces the consumer navbar on standalone admin pages (_AdminLayout, Option B).
+   .sf-admin-topbar        — sticky header bar
+   .sf-admin-topbar-inner  — flex row container
+   .sf-admin-topbar-brand  — left-side logo + badge
+   .sf-admin-topbar-badge  — "Admin" pill next to brand
+═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+    --sf-admin-topbar-h: 60px;
+}
+
+.sf-admin-topbar {
+    position:        sticky;
+    top:             0;
+    z-index:         500;
+    height:          var(--sf-admin-topbar-h);
+    background:      var(--sf-bg-surface);
+    border-bottom:   1px solid var(--sf-border-color);
+    box-shadow:      0 1px 8px rgba(0,0,0,.35);
+}
+
+.sf-admin-topbar-inner {
+    display:         flex;
+    align-items:     center;
+    justify-content: space-between;
+    height:          100%;
+    padding:         0 1.25rem;
+}
+
+.sf-admin-topbar-brand {
+    display:         flex;
+    align-items:     center;
+    text-decoration: none;
+    color:           var(--sf-text-primary);
+    font-family:     var(--sf-font-display);
+    font-size:       1.35rem;
+    letter-spacing:  .03em;
+    gap:             .35rem;
+}
+.sf-admin-topbar-brand:hover { color: var(--sf-color-accent); }
+
+.sf-admin-topbar-badge {
+    font-family:     var(--sf-font-body);
+    font-size:       .62rem;
+    font-weight:     700;
+    letter-spacing:  .1em;
+    text-transform:  uppercase;
+    background:      var(--sf-color-accent);
+    color:           var(--sf-color-on-accent);
+    border-radius:   var(--primitive-radius-pill);
+    padding:         .15em .5em;
+    margin-left:     .1rem;
+    vertical-align:  middle;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
    ADMIN PERSISTENT SIDEBAR
    Collapsible sidebar with a sticky toggle tab.
    .sf-admin-page-wrapper   — flex row: sidebar + content
@@ -2043,7 +2100,7 @@
 .sf-admin-page-wrapper {
     display: flex;
     align-items: stretch;
-    min-height: calc(100vh - 72px);   /* full height minus navbar */
+    min-height: calc(100vh - var(--sf-admin-topbar-h));   /* full height minus admin topbar */
     position: relative;
 }
 
@@ -2061,8 +2118,8 @@
                 min-width var(--sf-sidebar-transition),
                 padding var(--sf-sidebar-transition);
     position: sticky;
-    top: 72px;               /* offset = navbar height */
-    height: calc(100vh - 72px);
+    top: var(--sf-admin-topbar-h);               /* offset = admin topbar height */
+    height: calc(100vh - var(--sf-admin-topbar-h));
     z-index: 100;
 }
 
@@ -2164,32 +2221,66 @@
 
 /* ── Pagination ───────────────────────────────────────────────────────── */
 .sf-pagination .page-link {
-    background: var(--sf-surface-2, #13131f);
-    border-color: var(--sf-border-muted, rgba(255,255,255,.1));
-    color: var(--sf-text-primary, #e8e8e8);
-    border-radius: 6px !important;
-    margin: 0 2px;
-    min-width: 36px;
-    text-align: center;
-    transition: background .15s, color .15s;
+    background:     var(--sf-bg-card);
+    border-color:   var(--sf-border-color);
+    color:          var(--sf-text-primary);
+    border-radius:  var(--primitive-radius-sm) !important;
+    margin:         0 2px;
+    min-width:      36px;
+    text-align:     center;
+    font-size:      .85rem;
+    transition:     background var(--primitive-transition-fast),
+                    color var(--primitive-transition-fast);
 }
-.sf-pagination .page-link:hover { background: var(--sf-surface-3); }
+.sf-pagination .page-link:hover,
+.sf-pagination .page-link:focus-visible {
+    background:     var(--sf-bg-card-alt);
+    color:          var(--sf-color-accent);
+    outline:        2px solid var(--sf-color-focus-ring);
+    outline-offset: 2px;
+}
 .sf-pagination .page-item.active .page-link {
-    background: var(--sf-color-accent);
-    border-color: var(--sf-color-accent);
-    color: var(--sf-color-on-accent);
-    font-weight: 600;
+    background:     var(--sf-color-accent);
+    border-color:   var(--sf-color-accent);
+    color:          var(--sf-color-on-accent);
+    font-weight:    700;
 }
-.sf-pagination .page-item.disabled .page-link { opacity: .4; pointer-events: none; }
+.sf-pagination .page-item.disabled .page-link {
+    opacity:        .4;
+    pointer-events: none;
+}
 
 /* ── Sort header links ────────────────────────────────────────────────── */
-.sf-sort-header { color: inherit; }
-.sf-sort-header:hover { color: var(--sf-color-accent); }
+.sf-sort-header {
+    color:           inherit;
+    text-decoration: none;
+}
+.sf-sort-header:hover,
+.sf-sort-header:focus-visible {
+    color:          var(--sf-color-accent);
+    outline:        2px solid var(--sf-color-focus-ring);
+    outline-offset: 2px;
+    border-radius:  2px;
+}
 
 /* ── Admin data grids ─────────────────────────────────────────────────────── */
+
+/* Card wrapper that elevates the table off the page background.
+   This is the primary "pop" mechanism — gives the grid a distinct surface
+   layer with a gold (theme-accent) left edge. Wrap every .table-responsive
+   that contains a .sf-admin-table in this element. */
+.sf-admin-table-wrap {
+    background:     var(--sf-bg-surface);
+    border:         1px solid var(--sf-border-color);
+    border-left:    3px solid var(--sf-color-accent);
+    border-radius:  var(--sf-radius);
+    box-shadow:     var(--sf-shadow-card);
+    overflow:       hidden;          /* clips thead corners to the radius */
+}
+
 .sf-admin-table {
     --bs-table-color:           var(--sf-text-primary);
-    --bs-table-bg:              transparent;
+    --bs-table-bg:              var(--sf-bg-card);
     --bs-table-border-color:    var(--sf-border-color);
     --bs-table-striped-color:   var(--sf-text-primary);
     --bs-table-striped-bg:      var(--sf-bg-card-alt);
@@ -2197,26 +2288,40 @@
     --bs-table-hover-bg:        var(--sf-bg-card-alt);
     color:                      var(--sf-text-primary);
     border-color:               var(--sf-border-color);
+    margin-bottom:              0;   /* wrapper provides outer spacing */
 }
 
 .sf-admin-table thead th {
     color:                      var(--sf-text-muted);
-    background-color:           var(--sf-bg-card);
-    border-bottom-color:        var(--sf-border-color);
-    font-size:                  .75rem;
-    font-weight:                600;
+    background-color:           var(--sf-bg-card-alt);
+    border-bottom:              2px solid var(--sf-border-accent);
+    font-size:                  .72rem;
+    font-weight:                700;
     text-transform:             uppercase;
-    letter-spacing:             .06em;
+    letter-spacing:             .07em;
+    padding-top:                .65rem;
+    padding-bottom:             .65rem;
+    white-space:                nowrap;
 }
 
 .sf-admin-table tbody td {
     color:                      var(--sf-text-primary);
     border-color:               var(--sf-border-color);
+    border-top:                 1px solid var(--sf-border-color);
     vertical-align:             middle;
+    padding-top:                .6rem;
+    padding-bottom:             .6rem;
+}
+
+.sf-admin-table tbody tr:first-child td {
+    border-top: none;    /* don't double-border the thead/tbody seam */
 }
 
 .sf-admin-table tbody tr:hover td {
-    background-color:           var(--sf-bg-card-alt);
+    /* Theme-aware low-alpha accent tint: gold on dark, navy on light, red on
+       red theme — resolves from --sf-color-accent so it adapts per theme.
+       (A hardcoded rgba would stay gold on every theme.) */
+    background-color:           color-mix(in srgb, var(--sf-color-accent) 6%, transparent);
     color:                      var(--sf-text-primary);
 }
 

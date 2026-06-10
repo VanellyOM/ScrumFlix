@@ -1,15 +1,15 @@
 @model ScrumFlix.Areas.Admin.ViewModels.ScreenFormViewModel
 @{
     ViewData["Title"] = "Add Screen";
-
 }
 
 <div class="sf-page-header">
     <div class="container-xl">
-        <a asp-area="Admin" asp-controller="AdminManage" asp-action="Screens" class="sf-back-link mb-2 d-inline-flex align-items-center gap-1">
-            <i class="bi bi-arrow-left"></i> Screens
+        <a asp-area="Admin" asp-controller="AdminManage" asp-action="Screens"
+           class="sf-back-link mb-2 d-inline-flex align-items-center gap-1">
+            <i class="bi bi-arrow-left" aria-hidden="true"></i> Screens
         </a>
-        <h1 class="sf-page-title"><i class="bi bi-plus-circle me-2"></i>Add Screen</h1>
+        <h1 class="sf-page-title"><i class="bi bi-plus-circle me-2" aria-hidden="true"></i>Add Screen</h1>
     </div>
 </div>
 
@@ -18,9 +18,11 @@
         <div class="row justify-content-center">
             <div class="col-lg-5">
                 <div class="sf-form-card">
-                    <form asp-area="Admin" asp-controller="AdminManage" asp-action="ScreenCreate" method="post">
+                    <form asp-area="Admin" asp-controller="AdminManage" asp-action="ScreenCreate"
+                          method="post" novalidate>
                         @Html.AntiForgeryToken()
-                        <div asp-validation-summary="ModelOnly" class="sf-flash-banner sf-flash-banner--error mb-4" role="alert"></div>
+                        <div asp-validation-summary="ModelOnly"
+                             class="sf-flash-banner sf-flash-banner--error mb-4" role="alert"></div>
 
                         <div class="mb-3">
                             <label asp-for="LocationId" class="sf-label"></label>
@@ -36,26 +38,39 @@
 
                         <div class="mb-3">
                             <label asp-for="ScreenName" class="sf-label"></label>
-                            <input asp-for="ScreenName" class="sf-input" placeholder="e.g. Screen 1" />
+                            <input asp-for="ScreenName" class="sf-input"
+                                   placeholder="e.g. Screen 1" maxlength="100" />
                             <span asp-validation-for="ScreenName" class="sf-validation"></span>
                         </div>
 
                         <div class="mb-4">
                             <label asp-for="Capacity" class="sf-label"></label>
-                            <input asp-for="Capacity" class="sf-input" type="number" min="1" />
+                            <input asp-for="Capacity" class="sf-input" type="number"
+                                   min="1" max="2000" />
+                            <small class="sf-text-muted d-block mt-1">
+                                Total number of seats available in this screen.
+                            </small>
                             <span asp-validation-for="Capacity" class="sf-validation"></span>
                         </div>
 
-                        <div class="mb-4 d-flex align-items-center gap-2">
-                            <input asp-for="IsActive" type="checkbox" class="form-check-input" />
-                            <label asp-for="IsActive" class="sf-label mb-0">Active</label>
+                        <div class="mb-4">
+                            <div class="form-check form-switch mb-0">
+                                <input asp-for="IsActive" type="checkbox"
+                                       class="form-check-input" role="switch"
+                                       id="IsActiveToggle" />
+                                <label class="form-check-label sf-label mb-0" for="IsActiveToggle">
+                                    Active — available for showtime scheduling
+                                </label>
+                            </div>
+                            <span asp-validation-for="IsActive" class="sf-validation"></span>
                         </div>
 
-                        <div class="d-flex gap-3">
+                        <div class="d-flex gap-3 pt-2">
                             <button type="submit" class="btn sf-btn-primary flex-grow-1">
-                                <i class="bi bi-plus-circle me-2"></i>Add Screen
+                                <i class="bi bi-plus-circle me-2" aria-hidden="true"></i>Add Screen
                             </button>
-                            <a asp-area="Admin" asp-controller="AdminManage" asp-action="Screens" class="btn sf-btn-ghost">Cancel</a>
+                            <a asp-area="Admin" asp-controller="AdminManage" asp-action="Screens"
+                               class="btn sf-btn-ghost">Cancel</a>
                         </div>
                     </form>
                 </div>

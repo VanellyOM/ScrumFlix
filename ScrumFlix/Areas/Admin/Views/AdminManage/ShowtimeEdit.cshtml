@@ -1,15 +1,17 @@
 @model ScrumFlix.Areas.Admin.ViewModels.ShowtimeFormViewModel
 @{
     ViewData["Title"] = "Edit Showtime";
-
 }
 
 <div class="sf-page-header">
     <div class="container-xl">
-        <a asp-area="Admin" asp-controller="AdminManage" asp-action="Showtimes" class="sf-back-link mb-2 d-inline-flex align-items-center gap-1">
+        <a asp-area="Admin" asp-controller="AdminManage" asp-action="Showtimes"
+           class="sf-back-link mb-2 d-inline-flex align-items-center gap-1">
             <i class="bi bi-arrow-left" aria-hidden="true"></i> Showtimes
         </a>
-        <h1 class="sf-page-title"><i class="bi bi-pencil-square me-2" aria-hidden="true"></i>Edit Showtime</h1>
+        <h1 class="sf-page-title">
+            <i class="bi bi-pencil-square me-2" aria-hidden="true"></i>Edit Showtime
+        </h1>
     </div>
 </div>
 
@@ -18,17 +20,21 @@
         <div class="row justify-content-center">
             <div class="col-lg-6">
                 <div class="sf-form-card">
-                    <form asp-area="Admin" asp-controller="AdminManage" asp-action="ShowtimeEdit" method="post">
+                    <form asp-area="Admin" asp-controller="AdminManage" asp-action="ShowtimeEdit"
+                          method="post" novalidate>
                         @Html.AntiForgeryToken()
                         <input asp-for="ShowtimeId" type="hidden" />
-                        <div asp-validation-summary="ModelOnly" class="sf-flash-banner sf-flash-banner--error mb-4" role="alert"></div>
+                        <div asp-validation-summary="ModelOnly"
+                             class="sf-flash-banner sf-flash-banner--error mb-4" role="alert"></div>
 
                         <div class="mb-3">
                             <label asp-for="MovieId" class="sf-label"></label>
                             <select asp-for="MovieId" class="sf-select">
                                 @foreach (var m in Model.Movies)
                                 {
-                                    <option value="@m.MovieId" selected="@(Model.MovieId == m.MovieId)">@m.Title (@m.Rating)</option>
+                                    <option value="@m.MovieId" selected="@(Model.MovieId == m.MovieId)">
+                                        @m.Title (@m.Rating)
+                                    </option>
                                 }
                             </select>
                             <span asp-validation-for="MovieId" class="sf-validation"></span>
@@ -39,7 +45,8 @@
                             <select asp-for="TheaterScreenId" class="sf-select">
                                 @foreach (var ts in Model.TheaterScreens)
                                 {
-                                    <option value="@ts.TheaterScreenId" selected="@(Model.TheaterScreenId == ts.TheaterScreenId)">
+                                    <option value="@ts.TheaterScreenId"
+                                            selected="@(Model.TheaterScreenId == ts.TheaterScreenId)">
                                         @ts.Location?.LocationName — @ts.ScreenName (cap. @ts.Capacity)
                                     </option>
                                 }
@@ -51,32 +58,48 @@
                             <label asp-for="StartTime" class="sf-label"></label>
                             <input asp-for="StartTime" type="datetime-local" class="sf-input"
                                    value="@Model.StartTime.ToString("yyyy-MM-ddTHH:mm")" />
+                            <small class="sf-text-muted d-block mt-1">
+                                Enter in the location's local time — stored as UTC automatically.
+                            </small>
                             <span asp-validation-for="StartTime" class="sf-validation"></span>
                         </div>
 
                         <div class="row g-3 mb-3">
                             <div class="col-6">
                                 <label asp-for="Capacity" class="sf-label"></label>
-                                <input asp-for="Capacity" class="sf-input" type="number" min="1" />
+                                <input asp-for="Capacity" class="sf-input" type="number"
+                                       min="1" max="2000" />
+                                <small class="sf-text-muted d-block mt-1">
+                                    Reducing capacity cannot cancel existing tickets.
+                                </small>
                                 <span asp-validation-for="Capacity" class="sf-validation"></span>
                             </div>
                             <div class="col-6">
                                 <label asp-for="PricePerTicket" class="sf-label"></label>
-                                <input asp-for="PricePerTicket" class="sf-input" type="number" min="0" step="0.01" />
+                                <input asp-for="PricePerTicket" class="sf-input" type="number"
+                                       min="0" step="0.01" />
                                 <span asp-validation-for="PricePerTicket" class="sf-validation"></span>
                             </div>
                         </div>
 
-                        <div class="mb-4 d-flex align-items-center gap-2">
-                            <input asp-for="IsActive" type="checkbox" class="form-check-input" />
-                            <label asp-for="IsActive" class="sf-label mb-0">Active</label>
+                        <div class="mb-4">
+                            <div class="form-check form-switch mb-0">
+                                <input asp-for="IsActive" type="checkbox"
+                                       class="form-check-input" role="switch"
+                                       id="IsActiveToggle" />
+                                <label class="form-check-label sf-label mb-0" for="IsActiveToggle">
+                                    Active — available for customer booking
+                                </label>
+                            </div>
+                            <span asp-validation-for="IsActive" class="sf-validation"></span>
                         </div>
 
-                        <div class="d-flex gap-3">
+                        <div class="d-flex gap-3 pt-2">
                             <button type="submit" class="btn sf-btn-primary flex-grow-1">
                                 <i class="bi bi-save me-2" aria-hidden="true"></i>Save Changes
                             </button>
-                            <a asp-area="Admin" asp-controller="AdminManage" asp-action="Showtimes" class="btn sf-btn-ghost">Cancel</a>
+                            <a asp-area="Admin" asp-controller="AdminManage" asp-action="Showtimes"
+                               class="btn sf-btn-ghost">Cancel</a>
                         </div>
                     </form>
                 </div>

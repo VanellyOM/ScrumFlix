@@ -198,8 +198,9 @@ public sealed class TmdbSyncService : ITmdbSyncService
 
     /// <inheritdoc/>
     public async Task<TmdbSyncResult> SyncAllMoviesAsync(
-        bool              forceAll          = false,
-        CancellationToken cancellationToken = default)
+        bool                               forceAll          = false,
+        IProgress<TmdbSyncProgressReport>? progress          = null,
+        CancellationToken                  cancellationToken = default)
     {
         if (_tmdb is null)
         {
@@ -217,6 +218,8 @@ public sealed class TmdbSyncService : ITmdbSyncService
             .ToListAsync(cancellationToken);
 
         int synced = 0, skipped = 0, failed = 0;
+        int total = movies.Count;
+        int processed = 0;
 
         foreach (var movie in movies)
         {
@@ -226,16 +229,35 @@ public sealed class TmdbSyncService : ITmdbSyncService
             if (!forceAll && movie.TmdbMetadata is { IsStale: false })
             {
                 skipped++;
-                continue;
+            }
+            else
+            {
+                var success = await SyncMovieCoreAsync(movie, cancellationToken);
+                if (success) synced++;
+                else         failed++;
+
+                // Respect TMDb rate limit (40 requests/10s default free tier)
+                await Task.Delay(RateLimitDelayMs, cancellationToken);
             }
 
-            var success = await SyncMovieCoreAsync(movie, cancellationToken);
+            processed++;
 
-            if (success) synced++;
-            else         failed++;
+            // Report real progress after each movie — drives the sf-spinner on TmdbSyncPage
+            if (progress is not null)
+            {
+                var percent = total == 0 ? 100 : (int)Math.Round((double)processed / total * 100);
+                var msg = failed > 0
+                    ? $"Syncing '{movie.Title}'… {synced} done, {failed} failed ({processed}/{total})"
+                    : $"Syncing '{movie.Title}'… {processed}/{total}";
 
-            // Respect TMDb rate limit (40 requests/10s default free tier)
-            await Task.Delay(RateLimitDelayMs, cancellationToken);
+                progress.Report(new TmdbSyncProgressReport(
+                    Percent: percent,
+                    Message: msg,
+                    Synced:  synced,
+                    Skipped: skipped,
+                    Failed:  failed,
+                    Total:   total));
+            }
         }
 
         _logger.LogInformation(

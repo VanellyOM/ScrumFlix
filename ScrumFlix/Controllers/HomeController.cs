@@ -54,12 +54,12 @@ public class HomeController : ConsumerControllerBase
     /// <returns>The home dashboard view with a typed <see cref="HomeDashboardViewModel"/>.</returns>
     public async Task<IActionResult> HomeDashboard()
     {
-        var today = DateTime.Today;
+        var today = DateTime.UtcNow.Date;
         var todayEnd = today.AddDays(1);
-        var windowEnd = today.AddDays(3); // featured = today + next 2 days
-        var now = DateTime.Now;
+        var windowEnd = today.AddDays(14); // featured = full 14-day showtime window
+        var now = DateTime.UtcNow;
 
-        // Featured: distinct movies with any showtime in the next 3 days.
+        // Featured: distinct movies with any showtime in the next 14 days.
         // Query from Movies table so EF can eager-load TmdbMetadata cleanly —
         // .ThenInclude() after .Select(st => st.Movie!) is not supported by EF Core.
         // The sub-query finds MovieIds that have an active showtime in the window,
@@ -71,21 +71,25 @@ public class HomeController : ConsumerControllerBase
             .Select(st => st.MovieId)
             .Distinct()
             .OrderBy(id => id)   // EF Core requires OrderBy before Take to guarantee deterministic results
-            .Take(10)            // carousel supports up to 10 featured movies
+            .Take(40)            // fetch more than needed — filtered below for complete metadata
             .ToListAsync();
 
         var featuredMovies = await _db.Movies
             .Where(m => featuredMovieIds.Contains(m.MovieId))
-            .Include(m => m.TmdbMetadata)   // loads poster/backdrop paths
-                                            // Only show as "featured" if the movie has a poster or trailer —
-                                            // cards without imagery look broken on the hero grid.
-            .Where(m => m.TmdbMetadata != null &&
-                       (m.TmdbMetadata.PosterPath != null || m.TmdbMetadata.TrailerYouTubeKey != null))
+            .Include(m => m.TmdbMetadata)
+            // Only feature movies with ALL THREE TMDb fields populated —
+            // poster, backdrop, and trailer are all required for a complete
+            // carousel card. Movies missing any one field look broken.
+            .Where(m => m.TmdbMetadata != null
+                     && m.TmdbMetadata.PosterPath        != null
+                     && m.TmdbMetadata.BackdropPath      != null
+                     && m.TmdbMetadata.TrailerYouTubeKey != null)
+            .Take(10)            // carousel supports up to 10 featured movies
             .AsNoTracking()
             .ToListAsync();
 
         // FeaturedShowtimes: next 3 upcoming active showtimes for each featured movie,
-        // starting from now (not just today) so late-night shows still appear.
+        // starting from now (UTC) so times display correctly across timezones.
         // Keyed by MovieId for O(1) lookup in the Razor view.
         var featuredMovieIdList = featuredMovies.Select(m => m.MovieId).ToList();
 

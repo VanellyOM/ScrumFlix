@@ -35,6 +35,20 @@ public class Location
     [Display(Name = "Active")]
     public bool IsActive { get; set; } = true;
 
+    /// <summary>
+    /// Windows timezone ID for this theater location (e.g. "Central Standard Time").
+    /// Used to convert UTC showtimes to local display time and to label QR code
+    /// timestamps with the correct offset abbreviation (CDT, CST, PDT, etc.).
+    /// On Linux, .NET automatically maps Windows IDs to IANA equivalents
+    /// (e.g. "Central Standard Time" → "America/Chicago") — no tzdata required.
+    /// Defaults to Central Time — the ScrumFlix home region.
+    /// </summary>
+    [Required]
+    [MaxLength(100)]
+    [Column("TimeZoneId", TypeName = "varchar(100)")]
+    [Display(Name = "Time Zone")]
+    public string TimeZoneId { get; set; } = "Central Standard Time";
+
     // ── Navigation properties ──────────────────────────────────────────────
 
     /// <summary>Screening rooms inside this location.</summary>

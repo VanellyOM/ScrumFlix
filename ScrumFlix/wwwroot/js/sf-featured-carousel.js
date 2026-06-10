@@ -12,39 +12,40 @@
 
 document.addEventListener('DOMContentLoaded', function () {
 
-    // ── 1. Splide carousel init ────────────────────────────────────────────
+    // ── 1. Splide carousel init (homepage only) ────────────────────────────
 
     var carouselEl = document.getElementById('sf-featured-carousel');
-    if (!carouselEl) return; // guard: not on homepage
 
-    // Cap perPage to slide count so Splide never clones duplicates into view.
-    var slideCount = carouselEl.querySelectorAll('.splide__slide').length;
-    var effectivePerPage = Math.min(5, slideCount);
-    var carouselType = slideCount > 5 ? 'loop' : 'slide';
+    if (carouselEl) {
+        // Cap perPage to slide count so Splide never clones duplicates into view.
+        var slideCount = carouselEl.querySelectorAll('.splide__slide').length;
+        var effectivePerPage = Math.min(5, slideCount);
+        var carouselType = slideCount > 5 ? 'loop' : 'slide';
 
-    var splide = new Splide('#sf-featured-carousel', {
-        type: carouselType,
-        perPage: effectivePerPage,
-        perMove: 1,
-        gap: '1.25rem',
-        padding: { left: '0', right: '0' },
-        arrows: slideCount > effectivePerPage,
-        pagination: slideCount > effectivePerPage,
-        rewind: carouselType === 'slide',
-        speed: 400,
-        breakpoints: {
-            1199: { perPage: Math.min(4, slideCount), gap: '1rem' },
-            991:  { perPage: Math.min(3, slideCount), gap: '1rem' },
-            767:  { perPage: Math.min(2, slideCount), gap: '.75rem' },
-            575:  {
-                perPage: 1,
-                padding: { left: '0', right: slideCount > 1 ? '2.5rem' : '0' },
-                gap: '.75rem'
+        var splide = new Splide('#sf-featured-carousel', {
+            type: carouselType,
+            perPage: effectivePerPage,
+            perMove: 1,
+            gap: '1.25rem',
+            padding: { left: '0', right: '0' },
+            arrows: slideCount > effectivePerPage,
+            pagination: slideCount > effectivePerPage,
+            rewind: carouselType === 'slide',
+            speed: 400,
+            breakpoints: {
+                1199: { perPage: Math.min(4, slideCount), gap: '1rem' },
+                991:  { perPage: Math.min(3, slideCount), gap: '1rem' },
+                767:  { perPage: Math.min(2, slideCount), gap: '.75rem' },
+                575:  {
+                    perPage: 1,
+                    padding: { left: '0', right: slideCount > 1 ? '2.5rem' : '0' },
+                    gap: '.75rem'
+                }
             }
-        }
-    });
+        });
 
-    splide.mount();
+        splide.mount();
+    }
 
     // ── 2. Read showtime JSON island ───────────────────────────────────────
 

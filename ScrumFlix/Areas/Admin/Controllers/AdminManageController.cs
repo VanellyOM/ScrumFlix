@@ -39,7 +39,8 @@ public class AdminManageController : StaffControllerBase
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>Lists all showtimes with optional movie filter, sort, and pagination.</summary>
-    public async Task<IActionResult> Showtimes(int? movieId, bool showInactive = false,
+    public async Task<IActionResult> Showtimes(int? movieId, int? locationId,
+        string? status, bool showInactive = false,
         string? sortBy = null, bool sortDesc = false, int page = 1)
     {
         if (RoleGuard(1) is { } r) return r;
@@ -51,16 +52,31 @@ public class AdminManageController : StaffControllerBase
             .Include(st => st.Tickets)
             .AsNoTracking();
 
-        if (movieId.HasValue) query = query.Where(st => st.MovieId == movieId.Value);
-        if (!showInactive) query = query.Where(st => st.IsActive);
+        if (movieId.HasValue)    query = query.Where(st => st.MovieId == movieId.Value);
+        if (locationId.HasValue) query = query.Where(st => st.TheaterScreen!.LocationId == locationId.Value);
+
+        // Status filter: "active" / "inactive" / null (all). showInactive is kept for
+        // backward-compat but status takes precedence when supplied.
+        bool? filterActive = status switch
+        {
+            "active"   => true,
+            "inactive" => false,
+            _          => null
+        };
+        if (filterActive.HasValue)
+            query = query.Where(st => st.IsActive == filterActive.Value);
+        else if (!showInactive)
+            query = query.Where(st => st.IsActive);
 
         query = sortBy switch
         {
-            "movie" => sortDesc ? query.OrderByDescending(st => st.Movie!.Title) : query.OrderBy(st => st.Movie!.Title),
-            "screen" => sortDesc ? query.OrderByDescending(st => st.TheaterScreen!.ScreenName) : query.OrderBy(st => st.TheaterScreen!.ScreenName),
-            "price" => sortDesc ? query.OrderByDescending(st => st.PricePerTicket) : query.OrderBy(st => st.PricePerTicket),
-            "capacity" => sortDesc ? query.OrderByDescending(st => st.Capacity) : query.OrderBy(st => st.Capacity),
-            _ => sortDesc ? query.OrderByDescending(st => st.StartTime) : query.OrderBy(st => st.StartTime)
+            "movie"    => sortDesc ? query.OrderByDescending(st => st.Movie!.Title)                            : query.OrderBy(st => st.Movie!.Title),
+            "screen"   => sortDesc ? query.OrderByDescending(st => st.TheaterScreen!.ScreenName)               : query.OrderBy(st => st.TheaterScreen!.ScreenName),
+            "location" => sortDesc ? query.OrderByDescending(st => st.TheaterScreen!.Location!.LocationName)   : query.OrderBy(st => st.TheaterScreen!.Location!.LocationName),
+            "price"    => sortDesc ? query.OrderByDescending(st => st.PricePerTicket)                          : query.OrderBy(st => st.PricePerTicket),
+            "capacity" => sortDesc ? query.OrderByDescending(st => st.Capacity)                                : query.OrderBy(st => st.Capacity),
+            "status"   => sortDesc ? query.OrderByDescending(st => st.IsActive).ThenBy(st => st.StartTime)     : query.OrderBy(st => st.IsActive).ThenBy(st => st.StartTime),
+            _          => sortDesc ? query.OrderByDescending(st => st.StartTime)                               : query.OrderBy(st => st.StartTime)
         };
 
         var total = await query.CountAsync();
@@ -68,26 +84,39 @@ public class AdminManageController : StaffControllerBase
 
         var vm = new ShowtimeIndexViewModel
         {
-            Showtimes = showtimes.Select(st => new ShowtimeRowViewModel
+            Showtimes = showtimes.Select(st =>
             {
-                ShowtimeId = st.ShowtimeId,
-                MovieTitle = st.Movie?.Title ?? "—",
-                ScreenName = st.TheaterScreen?.ScreenName ?? "—",
-                LocationName = st.TheaterScreen?.Location?.LocationName ?? "—",
-                StartTime = st.StartTime,
-                Capacity = st.Capacity,
-                TicketsSold = st.Tickets.Count,
-                PricePerTicket = st.PricePerTicket,
-                IsActive = st.IsActive
+                // Convert UTC StartTime to the location's local time for display.
+                var tz         = st.TheaterScreen?.Location?.TimeZoneId is { } tzId
+                    ? TryFindTimeZone(tzId)
+                    : TimeZoneInfo.FindSystemTimeZoneById("Central Standard Time");
+                var startLocal = TimeZoneInfo.ConvertTimeFromUtc(
+                    DateTime.SpecifyKind(st.StartTime, DateTimeKind.Utc), tz);
+
+                return new ShowtimeRowViewModel
+                {
+                    ShowtimeId     = st.ShowtimeId,
+                    MovieTitle     = st.Movie?.Title ?? "—",
+                    ScreenName     = st.TheaterScreen?.ScreenName ?? "—",
+                    LocationName   = st.TheaterScreen?.Location?.LocationName ?? "—",
+                    StartTime      = startLocal,
+                    Capacity       = st.Capacity,
+                    TicketsSold    = st.Tickets.Count,
+                    PricePerTicket = st.PricePerTicket,
+                    IsActive       = st.IsActive
+                };
             }).ToList(),
-            Movies = await _db.Movies.OrderBy(m => m.Title).AsNoTracking().ToListAsync(),
-            FilterMovieId = movieId,
-            ShowInactive = showInactive,
-            Page = page,
-            PageSize = pageSize,
-            TotalCount = total,
-            SortBy = sortBy,
-            SortDesc = sortDesc
+            Movies            = await _db.Movies.OrderBy(m => m.Title).AsNoTracking().ToListAsync(),
+            Locations         = await _db.Locations.Where(l => l.IsActive).OrderBy(l => l.LocationName).AsNoTracking().ToListAsync(),
+            FilterMovieId     = movieId,
+            FilterLocationId  = locationId,
+            FilterStatusActive = filterActive,
+            ShowInactive      = showInactive,
+            Page              = page,
+            PageSize          = pageSize,
+            TotalCount        = total,
+            SortBy            = sortBy,
+            SortDesc          = sortDesc
         };
 
         return View(vm);
@@ -107,20 +136,33 @@ public class AdminManageController : StaffControllerBase
         if (RoleGuard(1) is { } r) return r;
         if (!ModelState.IsValid) return View(await BuildShowtimeFormAsync(vm));
 
+        // Convert the admin-entered local StartTime to UTC using the screen's location timezone.
+        // TheaterScreen.Location.TimeZoneId holds the Windows timezone ID (e.g. "Central Standard Time").
+        // Storing UTC ensures QR codes, exports, and any future multi-timezone display are all correct.
+        var screen    = await _db.TheaterScreens
+            .Include(ts => ts.Location)
+            .FirstOrDefaultAsync(ts => ts.TheaterScreenId == vm.TheaterScreenId);
+        var tz        = screen?.Location?.TimeZoneId is { } tzId
+            ? TryFindTimeZone(tzId)
+            : TimeZoneInfo.FindSystemTimeZoneById("Central Standard Time");
+        var startUtc  = TimeZoneInfo.ConvertTimeToUtc(
+            DateTime.SpecifyKind(vm.StartTime, DateTimeKind.Unspecified), tz);
+
         var showtime = new Showtime
         {
-            MovieId = vm.MovieId,
+            MovieId         = vm.MovieId,
             TheaterScreenId = vm.TheaterScreenId,
-            StartTime = vm.StartTime,
-            Capacity = vm.Capacity,
-            PricePerTicket = vm.PricePerTicket,
-            IsActive = vm.IsActive
+            StartTime       = startUtc,
+            Capacity        = vm.Capacity,
+            PricePerTicket  = vm.PricePerTicket,
+            IsActive        = vm.IsActive
         };
 
         _db.Showtimes.Add(showtime);
         await _db.SaveChangesAsync();
 
-        _logger.LogInformation("Admin {User} created ShowtimeId={Id}.", CurrentUserName, showtime.ShowtimeId);
+        _logger.LogInformation("Admin {User} created ShowtimeId={Id} (StartTime UTC={UTC}).",
+            CurrentUserName, showtime.ShowtimeId, startUtc);
         TempData["SuccessMessage"] = "Showtime created successfully.";
         return RedirectToAction(nameof(Showtimes));
     }
@@ -130,18 +172,28 @@ public class AdminManageController : StaffControllerBase
     {
         if (RoleGuard(1) is { } r) return r;
 
-        var st = await _db.Showtimes.FindAsync(id);
+        var st = await _db.Showtimes
+            .Include(s => s.TheaterScreen).ThenInclude(ts => ts!.Location)
+            .FirstOrDefaultAsync(s => s.ShowtimeId == id);
         if (st is null) return NotFound();
+
+        // Convert stored UTC back to location local time so the datetime-local
+        // input shows the time the admin originally entered.
+        var tz        = st.TheaterScreen?.Location?.TimeZoneId is { } tzId
+            ? TryFindTimeZone(tzId)
+            : TimeZoneInfo.FindSystemTimeZoneById("Central Standard Time");
+        var startLocal = TimeZoneInfo.ConvertTimeFromUtc(
+            DateTime.SpecifyKind(st.StartTime, DateTimeKind.Utc), tz);
 
         var vm = new ShowtimeFormViewModel
         {
-            ShowtimeId = st.ShowtimeId,
-            MovieId = st.MovieId,
+            ShowtimeId      = st.ShowtimeId,
+            MovieId         = st.MovieId,
             TheaterScreenId = st.TheaterScreenId,
-            StartTime = st.StartTime,
-            Capacity = st.Capacity,
-            PricePerTicket = st.PricePerTicket,
-            IsActive = st.IsActive
+            StartTime       = startLocal,   // local time for the form input
+            Capacity        = st.Capacity,
+            PricePerTicket  = st.PricePerTicket,
+            IsActive        = st.IsActive
         };
 
         return View(await BuildShowtimeFormAsync(vm));
@@ -157,15 +209,26 @@ public class AdminManageController : StaffControllerBase
         var st = await _db.Showtimes.FindAsync(vm.ShowtimeId);
         if (st is null) return NotFound();
 
-        st.MovieId = vm.MovieId;
+        // Resolve timezone from the (possibly changed) screen selection.
+        var screen   = await _db.TheaterScreens
+            .Include(ts => ts.Location)
+            .FirstOrDefaultAsync(ts => ts.TheaterScreenId == vm.TheaterScreenId);
+        var tz       = screen?.Location?.TimeZoneId is { } tzId
+            ? TryFindTimeZone(tzId)
+            : TimeZoneInfo.FindSystemTimeZoneById("Central Standard Time");
+        var startUtc = TimeZoneInfo.ConvertTimeToUtc(
+            DateTime.SpecifyKind(vm.StartTime, DateTimeKind.Unspecified), tz);
+
+        st.MovieId         = vm.MovieId;
         st.TheaterScreenId = vm.TheaterScreenId;
-        st.StartTime = vm.StartTime;
-        st.Capacity = vm.Capacity;
-        st.PricePerTicket = vm.PricePerTicket;
-        st.IsActive = vm.IsActive;
+        st.StartTime       = startUtc;
+        st.Capacity        = vm.Capacity;
+        st.PricePerTicket  = vm.PricePerTicket;
+        st.IsActive        = vm.IsActive;
 
         await _db.SaveChangesAsync();
-        _logger.LogInformation("Admin {User} updated ShowtimeId={Id}.", CurrentUserName, st.ShowtimeId);
+        _logger.LogInformation("Admin {User} updated ShowtimeId={Id} (StartTime UTC={UTC}).",
+            CurrentUserName, st.ShowtimeId, startUtc);
         TempData["SuccessMessage"] = "Showtime updated.";
         return RedirectToAction(nameof(Showtimes));
     }
@@ -467,6 +530,9 @@ public class AdminManageController : StaffControllerBase
         if (!string.IsNullOrWhiteSpace(vm.Password) && vm.Password.Length < 6)
             ModelState.AddModelError(nameof(vm.Password), "Password must be at least 6 characters.");
 
+        if (!string.IsNullOrWhiteSpace(vm.Password) && vm.Password != vm.ConfirmPassword)
+            ModelState.AddModelError(nameof(vm.ConfirmPassword), "Passwords do not match.");
+
         if (await _db.Users.AnyAsync(u => u.UserName == vm.UserName && u.UserId != vm.UserId))
             ModelState.AddModelError(nameof(vm.UserName), "That username is already taken.");
 
@@ -536,11 +602,40 @@ public class AdminManageController : StaffControllerBase
         return View(new LocationIndexViewModel { Locations = locations });
     }
 
+    // ── Timezone helper ────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Resolves a <see cref="TimeZoneInfo"/> from a Windows timezone ID string.
+    /// Falls back to Central Time if the ID is unrecognised — prevents a bad
+    /// <c>Location.TimeZoneId</c> value from crashing showtime create/edit.
+    /// </summary>
+    private static TimeZoneInfo TryFindTimeZone(string timeZoneId)
+    {
+        try   { return TimeZoneInfo.FindSystemTimeZoneById(timeZoneId); }
+        catch { return TimeZoneInfo.FindSystemTimeZoneById("Central Standard Time"); }
+    }
+
+    /// <summary>
+    /// Builds the list of US timezone options for the location form dropdown,
+    /// ordered from west to east. Uses Windows timezone IDs which .NET maps
+    /// automatically to IANA on Linux — no platform-specific handling needed.
+    /// </summary>
+    private static List<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem> BuildTimezoneList() =>
+    [
+        new() { Value = "Hawaiian Standard Time",      Text = "(UTC-10) Hawaii" },
+        new() { Value = "Alaskan Standard Time",       Text = "(UTC-9)  Alaska" },
+        new() { Value = "Pacific Standard Time",       Text = "(UTC-8)  Pacific — Los Angeles, Seattle" },
+        new() { Value = "US Mountain Standard Time",   Text = "(UTC-7)  Arizona (no DST)" },
+        new() { Value = "Mountain Standard Time",      Text = "(UTC-7)  Mountain — Denver, Salt Lake City" },
+        new() { Value = "Central Standard Time",       Text = "(UTC-6)  Central — Dallas, Chicago" },
+        new() { Value = "Eastern Standard Time",       Text = "(UTC-5)  Eastern — New York, Miami" },
+    ];
+
     /// <summary>GET: create-location form.</summary>
     public IActionResult LocationCreate()
     {
         if (RoleGuard(1) is { } r) return r;
-        return View(new LocationFormViewModel());
+        return View(new LocationFormViewModel { AvailableTimeZones = BuildTimezoneList() });
     }
 
     /// <summary>POST: persist new location.</summary>
@@ -548,19 +643,25 @@ public class AdminManageController : StaffControllerBase
     public async Task<IActionResult> LocationCreate(LocationFormViewModel vm)
     {
         if (RoleGuard(1) is { } r) return r;
-        if (!ModelState.IsValid) return View(vm);
+        if (!ModelState.IsValid)
+        {
+            vm.AvailableTimeZones = BuildTimezoneList();
+            return View(vm);
+        }
 
         var location = new Location
         {
-            LocationName = vm.LocationName,
+            LocationName    = vm.LocationName,
             LocationAddress = vm.LocationAddress,
-            IsActive = vm.IsActive
+            IsActive        = vm.IsActive,
+            TimeZoneId      = vm.TimeZoneId
         };
 
         _db.Locations.Add(location);
         await _db.SaveChangesAsync();
 
-        _logger.LogInformation("Admin {User} created LocationId={Id} '{Name}'.", CurrentUserName, location.LocationId, location.LocationName);
+        _logger.LogInformation("Admin {User} created LocationId={Id} '{Name}' (TZ={TZ}).",
+            CurrentUserName, location.LocationId, location.LocationName, location.TimeZoneId);
         TempData["SuccessMessage"] = $"Location '{location.LocationName}' created.";
         return RedirectToAction(nameof(Locations));
     }
@@ -575,10 +676,12 @@ public class AdminManageController : StaffControllerBase
 
         return View(new LocationFormViewModel
         {
-            LocationId = loc.LocationId,
-            LocationName = loc.LocationName,
-            LocationAddress = loc.LocationAddress,
-            IsActive = loc.IsActive
+            LocationId        = loc.LocationId,
+            LocationName      = loc.LocationName,
+            LocationAddress   = loc.LocationAddress,
+            IsActive          = loc.IsActive,
+            TimeZoneId        = loc.TimeZoneId,
+            AvailableTimeZones = BuildTimezoneList()
         });
     }
 
@@ -587,14 +690,19 @@ public class AdminManageController : StaffControllerBase
     public async Task<IActionResult> LocationEdit(LocationFormViewModel vm)
     {
         if (RoleGuard(1) is { } r) return r;
-        if (!ModelState.IsValid) return View(vm);
+        if (!ModelState.IsValid)
+        {
+            vm.AvailableTimeZones = BuildTimezoneList();
+            return View(vm);
+        }
 
         var loc = await _db.Locations.FindAsync(vm.LocationId);
         if (loc is null) return NotFound();
 
-        loc.LocationName = vm.LocationName;
+        loc.LocationName    = vm.LocationName;
         loc.LocationAddress = vm.LocationAddress;
-        loc.IsActive = vm.IsActive;
+        loc.IsActive        = vm.IsActive;
+        loc.TimeZoneId      = vm.TimeZoneId;
 
         await _db.SaveChangesAsync();
         TempData["SuccessMessage"] = $"Location '{loc.LocationName}' updated.";
@@ -606,9 +714,12 @@ public class AdminManageController : StaffControllerBase
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>Lists all theater screens.</summary>
-    public async Task<IActionResult> Screens(int? locationId = null)
+    public async Task<IActionResult> Screens(int? locationId = null,
+        string? sortBy = null, bool sortDesc = false, int page = 1)
     {
         if (RoleGuard(1) is { } r) return r;
+
+        const int pageSize = 25;
 
         var query = _db.TheaterScreens
             .Include(ts => ts.Location)
@@ -617,11 +728,30 @@ public class AdminManageController : StaffControllerBase
         if (locationId.HasValue)
             query = query.Where(ts => ts.LocationId == locationId.Value);
 
+        query = sortBy switch
+        {
+            "location" => sortDesc ? query.OrderByDescending(ts => ts.Location!.LocationName).ThenByDescending(ts => ts.ScreenName)
+                                   : query.OrderBy(ts => ts.Location!.LocationName).ThenBy(ts => ts.ScreenName),
+            "capacity" => sortDesc ? query.OrderByDescending(ts => ts.Capacity).ThenBy(ts => ts.ScreenName)
+                                   : query.OrderBy(ts => ts.Capacity).ThenBy(ts => ts.ScreenName),
+            "status"   => sortDesc ? query.OrderByDescending(ts => ts.IsActive).ThenBy(ts => ts.ScreenName)
+                                   : query.OrderBy(ts => ts.IsActive).ThenBy(ts => ts.ScreenName),
+            _          => sortDesc ? query.OrderByDescending(ts => ts.ScreenName)
+                                   : query.OrderBy(ts => ts.ScreenName)
+        };
+
+        var total = await query.CountAsync();
+
         var vm = new ScreenIndexViewModel
         {
-            Screens = await query.OrderBy(ts => ts.Location!.LocationName).ThenBy(ts => ts.ScreenName).ToListAsync(),
+            Screens = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(),
             Locations = await _db.Locations.Where(l => l.IsActive).OrderBy(l => l.LocationName).AsNoTracking().ToListAsync(),
-            FilterLocationId = locationId
+            FilterLocationId = locationId,
+            Page          = page,
+            PageSize      = pageSize,
+            TotalCount    = total,
+            SortBy        = sortBy,
+            SortDesc      = sortDesc
         };
 
         return View(vm);
@@ -743,15 +873,20 @@ public class AdminManageController : StaffControllerBase
         if (!ModelState.IsValid) return View("Exports", vm);
 
         var from = vm.DateFrom.ToDateTime(TimeOnly.MinValue);
-        var to = vm.DateTo.ToDateTime(TimeOnly.MaxValue);
+        var to   = vm.DateTo.ToDateTime(TimeOnly.MaxValue);
+
+        // Central Time for export formatting. TimeOfSale is UTC; ShowtimeStart is
+        // stored as local Central time (no UTC conversion at write time yet).
+        var centralTz = TimeZoneInfo.FindSystemTimeZoneById("Central Standard Time");
 
         List<TicketExportRow> rows;
         try
         {
-            rows = await _db.Tickets
+            // Materialise as anonymous type first (ORDER BY on raw columns, no string ops in SQL).
+            var raw = await _db.Tickets
                 .Where(t => t.TimeOfSale >= from && t.TimeOfSale <= to)
                 .Join(_db.Showtimes,
-                      t => t.ShowtimeId,
+                      t  => t.ShowtimeId,
                       st => st.ShowtimeId,
                       (t, st) => new { t, st })
                 .Join(_db.Movies,
@@ -759,15 +894,35 @@ public class AdminManageController : StaffControllerBase
                       m => m.MovieId,
                       (x, m) => new { x.t, x.st, m })
                 .OrderBy(x => x.t.TimeOfSale)
-                .Select(x => new TicketExportRow(
-                          x.t.TicketId,
-                          x.t.TicketCode,
-                          x.m.Title,
-                          x.st.StartTime,
-                          x.st.PricePerTicket,
-                          x.t.TimeOfSale
-                      ))
+                .Select(x => new
+                {
+                    x.t.TicketId,
+                    x.t.TicketCode,
+                    MovieTitle     = x.m.Title,
+                    ShowtimeStart  = x.st.StartTime,
+                    x.st.PricePerTicket,
+                    x.t.TimeOfSale
+                })
                 .ToListAsync();
+
+            // Format datetimes in-memory as Central Time strings.
+            rows = raw.Select(r =>
+            {
+                var saleUtc   = DateTime.SpecifyKind(r.TimeOfSale, DateTimeKind.Utc);
+                var saleLocal = TimeZoneInfo.ConvertTimeFromUtc(saleUtc, centralTz);
+                var saleAbbr  = centralTz.IsDaylightSavingTime(saleLocal) ? "CDT" : "CST";
+
+                // ShowtimeStart stored as local time — format directly, no UTC conversion.
+                var showAbbr  = centralTz.IsDaylightSavingTime(r.ShowtimeStart) ? "CDT" : "CST";
+
+                return new TicketExportRow(
+                    r.TicketId,
+                    r.TicketCode,
+                    r.MovieTitle,
+                    r.ShowtimeStart.ToString("MM/dd/yyyy h:mm tt") + " " + showAbbr,
+                    r.PricePerTicket,
+                    saleLocal.ToString("MM/dd/yyyy h:mm tt") + " " + saleAbbr);
+            }).ToList();
         }
         catch (Exception ex)
         {
@@ -820,31 +975,49 @@ public class AdminManageController : StaffControllerBase
         if (!ModelState.IsValid) return View("Exports", vm);
 
         var from = vm.DateFrom.ToDateTime(TimeOnly.MinValue);
-        var to = vm.DateTo.ToDateTime(TimeOnly.MaxValue);
+        var to   = vm.DateTo.ToDateTime(TimeOnly.MaxValue);
+
+        var centralTz = TimeZoneInfo.FindSystemTimeZoneById("Central Standard Time");
 
         List<ConcessionExportRow> rows;
         try
         {
-            rows = await _db.ConcessionSaleItems
+            var raw = await _db.ConcessionSaleItems
                 .Join(_db.ConcessionSales,
                       csi => csi.ConcessionSaleId,
-                      cs => cs.ConcessionSaleId,
+                      cs  => cs.ConcessionSaleId,
                       (csi, cs) => new { csi, cs })
                 .Where(x => x.cs.TimeOfSale >= from && x.cs.TimeOfSale <= to)
                 .Join(_db.ConcessionItems,
-                      x => x.csi.ConcessionItemId,
+                      x  => x.csi.ConcessionItemId,
                       ci => ci.ConcessionItemId,
                       (x, ci) => new { x.cs, x.csi, ci })
                 .OrderBy(x => x.cs.TimeOfSale)
-                .Select(x => new ConcessionExportRow(
-                    x.cs.ConcessionSaleId,
+                .Select(x => new
+                {
+                    SaleId     = x.cs.ConcessionSaleId,
                     x.ci.ItemName,
                     x.csi.Quantity,
                     x.csi.UnitPrice,
                     x.csi.LineTotal,
                     x.cs.TimeOfSale
-                ))
+                })
                 .ToListAsync();
+
+            rows = raw.Select(r =>
+            {
+                var saleUtc   = DateTime.SpecifyKind(r.TimeOfSale, DateTimeKind.Utc);
+                var saleLocal = TimeZoneInfo.ConvertTimeFromUtc(saleUtc, centralTz);
+                var saleAbbr  = centralTz.IsDaylightSavingTime(saleLocal) ? "CDT" : "CST";
+
+                return new ConcessionExportRow(
+                    r.SaleId,
+                    r.ItemName,
+                    r.Quantity,
+                    r.UnitPrice,
+                    r.LineTotal,
+                    saleLocal.ToString("MM/dd/yyyy h:mm tt") + " " + saleAbbr);
+            }).ToList();
         }
         catch (Exception ex)
         {
@@ -982,19 +1155,25 @@ public class AdminManageController : StaffControllerBase
 // ── Export row shapes ─────────────────────────────────────────────────────────
 // file record keeps these types invisible outside this compilation unit.
 // MiniExcel reads property names as column headers; [ExcelColumnName] overrides them.
+//
+// DateTime columns are pre-formatted as strings ("MM/dd/yyyy h:mm tt CST/CDT") so
+// Excel renders the full date and time in every cell without applying a date-only
+// display format. Sorting by the Sale Time column still works correctly because
+// MiniExcel writes formatted strings, and alphabetic sort on "MM/dd/yyyy h:mm tt"
+// is chronological. For strict sort-by-time needs, use the OrderBy in the query.
 
 file record TicketExportRow(
-    [property: ExcelColumnName("Ticket ID")] int TicketId,
-    [property: ExcelColumnName("Ticket Code")] long TicketCode,
-    [property: ExcelColumnName("Movie")] string MovieTitle,
-    [property: ExcelColumnName("Showtime")] DateTime ShowtimeStart,
-    [property: ExcelColumnName("Price")] decimal PricePerTicket,
-    [property: ExcelColumnName("Time of Sale")] DateTime TimeOfSale);
+    [property: ExcelColumnName("Ticket ID")]    int     TicketId,
+    [property: ExcelColumnName("Ticket Code")]  long    TicketCode,
+    [property: ExcelColumnName("Movie")]        string  MovieTitle,
+    [property: ExcelColumnName("Showtime")]     string  ShowtimeStart,
+    [property: ExcelColumnName("Price")]        decimal PricePerTicket,
+    [property: ExcelColumnName("Sale Time")]    string  TimeOfSale);
 
 file record ConcessionExportRow(
-    [property: ExcelColumnName("Sale ID")] int SaleId,
-    [property: ExcelColumnName("Item")] string ItemName,
-    [property: ExcelColumnName("Qty")] int Quantity,
-    [property: ExcelColumnName("Unit Price")] decimal UnitPrice,
-    [property: ExcelColumnName("Line Total")] decimal LineTotal,
-    [property: ExcelColumnName("Time of Sale")] DateTime TimeOfSale);
+    [property: ExcelColumnName("Sale ID")]      int     SaleId,
+    [property: ExcelColumnName("Item")]         string  ItemName,
+    [property: ExcelColumnName("Qty")]          int     Quantity,
+    [property: ExcelColumnName("Unit Price")]   decimal UnitPrice,
+    [property: ExcelColumnName("Line Total")]   decimal LineTotal,
+    [property: ExcelColumnName("Sale Time")]    string  TimeOfSale);

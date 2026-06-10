@@ -6,7 +6,7 @@
 
 <div class="sf-page-header">
     <div class="container-xl">
-        <h1 class="sf-page-title"><i class="bi bi-download me-2"></i>Export Reports</h1>
+        <h1 class="sf-page-title"><i class="bi bi-download me-2" aria-hidden="true"></i>Export Reports</h1>
         <p class="sf-page-subtitle">Download ticket and concession sales reports in CSV or Excel format.</p>
     </div>
 </div>
@@ -17,60 +17,88 @@
         @if (TempData["ErrorMessage"] is string errMsg)
         {
             <div class="sf-flash-banner sf-flash-banner--danger d-flex gap-2 align-items-center mb-4" role="alert">
-                <i class="bi bi-x-circle-fill flex-shrink-0"></i><span>@errMsg</span>
+                <i class="bi bi-x-circle-fill flex-shrink-0" aria-hidden="true"></i><span>@errMsg</span>
             </div>
         }
         @if (TempData["InfoMessage"] is string infoMsg)
         {
             <div class="sf-flash-banner sf-flash-banner--info d-flex gap-2 align-items-center mb-4" role="alert">
-                <i class="bi bi-info-circle-fill flex-shrink-0"></i><span>@infoMsg</span>
+                <i class="bi bi-info-circle-fill flex-shrink-0" aria-hidden="true"></i><span>@infoMsg</span>
             </div>
         }
 
         <div class="row g-4">
 
-            @* ── Tickets ────────────────────────────────────────────── *@
+            @* ── Tickets ─────────────────────────────────────────────── *@
             <div class="col-md-6">
                 <div class="sf-form-card h-100">
-                    <h2 class="h5 mb-1"><i class="bi bi-ticket-perforated me-2" aria-hidden="true"></i>Tickets Sold</h2>
+                    <h2 class="h5 mb-1">
+                        <i class="bi bi-ticket-perforated me-2" aria-hidden="true"></i>Tickets Sold
+                    </h2>
                     <p class="sf-text-muted mb-4" style="font-size:.875rem">
                         One row per ticket: ticket code, movie, showtime, price, time of sale.
                     </p>
-                    <form asp-area="Admin" asp-controller="AdminManage" asp-action="ExportTickets" method="post">
+                    <form asp-area="Admin" asp-controller="AdminManage" asp-action="ExportTickets"
+                          method="post" novalidate class="sf-export-form">
                         @Html.AntiForgeryToken()
-                        <div asp-validation-summary="ModelOnly" class="sf-flash-banner sf-flash-banner--danger mb-3" role="alert"></div>
+                        <div asp-validation-summary="ModelOnly"
+                             class="sf-flash-banner sf-flash-banner--danger mb-3" role="alert"></div>
+
                         <div class="row g-3 mb-3">
                             <div class="col-6">
                                 <label asp-for="DateFrom" class="sf-label"></label>
-                                <input asp-for="DateFrom" type="date" class="sf-input" value="@Model.DateFrom.ToString("yyyy-MM-dd")" />
+                                @* Use asp-for binding only — no competing value= attribute *@
+                                <input asp-for="DateFrom" type="date" class="sf-input" />
                                 <span asp-validation-for="DateFrom" class="sf-validation"></span>
                             </div>
                             <div class="col-6">
                                 <label asp-for="DateTo" class="sf-label"></label>
-                                <input asp-for="DateTo" type="date" class="sf-input" value="@Model.DateTo.ToString("yyyy-MM-dd")" />
+                                <input asp-for="DateTo" type="date" class="sf-input" />
                                 <span asp-validation-for="DateTo" class="sf-validation"></span>
                             </div>
                         </div>
-                        <div class="mb-4">
-                            <label class="sf-label mb-2">Format</label>
+
+                        <fieldset class="mb-4">
+                            <legend class="sf-label mb-2">Format</legend>
                             <div class="d-flex gap-3">
                                 <div class="form-check">
-                                    <input class="form-check-input" type="radio" name="Format" id="t-csv" value="Csv" checked />
+                                    <input class="form-check-input" type="radio"
+                                           name="Format" id="t-csv" value="Csv" checked />
                                     <label class="form-check-label" for="t-csv">
-                                        <i class="bi bi-filetype-csv me-1"></i>CSV
+                                        <i class="bi bi-filetype-csv me-1" aria-hidden="true"></i>CSV
                                     </label>
                                 </div>
                                 <div class="form-check">
-                                    <input class="form-check-input" type="radio" name="Format" id="t-xlsx" value="Excel" />
+                                    <input class="form-check-input" type="radio"
+                                           name="Format" id="t-xlsx" value="Excel" />
                                     <label class="form-check-label" for="t-xlsx">
-                                        <i class="bi bi-file-earmark-excel me-1 text-success"></i>Excel (.xlsx)
+                                        <i class="bi bi-file-earmark-excel me-1 text-success" aria-hidden="true"></i>Excel (.xlsx)
                                     </label>
                                 </div>
                             </div>
-                        </div>
-                        <button type="submit" class="btn sf-btn-primary w-100">
-                            <i class="bi bi-download me-2"></i>Download Tickets Report
+                        </fieldset>
+
+                        <button type="submit" class="btn sf-btn-primary w-100 sf-export-btn">
+                            <i class="bi bi-download me-2" aria-hidden="true"></i>Download Tickets Report
                         </button>
+
+                        @* Spinner — shown while the server prepares the file download *@
+                        <div class="sf-export-spinner-wrap d-none mt-4">
+                            <div class="d-flex flex-column align-items-center gap-2">
+                                <div class="sf-export-spinner sf-spinner sf-spinner--sm"
+                                     role="status"
+                                     aria-label="Preparing download…">
+                                    <svg class="sf-spinner__svg" viewBox="0 0 100 100">
+                                        <circle class="sf-spinner__track" cx="50" cy="50" r="45"></circle>
+                                        <circle class="sf-spinner__ring"  cx="50" cy="50" r="45"></circle>
+                                    </svg>
+                                    <span class="sf-spinner__pct" aria-hidden="true">0%</span>
+                                </div>
+                                <p class="sf-spinner__status sf-text-muted mb-0" style="font-size:.875rem">
+                                    Preparing download&hellip;
+                                </p>
+                            </div>
+                        </div>
                     </form>
                 </div>
             </div>
@@ -78,45 +106,72 @@
             @* ── Concessions ─────────────────────────────────────────── *@
             <div class="col-md-6">
                 <div class="sf-form-card h-100">
-                    <h2 class="h5 mb-1"><i class="bi bi-cup-straw me-2" aria-hidden="true"></i>Concession Sales</h2>
+                    <h2 class="h5 mb-1">
+                        <i class="bi bi-cup-straw me-2" aria-hidden="true"></i>Concession Sales
+                    </h2>
                     <p class="sf-text-muted mb-4" style="font-size:.875rem">
                         One row per line item: item name, quantity, unit price, line total, time of sale.
                     </p>
-                    <form asp-area="Admin" asp-controller="AdminManage" asp-action="ExportConcessions" method="post">
+                    <form asp-area="Admin" asp-controller="AdminManage" asp-action="ExportConcessions"
+                          method="post" novalidate class="sf-export-form">
                         @Html.AntiForgeryToken()
-                        <div asp-validation-summary="ModelOnly" class="sf-flash-banner sf-flash-banner--danger mb-3" role="alert"></div>
+                        <div asp-validation-summary="ModelOnly"
+                             class="sf-flash-banner sf-flash-banner--danger mb-3" role="alert"></div>
+
                         <div class="row g-3 mb-3">
                             <div class="col-6">
                                 <label asp-for="DateFrom" class="sf-label"></label>
-                                <input asp-for="DateFrom" type="date" class="sf-input" value="@Model.DateFrom.ToString("yyyy-MM-dd")" />
+                                <input asp-for="DateFrom" type="date" class="sf-input" />
                                 <span asp-validation-for="DateFrom" class="sf-validation"></span>
                             </div>
                             <div class="col-6">
                                 <label asp-for="DateTo" class="sf-label"></label>
-                                <input asp-for="DateTo" type="date" class="sf-input" value="@Model.DateTo.ToString("yyyy-MM-dd")" />
+                                <input asp-for="DateTo" type="date" class="sf-input" />
                                 <span asp-validation-for="DateTo" class="sf-validation"></span>
                             </div>
                         </div>
-                        <div class="mb-4">
-                            <label class="sf-label mb-2">Format</label>
+
+                        <fieldset class="mb-4">
+                            <legend class="sf-label mb-2">Format</legend>
                             <div class="d-flex gap-3">
                                 <div class="form-check">
-                                    <input class="form-check-input" type="radio" name="Format" id="c-csv" value="Csv" checked />
+                                    <input class="form-check-input" type="radio"
+                                           name="Format" id="c-csv" value="Csv" checked />
                                     <label class="form-check-label" for="c-csv">
-                                        <i class="bi bi-filetype-csv me-1"></i>CSV
+                                        <i class="bi bi-filetype-csv me-1" aria-hidden="true"></i>CSV
                                     </label>
                                 </div>
                                 <div class="form-check">
-                                    <input class="form-check-input" type="radio" name="Format" id="c-xlsx" value="Excel" />
+                                    <input class="form-check-input" type="radio"
+                                           name="Format" id="c-xlsx" value="Excel" />
                                     <label class="form-check-label" for="c-xlsx">
-                                        <i class="bi bi-file-earmark-excel me-1 text-success"></i>Excel (.xlsx)
+                                        <i class="bi bi-file-earmark-excel me-1 text-success" aria-hidden="true"></i>Excel (.xlsx)
                                     </label>
                                 </div>
                             </div>
-                        </div>
-                        <button type="submit" class="btn sf-btn-primary w-100">
-                            <i class="bi bi-download me-2"></i>Download Concessions Report
+                        </fieldset>
+
+                        <button type="submit" class="btn sf-btn-primary w-100 sf-export-btn">
+                            <i class="bi bi-download me-2" aria-hidden="true"></i>Download Concessions Report
                         </button>
+
+                        @* Spinner — shown while the server prepares the file download *@
+                        <div class="sf-export-spinner-wrap d-none mt-4">
+                            <div class="d-flex flex-column align-items-center gap-2">
+                                <div class="sf-export-spinner sf-spinner sf-spinner--sm"
+                                     role="status"
+                                     aria-label="Preparing download…">
+                                    <svg class="sf-spinner__svg" viewBox="0 0 100 100">
+                                        <circle class="sf-spinner__track" cx="50" cy="50" r="45"></circle>
+                                        <circle class="sf-spinner__ring"  cx="50" cy="50" r="45"></circle>
+                                    </svg>
+                                    <span class="sf-spinner__pct" aria-hidden="true">0%</span>
+                                </div>
+                                <p class="sf-spinner__status sf-text-muted mb-0" style="font-size:.875rem">
+                                    Preparing download&hellip;
+                                </p>
+                            </div>
+                        </div>
                     </form>
                 </div>
             </div>
@@ -125,4 +180,8 @@
     </div>
 </section>
 
-@section Scripts { <partial name="_ValidationScriptsPartial" /> }
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    @* sf-spinner.js is loaded globally by _AdminLayout — sf-export.js wires it to the forms *@
+    <script src="~/js/sf-export.js" asp-append-version="true"></script>
+}

@@ -1,0 +1,62 @@
+BEGIN:VCALENDAR
+PRODID:-//ScrumFlix//Build2026 Schedule//EN
+VERSION:2.0
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+X-WR-CALNAME:Build 2026 — ScrumFlix Schedule
+X-WR-TIMEZONE:UTC
+
+BEGIN:VEVENT
+UID:BRK252-ScrumFlix@local
+DTSTAMP:20260602T212800Z
+DTSTART:20260603T000000Z
+DTEND:20260603T004500Z
+SUMMARY:BRK252 — From observability to ROI for AI agents on any framework
+LOCATION:Festival Pavilion, Breakout 2
+DESCRIPTION:Speakers: Vivek Bhadauria, Sebastian Kohlmeier, Filisha Shah\nWhy: Cross-framework observability & evals for production agents\nLink: https://build.microsoft.com/sessions/BRK252
+URL:https://build.microsoft.com/sessions/BRK252
+END:VEVENT
+
+BEGIN:VEVENT
+UID:LIVE159-ScrumFlix@local
+DTSTAMP:20260602T212800Z
+DTSTART:20260603T211000Z
+DTEND:20260603T212000Z
+SUMMARY:LIVE159 — Behind the Scenes: Accelerating the AI Agent DevOps Lifecycle
+LOCATION:Gateway Pavilion, Level 1, Build Broadcast Stage
+DESCRIPTION:Speakers: Vivek Bhadauria, Nitya Narasimhan, Filisha Shah\nWhy: DevOps & full-lifecycle observability lessons\nLink: https://build.microsoft.com/sessions/LIVE159
+URL:https://build.microsoft.com/sessions/LIVE159
+END:VEVENT
+
+BEGIN:VEVENT
+UID:DEM361-ScrumFlix@local
+DTSTAMP:20260602T212800Z
+DTSTART:20260603T223000Z
+DTEND:20260603T225500Z
+SUMMARY:DEM361 — Understand and fix Agent Framework apps with observability and evals
+LOCATION:Gateway Pavilion, Level 2, Theater C
+DESCRIPTION:Speakers: Jim Bennett\nWhy: Debugging & instrumentation patterns for agent apps\nLink: https://build.microsoft.com/sessions/DEM361
+URL:https://build.microsoft.com/sessions/DEM361
+END:VEVENT
+
+BEGIN:VEVENT
+UID:OD819-ScrumFlix@local
+DTSTAMP:20260602T212800Z
+DTSTART:20260602T000000Z
+DTEND:20260602T010000Z
+SUMMARY:OD819 — Real-Time Intelligence: Building event-driven AI apps and agents (On-demand)
+DESCRIPTION:Speakers: Arindam Chatterjee, Tessa Kloster, Anshul Sharma\nWhy: Real-time pipelines & event-driven intelligence (relevant to SignalR)\nLink: https://medius.microsoft.com/Embed/video-nc/af42f4ba-68b0-4022-a283-f6db86482755
+URL:https://medius.microsoft.com/Embed/video-nc/af42f4ba-68b0-4022-a283-f6db86482755
+END:VEVENT
+
+BEGIN:VEVENT
+UID:ODSP907-ScrumFlix@local
+DTSTAMP:20260602T212800Z
+DTSTART:20260602T000000Z
+DTEND:20260602T010000Z
+SUMMARY:ODSP907 — Monitor GenAI applications beyond golden signals (On-demand)
+DESCRIPTION:Speakers: (not listed)\nWhy: Observability beyond latency/errors — relevant to logging & alerts\nLink: https://medius.microsoft.com/Embed/video-nc/7326ca8e-1c9d-4823-a760-6bb36d6212e0
+URL:https://medius.microsoft.com/Embed/video-nc/7326ca8e-1c9d-4823-a760-6bb36d6212e0
+END:VEVENT
+
+END:VCALENDAR

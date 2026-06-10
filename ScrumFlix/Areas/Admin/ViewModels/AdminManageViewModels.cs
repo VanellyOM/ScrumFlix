@@ -18,9 +18,14 @@ namespace ScrumFlix.Areas.Admin.ViewModels;
 public class ShowtimeIndexViewModel
 {
     public List<ShowtimeRowViewModel> Showtimes { get; set; } = new();
-    public List<Movie>  Movies    { get; set; } = new();
-    public int? FilterMovieId     { get; set; }
-    public bool ShowInactive      { get; set; }
+    public List<Movie>    Movies    { get; set; } = new();
+    public List<Location> Locations { get; set; } = new();
+    // Filters
+    public int?  FilterMovieId      { get; set; }
+    public int?  FilterLocationId   { get; set; }
+    /// <summary>null = all, true = active only, false = inactive only</summary>
+    public bool? FilterStatusActive { get; set; }
+    public bool ShowInactive        { get; set; }
     // Pagination + sort
     public int  Page       { get; set; } = 1;
     public int  PageSize   { get; set; } = 20;
@@ -152,9 +157,17 @@ public class UserFormViewModel
     [Display(Name = "Must Change Password on Next Login")]
     public bool MustChangePassword { get; set; } = true;
 
-    /// <summary>Only used on create — hashed before storage. Null on edit.</summary>
+    /// <summary>Only used on create — hashed before storage. Null on edit means keep existing.</summary>
     [MinLength(6), Display(Name = "Password")]
     public string? Password { get; set; }
+
+    /// <summary>
+    /// Confirmation field — must match <see cref="Password"/> when a new password is being set.
+    /// Validated in the controller (not via [Compare]) because Password is nullable and
+    /// [Compare] does not support conditional matching on nullable source properties.
+    /// </summary>
+    [Display(Name = "Confirm Password")]
+    public string? ConfirmPassword { get; set; }
 
     public List<Role> Roles { get; set; } = new();
 
@@ -181,6 +194,80 @@ public class LocationFormViewModel
 
     [Display(Name = "Active")]
     public bool IsActive { get; set; } = true;
+
+    /// <summary>
+    /// Selected Windows timezone ID (e.g. "Central Standard Time").
+    /// Bound to the timezone dropdown. Required — every location must have a timezone
+    /// so UTC showtime conversion and QR code timestamps are always correct.
+    /// </summary>
+    [Required, MaxLength(100), Display(Name = "Time Zone")]
+    public string TimeZoneId { get; set; } = "Central Standard Time";
+
+    /// <summary>
+    /// US timezone options for the dropdown, ordered west-to-east.
+    /// Populated by the controller GET action; not posted back (re-built on validation failure).
+    /// Each entry uses the Windows timezone ID as Value and a friendly label as Text.
+    /// </summary>
+    public List<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem> AvailableTimeZones { get; set; } = new();
+}
+
+// ── Movies ────────────────────────────────────────────────────────────────────
+
+/// <summary>
+/// ViewModel for the Admin MovieCreate and MovieEdit forms.
+/// Separates the form data from the <see cref="Movie"/> domain entity so that
+/// genre assignments (many-to-many via <c>MovieGenres</c>) can be handled
+/// via a multiselect dropdown rather than a plain text field.
+/// </summary>
+public class MovieFormViewModel
+{
+    public int MovieId { get; set; }
+
+    [Required, MaxLength(200), Display(Name = "Title")]
+    public string Title { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Legacy single-genre column (Movies.Genre VARCHAR 30).
+    /// Still written on save for backward compatibility with any code that
+    /// reads Movie.Genre directly. Set to the primary genre's name on save.
+    /// Not bound from the form — populated by the controller from PrimaryGenreId.
+    /// </summary>
+    [MaxLength(30)]
+    public string Genre { get; set; } = string.Empty;
+
+    [Required, MaxLength(20), Display(Name = "Rating")]
+    public string Rating { get; set; } = string.Empty;
+
+    [Required, Range(1, 9999), Display(Name = "Runtime (min)")]
+    public short RuntimeMinutes { get; set; }
+
+    [Required, MaxLength(1000), Display(Name = "Description")]
+    public string Description { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The GenreId designated as the primary genre for this movie.
+    /// Must be one of the IDs also present in <see cref="SelectedGenreIds"/>.
+    /// Required — every movie must have exactly one primary genre.
+    /// </summary>
+    [Required, Display(Name = "Primary Genre")]
+    public int PrimaryGenreId { get; set; }
+
+    /// <summary>
+    /// All GenreIds selected for this movie (including the primary one).
+    /// Maps to <c>MovieGenres</c> rows on save.
+    /// Rendered as a multiselect <c>&lt;select multiple&gt;</c> in the view.
+    /// </summary>
+    [Display(Name = "Genres")]
+    public List<int> SelectedGenreIds { get; set; } = new();
+
+    /// <summary>
+    /// All active genres available for selection, ordered alphabetically.
+    /// Populated by the controller GET action; not posted back.
+    /// </summary>
+    public List<Genre> AvailableGenres { get; set; } = new();
+
+    /// <summary>True when editing an existing movie (MovieId > 0).</summary>
+    public bool IsEdit => MovieId > 0;
 }
 
 // ── Theater Screens ───────────────────────────────────────────────────────────
@@ -190,6 +277,13 @@ public class ScreenIndexViewModel
     public List<TheaterScreen> Screens   { get; set; } = new();
     public List<Location>      Locations { get; set; } = new();
     public int? FilterLocationId         { get; set; }
+    // Pagination + sort
+    public int  Page       { get; set; } = 1;
+    public int  PageSize   { get; set; } = 25;
+    public int  TotalCount { get; set; }
+    public int  TotalPages => (int)Math.Ceiling((double)TotalCount / PageSize);
+    public string? SortBy  { get; set; }
+    public bool SortDesc   { get; set; }
 }
 
 public class ScreenFormViewModel

@@ -173,23 +173,5 @@
 @* ── SignalR live-refresh client ─────────────────────────────────────────── *@
 @section Scripts {
 <script src="~/js/signalr/dist/browser/signalr.min.js"></script>
-<script>
-(function () {
-    const connection = new signalR.HubConnectionBuilder()
-        .withUrl("/scheduleHub")
-        .withAutomaticReconnect()
-        .build();
-
-    connection.on("ShiftsUpdated", function (locationId) {
-        htmx.ajax("GET", "/Admin/Schedule/ShiftsGrid", { target: "#shifts-grid", swap: "innerHTML" });
-    });
-
-    connection.on("AssignmentsUpdated", function (locationId) {
-        const locId = document.getElementById("gantt-location")?.value ?? 0;
-        htmx.ajax("GET", `/Admin/Schedule/AssignmentsGrid?locationId=${locId}`, { target: "#assignments-grid", swap: "innerHTML" });
-    });
-
-    connection.start().catch(err => console.error("SignalR connection error:", err));
-})();
-</script>
+<script src="~/js/sf-schedule.js"></script>
 }

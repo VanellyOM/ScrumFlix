@@ -5,31 +5,21 @@
  *   PURPOSE:
  *     Proves that movie edits and concession restock operations are "live" and
  *     routed through the staff session — not the web.sales (WebUser) identity.
- *     Duplicates the data displayed in the customer Movies tab and Concessions tab,
- *     but every action link goes to an Admin area action, not to the customer portal.
  *
- *   IDENTITY PROOF:
- *     The page header shows the authenticated staff user name and role drawn directly
- *     from the session (CurrentUserId / CurrentUserName / CurrentRoleId in the controller),
- *     confirming that the web.sales entity is NOT in use for this session.
+ *   FIXES vs previous version:
+ *     - Poster URL: corrected missing "/" between w92 and posterPath
+ *     - Delete confirm: replaced inline onsubmit with CSP-safe data-confirm + JS listener
+ *     - aria-hidden="true" on all decorative icons
+ *     - scope="col" on all th elements
  *
- *   LINKS:
- *     ALL links stay inside /Admin/AdminManage/* — zero customer portal crossover.
- *     Movies panel → AdminManage/Concessions (Restock) or AdminManage/ConcessionEdit
- *     (Note: Movie CRUD lives in MoviesController but is guarded by StaffGuard(Manager+).
- *      Direct Admin-area Movie edit links are wired to /Movies/MovieEdit with StaffGuard.)
- *
- *   MANAGER ACCESS:
- *     RoleGuard(2) — both Admin and Manager can reach this page.
+ *   MANAGER ACCESS: RoleGuard(2) — Admin and Manager.
  *@
 @model ScrumFlix.Areas.Admin.ViewModels.StaffPortalTestViewModel
 @using ScrumFlix.Areas.Admin.ViewModels
 @{
     ViewData["Title"] = "Staff Portal Test";
-
 }
 
-@* ── Page header ──────────────────────────────────────────────────────────── *@
 <div class="sf-page-header">
     <div class="container-xl">
         <h1 class="sf-page-title">
@@ -44,13 +34,11 @@
 
 <div class="container-xl py-4">
 
-    @* Back to dashboard *@
     <a asp-area="Admin" asp-controller="AdminHome" asp-action="AdminDashboard"
        class="sf-back-link mb-4 d-inline-flex align-items-center gap-1">
         <i class="bi bi-arrow-left" aria-hidden="true"></i> Admin Dashboard
     </a>
 
-    @* Flash messages *@
     @if (TempData["SuccessMessage"] is string ok)
     {
         <div class="sf-flash-banner sf-flash-banner--success d-flex align-items-center gap-2 mb-4" role="alert">
@@ -64,7 +52,7 @@
         </div>
     }
 
-    @* ── Identity Banner ────────────────────────────────────────────────── *@
+    @* ── Identity Banner ─────────────────────────────────────────────── *@
     <section aria-labelledby="identity-heading" class="mb-4">
         <div class="card sf-card p-4 border border-warning border-opacity-50">
             <h2 id="identity-heading" class="h5 mb-3">
@@ -96,23 +84,25 @@
             </div>
             <p class="sf-text-muted mb-0 mt-3" style="font-size:0.85rem;">
                 <i class="bi bi-info-circle me-1" aria-hidden="true"></i>
-                All edits below are attributed to <strong>@Model.StaffUserName</strong> (UserId&nbsp;@Model.StaffUserId)
-                in Serilog logs and AuditLog entries — the <code>web.sales</code> WebUser is NOT active for this session.
+                All edits below are attributed to <strong>@Model.StaffUserName</strong>
+                (UserId&nbsp;@Model.StaffUserId) in Serilog logs and AuditLog entries —
+                the <code>web.sales</code> WebUser is NOT active for this session.
             </p>
         </div>
     </section>
 
-    @* ════════════════════════════════════════════════════════════════════════
-         PANEL 1 — MOVIES  (mirrors customer Movies tab)
-    ════════════════════════════════════════════════════════════════════════ *@
+    @* ════════════════════════════════════════════════════════════════════
+         PANEL 1 — MOVIES
+    ════════════════════════════════════════════════════════════════════ *@
     <section aria-labelledby="movies-heading" class="mb-5">
         <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
             <h2 id="movies-heading" class="sf-section-title mb-0">
                 <span class="sf-gold-bar" aria-hidden="true"></span>
                 Movies Catalog
-                <span class="badge bg-secondary ms-2" style="font-size:0.75rem;">@Model.Movies.Count titles</span>
+                <span class="badge bg-secondary ms-2" style="font-size:0.75rem;">
+                    @Model.Movies.Count titles
+                </span>
             </h2>
-            @* Admin-only: add movie link *@
             <a asp-area="" asp-controller="Movies" asp-action="MovieCreate" class="btn sf-btn-primary">
                 <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Add Movie
             </a>
@@ -128,6 +118,7 @@
         }
         else
         {
+            <div class="sf-admin-table-wrap">
             <div class="table-responsive">
                 <table class="table sf-admin-table" aria-label="Movies catalog test">
                     <thead>
@@ -151,7 +142,11 @@
                                     <strong>@m.Title</strong>
                                     @if (!string.IsNullOrWhiteSpace(m.Description))
                                     {
-                                        <br /><small class="sf-text-muted">@(m.Description.Length > 80 ? m.Description[..80] + "…" : m.Description)</small>
+                                        <br /><small class="sf-text-muted">
+                                            @(m.Description.Length > 80
+                                                ? m.Description[..80] + "…"
+                                                : m.Description)
+                                        </small>
                                     }
                                 </td>
                                 <td><span class="badge bg-secondary">@m.Rating</span></td>
@@ -160,7 +155,8 @@
                                 <td>
                                     @if (!string.IsNullOrEmpty(posterPath))
                                     {
-                                        <img src="https://image.tmdb.org/t/p/w92@posterPath"
+                                        @* Fixed: added missing "/" between size segment and path *@
+                                        <img src="https://image.tmdb.org/t/p/w92/@posterPath"
                                              alt="@m.Title poster"
                                              style="height:48px;border-radius:3px;object-fit:cover;"
                                              loading="lazy" />
@@ -173,15 +169,16 @@
                                 <td>
                                     @if (hasTmdb)
                                     {
-                                        <i class="bi bi-check-circle-fill text-success" title="TMDB synced" aria-label="Synced"></i>
+                                        <i class="bi bi-check-circle-fill text-success"
+                                           title="TMDB synced" aria-label="Synced"></i>
                                     }
                                     else
                                     {
-                                        <i class="bi bi-x-circle text-danger" title="Not synced" aria-label="Not synced"></i>
+                                        <i class="bi bi-x-circle text-danger"
+                                           title="Not synced" aria-label="Not synced"></i>
                                     }
                                 </td>
                                 <td class="text-end">
-                                    @* Edit links to MoviesController (guarded by StaffGuard) — not the customer portal *@
                                     <a asp-area="" asp-controller="Movies" asp-action="MovieEdit"
                                        asp-route-id="@m.MovieId"
                                        class="btn btn-sm sf-btn-secondary me-1"
@@ -189,8 +186,9 @@
                                         <i class="bi bi-pencil" aria-hidden="true"></i>
                                     </a>
                                     <form asp-area="" asp-controller="Movies" asp-action="MovieDelete"
-                                          method="post" style="display:inline;"
-                                          onsubmit="return confirm('Permanently delete \'@m.Title\'? This cannot be undone.');">
+                                          method="post"
+                                          data-confirm="Permanently delete '@m.Title'? This cannot be undone."
+                                          class="sf-confirm-form d-inline">
                                         @Html.AntiForgeryToken()
                                         <input type="hidden" name="id" value="@m.MovieId" />
                                         <button type="submit" class="btn btn-sm sf-btn-danger"
@@ -204,18 +202,21 @@
                     </tbody>
                 </table>
             </div>
+            </div>
         }
     </section>
 
-    @* ════════════════════════════════════════════════════════════════════════
-         PANEL 2 — CONCESSIONS  (mirrors customer Concessions tab)
-    ════════════════════════════════════════════════════════════════════════ *@
+    @* ════════════════════════════════════════════════════════════════════
+         PANEL 2 — CONCESSIONS
+    ════════════════════════════════════════════════════════════════════ *@
     <section aria-labelledby="conc-heading">
         <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
             <h2 id="conc-heading" class="sf-section-title mb-0">
                 <span class="sf-gold-bar" aria-hidden="true"></span>
                 Concessions Catalog
-                <span class="badge bg-secondary ms-2" style="font-size:0.75rem;">@Model.ConcessionItems.Count items</span>
+                <span class="badge bg-secondary ms-2" style="font-size:0.75rem;">
+                    @Model.ConcessionItems.Count items
+                </span>
                 @if (Model.HasLowStockItems)
                 {
                     <span class="badge bg-warning text-dark ms-1" style="font-size:0.75rem;">
@@ -284,7 +285,8 @@
                                     <div class="col-6">
                                         <div class="sf-stat-label">Stock</div>
                                         <div class="fw-semibold @(isLow ? "text-warning" : "")">
-                                            @ci.QuantityInStock <small class="sf-text-muted">/ min @ci.Minimum</small>
+                                            @ci.QuantityInStock
+                                            <small class="sf-text-muted">/ min @ci.Minimum</small>
                                         </div>
                                     </div>
                                     @if (ci.Location != null)
@@ -296,7 +298,6 @@
                                     }
                                 </div>
 
-                                @* ALL buttons stay inside Admin area *@
                                 <div class="d-flex gap-2 flex-wrap">
                                     <a asp-area="Admin" asp-controller="AdminManage"
                                        asp-action="ConcessionRestock"
@@ -317,8 +318,8 @@
                 }
             </div>
 
-            @* Tabular summary matching the customer catalog exactly *@
-            <h3 class="h6 sf-text-muted mb-2">Tabular View (mirrors customer Concessions tab data)</h3>
+            <h3 class="h6 sf-text-muted mb-2">Tabular View (mirrors customer Concessions tab)</h3>
+            <div class="sf-admin-table-wrap">
             <div class="table-responsive">
                 <table class="table sf-admin-table" aria-label="Concessions test tabular">
                     <thead>
@@ -340,24 +341,20 @@
                             <tr class="@(isLow ? "sf-row-warning" : "")">
                                 <td><strong>@ci.ItemName</strong></td>
                                 <td class="text-end">@ci.Price.ToString("C")</td>
-                                <td class="text-end @(isLow ? "text-warning fw-bold" : "")">@ci.QuantityInStock</td>
+                                <td class="text-end @(isLow ? "text-warning fw-bold" : "")">
+                                    @ci.QuantityInStock
+                                </td>
                                 <td class="text-end">@ci.Minimum</td>
                                 <td>@(ci.Location?.LocationName ?? "—")</td>
                                 <td>
-                                    @if (isOut)
-                                    {
-                                        <span class="sf-badge-oos">Out of Stock</span>
-                                    }
+                                    @if (isOut) { <span class="badge sf-badge-oos">Out of Stock</span> }
                                     else if (isLow)
                                     {
                                         <span class="badge sf-badge-low-stock">
                                             <i class="bi bi-exclamation-triangle-fill me-1" aria-hidden="true"></i>Low
                                         </span>
                                     }
-                                    else
-                                    {
-                                        <span class="badge sf-badge-ok">OK</span>
-                                    }
+                                    else { <span class="badge sf-badge-ok">OK</span> }
                                 </td>
                                 <td class="text-end">
                                     <a asp-area="Admin" asp-controller="AdminManage"
@@ -378,7 +375,20 @@
                     </tbody>
                 </table>
             </div>
+            </div>
         }
     </section>
 
 </div>
+
+@section Scripts {
+    <script>
+        // CSP-safe confirm for delete forms — replaces inline onsubmit
+        document.querySelectorAll('form.sf-confirm-form').forEach(form => {
+            form.addEventListener('submit', e => {
+                const msg = form.dataset.confirm ?? 'Are you sure?';
+                if (!window.confirm(msg)) e.preventDefault();
+            });
+        });
+    </script>
+}

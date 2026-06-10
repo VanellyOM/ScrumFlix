@@ -61,6 +61,13 @@ public class OrderConfirmationViewModel
     public List<string> SeatLabels { get; set; } = new();
 
     /// <summary>
+    /// Theater screen names parallel-indexed with IssuedCodes (e.g. "Screen 1", "IMAX").
+    /// Displayed before the seat label on the confirmation page and receipt email.
+    /// Populated by CartController.Checkout from Ticket.Showtime.TheaterScreen.ScreenName.
+    /// </summary>
+    public List<string> ScreenNames { get; set; } = new();
+
+    /// <summary>
     /// Full cart item snapshot serialized before cart is cleared at checkout.
     /// Used to render the itemized order breakdown on the confirmation page.
     /// Deserialized from TempData["OrderItems"] JSON in CartController.OrderConfirmation.
@@ -89,6 +96,12 @@ public class OrderConfirmationViewModel
     /// </summary>
     public string GetSeatLabel(int i) =>
         i < SeatLabels.Count ? SeatLabels[i] : string.Empty;
+
+    /// <summary>
+    /// Returns the screen name for ticket at index i, or empty string if unavailable.
+    /// </summary>
+    public string GetScreenName(int i) =>
+        i < ScreenNames.Count ? ScreenNames[i] : string.Empty;
 }
 
 /// <summary>
@@ -105,6 +118,7 @@ public class OrderLineItem
     public string? MovieName  { get; set; }
     public DateTime? ShowTime { get; set; }
     public string? LocationName { get; set; }
+    public string? ScreenName { get; set; }
     public string? SeatNumbers { get; set; }
 
     public string FormattedShowTime =>

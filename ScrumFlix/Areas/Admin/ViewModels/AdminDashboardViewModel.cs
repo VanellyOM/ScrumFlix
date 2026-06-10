@@ -80,9 +80,13 @@ public class AdminDashboardViewModel
     // ── User management ────────────────────────────────────────────────────
 
     /// <summary>
-    /// All users ordered by username, with their <see cref="Role"/> nav property
-    /// loaded, for the user management table.
+    /// Previously used for a user table on the dashboard.
+    /// The dashboard no longer renders a user table — full user management lives
+    /// on AdminManage/Users (searchable, paginated, sortable).
+    /// Property retained to avoid a breaking change on the ViewModel;
+    /// BuildDashboardViewModelAsync no longer populates it.
     /// </summary>
+    [Obsolete("No longer rendered on the dashboard. Use AdminManage/Users.")]
     public List<User> RecentUsers { get; set; } = new();
 
     // ── TMDb sync panel ────────────────────────────────────────────────────

@@ -205,17 +205,18 @@ public class ShowtimesController : ConsumerControllerBase
         // specific seats to hold. Null/empty means no seat-specific reservation.
         var cartItem = new CartItem
         {
-            ItemType    = CartItemType.Ticket,
-            ShowtimeId  = showtime.ShowtimeId,
-            MovieName   = showtime.Movie?.Title,
-            ShowTime    = showtime.StartTime,
-            LocationId  = locationId,
+            ItemType     = CartItemType.Ticket,
+            ShowtimeId   = showtime.ShowtimeId,
+            MovieName    = showtime.Movie?.Title,
+            ShowTime     = showtime.StartTime,
+            LocationId   = locationId,
             LocationName = showtime.TheaterScreen?.Location?.LocationName,
-            DisplayName = $"{showtime.Movie?.Title} — {showtime.StartTime:h:mm tt}",
-            UnitPrice   = showtime.PricePerTicket,
-            Quantity    = vm.Quantity,
-            UserAtSale  = userId.Value,
-            SeatNumbers = vm.SeatNumbers   // comma-separated labels, or null if none chosen
+            ScreenName   = showtime.TheaterScreen?.ScreenName,
+            DisplayName  = $"{showtime.Movie?.Title} — {showtime.StartTime:h:mm tt}",
+            UnitPrice    = showtime.PricePerTicket,
+            Quantity     = vm.Quantity,
+            UserAtSale   = userId.Value,
+            SeatNumbers  = vm.SeatNumbers   // comma-separated labels, or null if none chosen
         };
 
         _logger.LogDebug(

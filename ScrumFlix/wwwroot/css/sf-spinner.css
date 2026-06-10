@@ -1,0 +1,208 @@
+/*
+ * File:    /wwwroot/css/sf-spinner.css
+ * Layer:   TIER 3 — COMPONENTS
+ * Purpose: Circular progress spinner with centered percentage counter.
+ *          Adapts automatically to all three ScrumFlix themes (dark, light, red)
+ *          via the --sf-* semantic token system. No hardcoded color values.
+ *
+ * Usage (Razor / cshtml):
+ *   <div class="sf-spinner" role="progressbar"
+ *        aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"
+ *        aria-label="Syncing movies">
+ *     <svg class="sf-spinner__svg" viewBox="0 0 100 100" aria-hidden="true">
+ *       <circle class="sf-spinner__track" cx="50" cy="50" r="45"/>
+ *       <circle class="sf-spinner__ring"  cx="50" cy="50" r="45"/>
+ *     </svg>
+ *     <span class="sf-spinner__pct" aria-hidden="true">0%</span>
+ *   </div>
+ *   <p class="sf-spinner__status">Syncing movies…</p>
+ *
+ * Control via JS:
+ *   sfSpinner.update(element, percent, optionalMessage)
+ *   sfSpinner.complete(element, optionalMessage)
+ *   sfSpinner.reset(element)
+ *
+ * Sizes: add .sf-spinner--sm (64px), .sf-spinner--lg (128px) to the wrapper.
+ *        Default is 96px.
+ *
+ * IMPORTANT: Only use this pattern for operations where real, accurate progress
+ * data is available from the server (e.g. TMDb sync progress via SignalR).
+ * Never drive it with fake/simulated percentages that stall at 99%.
+ * If a task exceeds ~10 seconds with unknown duration, use a linear progress
+ * bar (.sf-progress-bar) instead — a spinning icon becomes exhausting to watch.
+ *
+ * Load order: include after sf-components.css, before page-specific scripts.
+ */
+
+/* ── SVG circumference constant ─────────────────────────────────────────────
+   r = 45  →  C = 2π × 45 = 282.74
+   stroke-dasharray is always 282.74.
+   stroke-dashoffset = 282.74 - (282.74 × pct / 100)
+   Full ring (0%) → offset = 282.74
+   Full ring (100%) → offset = 0
+────────────────────────────────────────────────────────────────────────────── */
+
+/* ── Container ──────────────────────────────────────────────────────────── */
+.sf-spinner {
+    position: relative;
+    width: 96px;
+    height: 96px;
+    flex-shrink: 0;
+}
+
+.sf-spinner--sm { width: 64px;  height: 64px;  }
+.sf-spinner--lg { width: 128px; height: 128px; }
+
+/* ── SVG canvas ─────────────────────────────────────────────────────────── */
+.sf-spinner__svg {
+    width: 100%;
+    height: 100%;
+    /* Start at 12 o'clock rather than 3 o'clock */
+    transform: rotate(-90deg);
+    display: block;
+}
+
+/* ── Background track ───────────────────────────────────────────────────── */
+.sf-spinner__track {
+    fill: none;
+    stroke: var(--sf-border-color);
+    stroke-width: 7;
+}
+
+/* ── Progress ring ──────────────────────────────────────────────────────── */
+.sf-spinner__ring {
+    fill: none;
+    stroke: var(--sf-color-accent);
+    stroke-width: 7;
+    stroke-linecap: round;
+    stroke-dasharray: 282.74;
+    stroke-dashoffset: 282.74;           /* starts empty — JS drives this    */
+    transition: stroke-dashoffset 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ── Percentage label (centered in the hollow) ──────────────────────────── */
+.sf-spinner__pct {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-family: var(--sf-font-body);
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--sf-text-primary);
+    line-height: 1;
+    pointer-events: none;
+    white-space: nowrap;
+}
+
+.sf-spinner--sm .sf-spinner__pct { font-size: 0.75rem; }
+.sf-spinner--lg .sf-spinner__pct { font-size: 1.4rem;  }
+
+/* ── Status message (sits below the spinner) ────────────────────────────── */
+.sf-spinner__status {
+    margin-top: 0.75rem;
+    font-size: 0.8125rem;
+    color: var(--sf-text-muted);
+    text-align: center;
+    line-height: 1.4;
+    min-height: 1.2em;              /* prevents layout shift when text changes */
+    transition: color var(--sf-transition);
+}
+
+/* ── Complete state ─────────────────────────────────────────────────────── */
+/*
+ * When sfSpinner.complete() is called, .sf-spinner--complete is added to the
+ * wrapper. The SVG is replaced with a checkmark circle so no separate markup
+ * is needed. The accent color is reused, giving a theme-correct "done" state.
+ */
+.sf-spinner--complete .sf-spinner__svg {
+    display: none;
+}
+
+.sf-spinner--complete .sf-spinner__pct {
+    display: none;
+}
+
+.sf-spinner--complete::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--sf-color-accent) 14%, transparent);
+    border: 2px solid color-mix(in srgb, var(--sf-color-accent) 40%, transparent);
+}
+
+.sf-spinner--complete .sf-spinner__check {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+    font-size: 2rem;
+    color: var(--sf-color-accent);
+}
+
+.sf-spinner--sm.sf-spinner--complete .sf-spinner__check { font-size: 1.35rem; }
+.sf-spinner--lg.sf-spinner--complete .sf-spinner__check { font-size: 2.75rem; }
+
+/* ── Error state ────────────────────────────────────────────────────────── */
+.sf-spinner--error .sf-spinner__ring {
+    stroke: var(--sf-color-danger);
+    transition: stroke 0.2s ease;
+}
+
+.sf-spinner--error .sf-spinner__pct {
+    color: var(--sf-color-danger);
+}
+
+/* ── Indeterminate mode ─────────────────────────────────────────────────── */
+/*
+ * Use when no real progress data is available (e.g. waiting for first server
+ * event). Add .sf-spinner--indeterminate to the wrapper. Remove it and call
+ * sfSpinner.update() once real data arrives.
+ */
+.sf-spinner--indeterminate .sf-spinner__ring {
+    stroke-dashoffset: 200;
+    animation: sf-spin-indeterminate 1.4s linear infinite;
+}
+
+.sf-spinner--indeterminate .sf-spinner__pct {
+    display: none;
+}
+
+@keyframes sf-spin-indeterminate {
+    0%   { stroke-dashoffset: 200; }
+    50%  { stroke-dashoffset: 60;  }
+    100% { stroke-dashoffset: 200; }
+}
+
+/* The SVG wrapper rotates to animate the start point, giving the chasing effect */
+.sf-spinner--indeterminate .sf-spinner__svg {
+    animation: sf-rotate 1.4s linear infinite;
+}
+
+@keyframes sf-rotate {
+    from { transform: rotate(-90deg);   }
+    to   { transform: rotate(270deg);   }
+}
+
+/* ── Theme: Red/Black ───────────────────────────────────────────────────── */
+/*
+ * All three themes resolve correctly through --sf-color-accent automatically:
+ *   Dark  → --primitive-gold    (#F0C73D)
+ *   Light → --primitive-navy    (#06144E)
+ *   Red   → --primitive-red     (#C8102E)
+ *
+ * The only per-theme override needed is the complete-state check icon color,
+ * which in the Red theme should use teal (high-visibility success color)
+ * rather than red (which reads as error on a dark bg). 
+ */
+[data-theme="red"] .sf-spinner--complete .sf-spinner__check {
+    color: var(--primitive-teal);
+}
+
+[data-theme="red"] .sf-spinner--complete::after {
+    background: color-mix(in srgb, var(--primitive-teal) 14%, transparent);
+    border-color: color-mix(in srgb, var(--primitive-teal) 40%, transparent);
+}

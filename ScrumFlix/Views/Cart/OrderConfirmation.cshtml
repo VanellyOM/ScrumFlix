@@ -86,7 +86,17 @@
                                         @code
                                     </span>
                                     @{
-                                        var seatLabel = Model.GetSeatLabel(i);
+                                        var screenName = Model.GetScreenName(i);
+                                        var seatLabel  = Model.GetSeatLabel(i);
+                                    }
+                                    @if (!string.IsNullOrEmpty(screenName))
+                                    {
+                                        <div class="mt-2">
+                                            <span class="sf-label d-block" style="font-size:.75rem;">SCREEN</span>
+                                            <span class="sf-text-muted fw-semibold" aria-label="Screen @screenName">
+                                                @screenName
+                                            </span>
+                                        </div>
                                     }
                                     @if (!string.IsNullOrEmpty(seatLabel))
                                     {
@@ -162,6 +172,12 @@
                                             {
                                                 <div class="sf-text-muted" style="font-size:.85rem;">
                                                     <i class="bi bi-geo-alt me-1"></i>@item.LocationName
+                                                </div>
+                                            }
+                                            @if (!string.IsNullOrEmpty(item.ScreenName))
+                                            {
+                                                <div class="sf-text-muted" style="font-size:.85rem;">
+                                                    <i class="bi bi-tv me-1"></i>@item.ScreenName
                                                 </div>
                                             }
                                             @if (!string.IsNullOrEmpty(item.SeatNumbers))

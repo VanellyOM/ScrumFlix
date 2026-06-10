@@ -1,3 +1,5 @@
 <Solution>
   <Project Path="ScrumFlix/ScrumFlix.csproj" />
+  <Project Path="tests/ScrumFlix.Tests/ScrumFlix.Tests.csproj" />
+  <Project Path="tests/ScrumFlix.IntegrationTests/ScrumFlix.IntegrationTests.csproj" />
 </Solution>

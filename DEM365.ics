@@ -1,0 +1,17 @@
+BEGIN:VCALENDAR
+PRODID:-//ScrumFlix//Build2026 Invite//EN
+VERSION:2.0
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+X-WR-CALNAME:DEM365 — Beyond REST: .NET Apps That Talk to Hardware
+BEGIN:VEVENT
+UID:DEM365-ScrumFlix@local
+DTSTAMP:20260602T224800Z
+DTSTART:20260603T233000Z
+DTEND:20260603T235500Z
+SUMMARY:DEM365 — Beyond REST: .NET Apps That Talk to Hardware
+LOCATION:Festival Pavilion, Theater A
+DESCRIPTION:Speaker: Jared Rhodes\nWhy: advanced .NET app patterns / device integration\nLink: https://build.microsoft.com/sessions/DEM365
+URL:https://build.microsoft.com/sessions/DEM365
+END:VEVENT
+END:VCALENDAR

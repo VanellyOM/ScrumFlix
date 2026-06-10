@@ -356,8 +356,9 @@ app.UseSession();
 app.UseAuthorization();
 
 
-// ── ScheduleHub ────────────────────────────────────────────────────────────────
+// ── SignalR Hubs ────────────────────────────────────────────────────────────────
 app.MapHub<ScheduleHub>("/scheduleHub");
+app.MapHub<TmdbProgressHub>("/tmdbSyncHub");
 
 // ── Routing ────────────────────────────────────────────────────────────────
 // Admin area — requires [Area("Admin")] on controllers + [Authorize(Roles="Admin")]
@@ -435,3 +436,12 @@ app.Run();
 // Ensures the async MySQL and Email sink buffers are flushed before the process
 // exits.  Without this, the last few log events before shutdown may be lost.
 Log.CloseAndFlush();
+
+// ── WebApplicationFactory test hook ───────────────────────────────────────
+// WebApplicationFactory<Program> (Microsoft.AspNetCore.Mvc.Testing) requires
+// the Program type to be accessible from the test assembly. Top-level statement
+// files in C# generate an implicit internal Program class; this stub makes it
+// public so the integration test project can reference it without InternalsVisibleTo.
+//
+// Place this at the very end of Program.cs, after app.Run() and Log.CloseAndFlush().
+public partial class Program { }

@@ -1,0 +1,17 @@
+BEGIN:VCALENDAR
+PRODID:-//ScrumFlix//Build2026 Invite//EN
+VERSION:2.0
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+X-WR-CALNAME:DEMSP394 — Scale enterprise .NET apps with AI-assisted workflows
+BEGIN:VEVENT
+UID:DEMSP394-ScrumFlix@local
+DTSTAMP:20260602T224800Z
+DTSTART:20260602T214000Z
+DTEND:20260602T220500Z
+SUMMARY:DEMSP394 — Scale enterprise .NET apps with AI-assisted cross-platform workflows
+LOCATION:Festival Pavilion, Theater A
+DESCRIPTION:Speakers: Sam Basu, Colin Whitlatch, Sasha Krsmanovic, Matt Mattei\nWhy: AI + enterprise .NET workflows\nLink: https://build.microsoft.com/sessions/DEMSP394
+URL:https://build.microsoft.com/sessions/DEMSP394
+END:VEVENT
+END:VCALENDAR

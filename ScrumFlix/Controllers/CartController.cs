@@ -185,7 +185,7 @@ public class CartController : ConsumerControllerBase   // after S2
 
         // ── Ticket checkout ────────────────────────────────────────────────
         var ticketItems = items.Where(i => i.ItemType == CartItemType.Ticket).ToList();
-        var issuedCodes = new List<long>(); // collected for confirmation page
+        var issuedCodes = new List<long>(); // collected for confirmation page — must stay new List for across-scope use
 
         if (ticketItems.Any())
         {
@@ -393,7 +393,7 @@ public class CartController : ConsumerControllerBase   // after S2
             {
                 i.DisplayName, i.Quantity, i.UnitPrice, i.LineTotal,
                 IsConcession = i.ItemType == CartItemType.Concession,
-                i.MovieName, i.ShowTime, i.LocationName, i.SeatNumbers
+                i.MovieName, i.ShowTime, i.LocationName, i.ScreenName, i.SeatNumbers
             }));
 
         _cart.ClearCart();
@@ -413,11 +413,13 @@ public class CartController : ConsumerControllerBase   // after S2
                 .ThenInclude(ss => ss!.Seat)
             .Include(t => t.Showtime)
                 .ThenInclude(st => st!.TheaterScreen)
+                    .ThenInclude(ts => ts!.Location)   // needed for TimeZoneId
             .OrderBy(t => t.TicketCode)
             .ToListAsync();
 
-        var seatLabels        = new List<string>();
-        var qrPayloads        = new List<string>();
+        List<string> seatLabels  = [];
+        List<string> screenNames = [];
+        List<string> qrPayloads  = [];
         var snapshotTicketItems = cartSnapshot.Where(i => i.ItemType == CartItemType.Ticket).ToList();
 
         foreach (var ticket in ticketsWithSeats)
@@ -426,24 +428,30 @@ public class CartController : ConsumerControllerBase   // after S2
                 ? ticket.ShowtimeSeat.Seat.RowLabel + ticket.ShowtimeSeat.Seat.SeatNumber
                 : string.Empty;
 
+            var screenName = ticket.Showtime?.TheaterScreen?.ScreenName ?? string.Empty;
+
             seatLabels.Add(seatLabel);
+            screenNames.Add(screenName);
 
             // Match cart snapshot item to get movie name and show time for the QR payload
-            var cartItem = snapshotTicketItems.FirstOrDefault(i => i.ShowtimeId == ticket.ShowtimeId);
+            var cartItem   = snapshotTicketItems.FirstOrDefault(i => i.ShowtimeId == ticket.ShowtimeId);
+            var timeZoneId = ticket.Showtime?.TheaterScreen?.Location?.TimeZoneId;
 
             var payload = QrCodeService.BuildTicketPayload(
                 ticketCode:   ticket.TicketCode,
                 movieName:    cartItem?.MovieName,
                 showTime:     cartItem?.ShowTime,
                 seatLabel:    seatLabel,
-                screenName:   ticket.Showtime?.TheaterScreen?.ScreenName,
-                locationName: cartItem?.LocationName);
+                screenName:   screenName,
+                locationName: cartItem?.LocationName,
+                timeZoneId:   timeZoneId);
 
             qrPayloads.Add(payload);
         }
 
-        TempData["SeatLabels"] = string.Join(",", seatLabels);
-        TempData["QrPayloads"] = System.Text.Json.JsonSerializer.Serialize(qrPayloads);
+        TempData["SeatLabels"]  = string.Join(",", seatLabels);
+        TempData["ScreenNames"] = string.Join(",", screenNames);
+        TempData["QrPayloads"]  = System.Text.Json.JsonSerializer.Serialize(qrPayloads);
 
         // ── S4 + Customer Receipt: Send confirmation emails ──────────
         // Both blocks run after cart is cleared and TempData is set.
@@ -490,20 +498,23 @@ public class CartController : ConsumerControllerBase   // after S2
                     MovieName    = i.MovieName,
                     ShowTime     = i.ShowTime,
                     LocationName = i.LocationName,
+                    ScreenName   = i.ScreenName,
                     SeatNumbers  = i.SeatNumbers
                 })
                 .ToList();
 
             await _email.SendPurchaseReceiptAsync(
-                toEmail:       customerReceiptEmail,
-                orderSubtotal: subtotal.ToString("C"),
-                orderTax:      tax.ToString("C"),
-                orderTotal:    total.ToString("C"),
-                timeOfSale:    DateTime.UtcNow,
-                ticketCodes:   issuedCodes,
-                qrCodeBase64s: receiptQrCodes,
-                seatLabels:    seatLabels,
-                orderItems:    receiptLines);
+                toEmail:            customerReceiptEmail,
+                orderSubtotal:      subtotal.ToString("C"),
+                orderTax:           tax.ToString("C"),
+                orderTotal:         total.ToString("C"),
+                timeOfSale:         DateTime.UtcNow,
+                ticketCodes:        issuedCodes,
+                qrCodeBase64s:      receiptQrCodes,
+                seatLabels:         seatLabels,
+                screenNames:        screenNames,
+                orderItems:         receiptLines,
+                concessionQrBase64: TempData.Peek("ConcessionQrCode") as string);
         }
         // ── End confirmation emails ────────────────────────────────────
 
@@ -530,13 +541,18 @@ public class CartController : ConsumerControllerBase   // after S2
             .Split(',', StringSplitOptions.None)
             .ToList();
 
+        // Restore screen names — parallel-indexed with codes.
+        var screenNames = (TempData["ScreenNames"] as string ?? string.Empty)
+            .Split(',', StringSplitOptions.None)
+            .ToList();
+
         // Restore structured QR payloads — use code-only fallback if missing.
         var qrPayloadsJson = TempData["QrPayloads"] as string;
         List<string> qrCodes;
         if (!string.IsNullOrEmpty(qrPayloadsJson))
         {
             var payloads = System.Text.Json.JsonSerializer
-                .Deserialize<List<string>>(qrPayloadsJson) ?? new List<string>();
+                .Deserialize<List<string>>(qrPayloadsJson) ?? [];
             qrCodes = _qr.GenerateBase64PngBatch(payloads);
         }
         else
@@ -546,7 +562,7 @@ public class CartController : ConsumerControllerBase   // after S2
 
         // Restore order items for the breakdown display.
         var orderItemsJson = TempData["OrderItems"] as string;
-        var orderItems = new List<OrderLineItem>();
+        List<OrderLineItem> orderItems = [];
         if (!string.IsNullOrEmpty(orderItemsJson))
         {
             try
@@ -568,6 +584,7 @@ public class CartController : ConsumerControllerBase   // after S2
                             ShowTime     = el.TryGetProperty("ShowTime", out var st) && st.ValueKind != System.Text.Json.JsonValueKind.Null
                                            ? st.GetDateTime() : null,
                             LocationName = el.TryGetProperty("LocationName", out var ln) ? ln.GetString() : null,
+                            ScreenName   = el.TryGetProperty("ScreenName", out var scr) ? scr.GetString() : null,
                             SeatNumbers  = el.TryGetProperty("SeatNumbers", out var sn) ? sn.GetString() : null,
                         });
                     }
@@ -578,13 +595,14 @@ public class CartController : ConsumerControllerBase   // after S2
 
         var vm = new OrderConfirmationViewModel
         {
-            OrderSubtotal   = TempData["OrderSubtotal"]  as string,
-            OrderTax        = TempData["OrderTax"]       as string,
-            OrderTotal      = TempData["OrderTotal"]     as string,
-            IssuedCodes     = codes,
-            QrCodes         = qrCodes,
-            SeatLabels      = seatLabels,
-            OrderItems      = orderItems,
+            OrderSubtotal    = TempData["OrderSubtotal"]  as string,
+            OrderTax         = TempData["OrderTax"]       as string,
+            OrderTotal       = TempData["OrderTotal"]     as string,
+            IssuedCodes      = codes,
+            QrCodes          = qrCodes,
+            SeatLabels       = seatLabels,
+            ScreenNames      = screenNames,
+            OrderItems       = orderItems,
             ConcessionQrCode = TempData["ConcessionQrCode"] as string
         };
 

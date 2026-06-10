@@ -1,17 +1,35 @@
 @*
  * File: /Areas/Admin/Views/Movies/MovieEdit.cshtml
  * Description: Admin-area form for editing an existing movie entry.
- *              Submits to Admin/Movies/MovieEdit and returns to the Admin
- *              MovieCatalog on success — never leaves the Staff Portal.
+ *              Bound to MovieFormViewModel — uses genre multiselect dropdown
+ *              backed by the Genres table with current selections pre-populated.
+ *              Submits to Admin/Movies/MovieEdit and returns to Admin MovieCatalog.
+ *
+ * Fixes applied vs. previous version:
+ *   - Submit button: added missing base 'btn' class.
+ *   - Cancel link: added missing 'btn' class.
+ *   - Added novalidate to the edit form.
+ *   - Delete form: replaced onsubmit="return confirm(...)" with data-confirm
+ *     + sf-confirm-form class + external JS listener (CSP compliance).
+ *   - Genre multiselect label: added missing 'for' attribute (was unlinked).
+ *   - Added aria-hidden="true" to all decorative icons.
+ *   - Added back-link to MovieCatalog in the page header.
+ *   - Inline <script> block removed — logic moved to /wwwroot/js/sf-movie-genre.js.
 *@
-@model Movie
+@model ScrumFlix.Areas.Admin.ViewModels.MovieFormViewModel
 @{
-    ViewData["Title"] = "Edit Movie";
+    ViewData["Title"] = "Edit Movie — " + Model.Title;
 }
 
 <div class="sf-page-header">
     <div class="container-xl">
-        <h1 class="sf-page-title"><i class="bi bi-pencil-square me-2"></i>Edit Movie</h1>
+        <a asp-area="Admin" asp-controller="Movies" asp-action="MovieCatalog"
+           class="sf-back-link mb-2 d-inline-flex align-items-center gap-1">
+            <i class="bi bi-arrow-left" aria-hidden="true"></i> Movies
+        </a>
+        <h1 class="sf-page-title">
+            <i class="bi bi-pencil-square me-2" aria-hidden="true"></i>Edit — @Model.Title
+        </h1>
     </div>
 </div>
 
@@ -20,21 +38,19 @@
         <div class="row justify-content-center">
             <div class="col-lg-6">
                 <div class="sf-form-card">
-                    <form asp-area="Admin" asp-controller="Movies" asp-action="MovieEdit" method="post">
+                    <form asp-area="Admin" asp-controller="Movies" asp-action="MovieEdit"
+                          method="post" novalidate>
                         @Html.AntiForgeryToken()
                         <input asp-for="MovieId" type="hidden" />
-                        <div asp-validation-summary="ModelOnly" class="sf-flash-banner sf-flash-banner--error mb-4" role="alert"></div>
+                        <div asp-validation-summary="ModelOnly"
+                             class="sf-flash-banner sf-flash-banner--error mb-4" role="alert"></div>
 
                         <div class="mb-3">
                             <label asp-for="Title" class="sf-label"></label>
-                            <input asp-for="Title" class="sf-input" />
+                            <input asp-for="Title" class="sf-input" maxlength="200" />
                             <span asp-validation-for="Title" class="sf-validation"></span>
                         </div>
-                        <div class="mb-3">
-                            <label asp-for="Genre" class="sf-label"></label>
-                            <input asp-for="Genre" class="sf-input" />
-                            <span asp-validation-for="Genre" class="sf-validation"></span>
-                        </div>
+
                         <div class="mb-3">
                             <label asp-for="Rating" class="sf-label"></label>
                             <select asp-for="Rating" class="sf-select">
@@ -46,33 +62,94 @@
                             </select>
                             <span asp-validation-for="Rating" class="sf-validation"></span>
                         </div>
+
+                        @* ── Genre multiselect ─────────────────────────────────────── *@
+                        @if (Model.AvailableGenres.Any())
+                        {
+                            <div class="mb-3">
+                                @* 'for' attribute was missing in the original — fixed *@
+                                <label class="sf-label" for="genreMultiselect">
+                                    Genres
+                                    <span class="sf-text-muted" style="font-weight:400;">
+                                        (hold Ctrl / ⌘ to select multiple)
+                                    </span>
+                                </label>
+                                <select name="SelectedGenreIds"
+                                        multiple
+                                        class="sf-select"
+                                        style="height:auto;min-height:120px;"
+                                        id="genreMultiselect">
+                                    @foreach (var genre in Model.AvailableGenres)
+                                    {
+                                        var isSelected = Model.SelectedGenreIds.Contains(genre.GenreId);
+                                        <option value="@genre.GenreId"
+                                                selected="@(isSelected ? "selected" : null)">
+                                            @genre.Name
+                                        </option>
+                                    }
+                                </select>
+                                <span asp-validation-for="SelectedGenreIds" class="sf-validation"></span>
+                            </div>
+
+                            <div class="mb-4">
+                                <label asp-for="PrimaryGenreId" class="sf-label"></label>
+                                <select asp-for="PrimaryGenreId" class="sf-select" id="primaryGenreSelect">
+                                    <option value="0">Select primary genre…</option>
+                                    @foreach (var genre in Model.AvailableGenres)
+                                    {
+                                        <option value="@genre.GenreId"
+                                                selected="@(Model.PrimaryGenreId == genre.GenreId ? "selected" : null)">
+                                            @genre.Name
+                                        </option>
+                                    }
+                                </select>
+                                <span asp-validation-for="PrimaryGenreId" class="sf-validation"></span>
+                                <small class="sf-text-muted d-block mt-1">
+                                    Must be one of the genres selected above. Used for display and primary filtering.
+                                </small>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="mb-3 sf-flash-banner sf-flash-banner--info" role="status">
+                                No genres available. Run a TMDb sync or add genres first.
+                            </div>
+                        }
+
                         <div class="mb-4">
                             <label asp-for="RuntimeMinutes" class="sf-label"></label>
-                            <input asp-for="RuntimeMinutes" class="sf-input" type="number" min="1" />
+                            <input asp-for="RuntimeMinutes" class="sf-input"
+                                   type="number" min="1" max="999" />
                             <span asp-validation-for="RuntimeMinutes" class="sf-validation"></span>
                         </div>
+
                         <div class="mb-4">
                             <label asp-for="Description" class="sf-label"></label>
                             <textarea asp-for="Description" class="sf-input" rows="4"
-                                      placeholder="Plot synopsis (up to 1000 characters)…"></textarea>
+                                      maxlength="1000"></textarea>
                             <span asp-validation-for="Description" class="sf-validation"></span>
                         </div>
-                        <div class="d-flex gap-3">
-                            <button type="submit" class="sf-btn-primary flex-grow-1">
-                                <i class="bi bi-save me-2"></i>Save Changes
+
+                        <div class="d-flex gap-3 pt-2">
+                            <button type="submit" class="btn sf-btn-primary flex-grow-1">
+                                <i class="bi bi-save me-2" aria-hidden="true"></i>Save Changes
                             </button>
-                            <a asp-area="Admin" asp-controller="Movies" asp-action="MovieCatalog" class="sf-btn-ghost">Cancel</a>
+                            <a asp-area="Admin" asp-controller="Movies" asp-action="MovieCatalog"
+                               class="btn sf-btn-ghost">Cancel</a>
                         </div>
                     </form>
 
                     <hr class="sf-divider mt-4" />
 
-                    <form asp-area="Admin" asp-controller="Movies" asp-action="MovieDelete" method="post"
-                          onsubmit="return confirm('Delete this movie permanently?');">
+                    @* Delete form — onsubmit replaced with data-confirm + external JS (CSP) *@
+                    <form asp-area="Admin" asp-controller="Movies" asp-action="MovieDelete"
+                          method="post"
+                          data-confirm="Permanently delete '@Model.Title'? This cannot be undone."
+                          class="sf-confirm-form">
                         @Html.AntiForgeryToken()
                         <input name="id" type="hidden" value="@Model.MovieId" />
                         <button type="submit" class="btn sf-btn-danger w-100">
-                            <i class="bi bi-trash me-2"></i>Delete Movie
+                            <i class="bi bi-trash me-2" aria-hidden="true"></i>Delete Movie
                         </button>
                     </form>
                 </div>
@@ -83,4 +160,6 @@
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    @* Genre sync + delete-confirm handler — both in sf-movie-genre.js (CSP-compliant) *@
+    <script src="~/js/sf-movie-genre.js" asp-append-version="true"></script>
 }

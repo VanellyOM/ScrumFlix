@@ -1,25 +1,195 @@
 @*
  * File: Areas/Admin/Views/Shared/_AdminLayout.cshtml
- * Description: Admin-area layout. Wraps _Layout.cshtml and injects the persistent
- *              collapsible sidebar via _AdminSidebar partial.
- *              All Admin-area pages that use this layout automatically get the sidebar.
+ * Description: STANDALONE admin layout — does NOT chain to _Layout.cshtml.
+ *              Owns its own <html>, <head>, and admin topbar.
+ *              Consumer navbar, cart, and footer are intentionally absent.
  *
- * Usage: Set Layout = "~/Areas/Admin/Views/Shared/_AdminLayout.cshtml";
- *        in any Admin view (or set it in _ViewStart.cshtml for the area).
+ * Change history:
+ *   - Previously nested inside _Layout.cshtml and called RenderSectionAsync
+ *     for "Scripts" and "Head" itself. Because the parent _Layout ALSO renders
+ *     those sections, the nested calls consumed them first and the parent's
+ *     calls received nothing — so per-page @section Scripts/@section Head
+ *     (SignalR, spinner, validation, sf-admin-tables.js, TmdbSyncPage head)
+ *     silently never rendered, and admin pages inherited the consumer navbar.
+ *   - Now a complete standalone document: the consumer navbar/cart/footer are
+ *     gone, "Head" renders inside <head>, and "Scripts" renders after the
+ *     Bootstrap bundle at end of <body>.
+ *
+ * CSS/JS pipeline matches _Layout tier order so admin pages render identically.
+ * sf-theme-switcher.js is loaded ONCE (in <head>, for FOUC + binding) exactly
+ * as _Layout does — loading it a second time would double-bind the theme picker.
+ *
+ * _ViewStart.cshtml in Areas/Admin/Views/ still points here — unchanged.
  *@
 @{
-    Layout = "~/Views/Shared/_Layout.cshtml";
+    Layout = null;    // standalone — no parent layout
+    var layoutVm    = Context.Items["LayoutViewModel"] as LayoutViewModel
+                      ?? new LayoutViewModel();
+    var userName    = layoutVm.UserName ?? "Admin";
+    var roleId      = layoutVm.RoleId;
+    var activeTheme = layoutVm.ActiveTheme;
 }
 
-<div class="sf-admin-page-wrapper">
-    @* Persistent collapsible sidebar *@
-    @await Html.PartialAsync("~/Areas/Admin/Views/Shared/_AdminSidebar.cshtml")
+<!DOCTYPE html>
+<html lang="en" data-theme="@activeTheme">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="author" content="James Porter" />
+    <meta name="description" content="This page includes content assisted by AI tools." />
 
-    @* Main content area shifts right when sidebar is open *@
-    <div class="sf-admin-content" id="sf-admin-content">
-        @RenderBody()
-    </div>
-</div>
+    <title>@(ViewData["Title"] != null ? $"{ViewData["Title"]} — ScrumFlix Admin" : "ScrumFlix Admin")</title>
 
-@await RenderSectionAsync("Scripts", required: false)
-@await RenderSectionAsync("Head", required: false)
+    <link rel="shortcut icon" href="~/favicon.ico" type="image/x-icon" />
+
+    @* ── Fonts (Bebas Neue display + Outfit body — match the active token set) ── *@
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700&display=swap"
+          rel="stylesheet" />
+
+    @* ── Bootstrap 5.3.8 CSS (loaded BEFORE our tokens so our variables win) ── *@
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+
+    @* ── ScrumFlix 4-Tier CSS Architecture — identical load order to _Layout ── *@
+    @* LOAD ORDER IS SIGNIFICANT — do not reorder *@
+    <link rel="stylesheet" href="~/css/sf-base.css"        asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/sf-tokens.css"      asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/sf-layout.css"      asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/sf-components.css"  asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/sf-theme-light.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/sf-theme-red.css"   asp-append-version="true" />
+
+    @* sf-spinner component — loaded globally so any admin page can use it
+       for long-running operations (TMDb sync, exports, payroll, etc.) *@
+    <link rel="stylesheet" href="~/css/sf-spinner.css" asp-append-version="true" />
+
+    @* FOUC prevention + theme picker binding — loaded ONCE, in <head>, as in _Layout *@
+    <script src="~/js/sf-theme-switcher.js" asp-append-version="true"></script>
+
+    @* Per-page <head> injections (e.g. sf-spinner.css on TmdbSyncPage) *@
+    @await RenderSectionAsync("Head", required: false)
+</head>
+<body>
+
+    @* ── Skip link (WCAG 2.2 SC 2.4.1) ───────────────────────────────── *@
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+
+    @* ── ADMIN TOPBAR — no consumer nav items, no cart ───────────────── *@
+    <header class="sf-admin-topbar" role="banner">
+        <div class="sf-admin-topbar-inner">
+
+            @* Brand mark *@
+            <a class="sf-admin-topbar-brand"
+               asp-area="Admin" asp-controller="AdminHome" asp-action="AdminDashboard"
+               aria-label="ScrumFlix Admin home">
+                <img src="~/images/logo.png" alt="" height="34" class="me-2" aria-hidden="true" />
+                <span class="sf-brand-text">ScrumFlix</span>
+                <span class="sf-admin-topbar-badge">Admin</span>
+            </a>
+
+            @* Right side: user pill + theme picker + logout *@
+            <div class="d-flex align-items-center gap-3">
+                <span class="sf-user-pill" aria-label="Logged in as @userName">
+                    <i class="bi @(roleId == 1 ? "bi-shield-fill" : "bi-person-workspace") sf-user-pill-icon"
+                       aria-hidden="true"></i>
+                    <span>@userName</span>
+                </span>
+
+                @* Theme picker — identical markup to _Layout (managed by sf-theme-switcher.js) *@
+                <div class="position-relative">
+                    <div class="sf-theme-toggle"
+                         id="sf-theme-btn"
+                         aria-label="Theme: @activeTheme. Click to change."
+                         aria-haspopup="true"
+                         aria-expanded="false"
+                         role="button"
+                         tabindex="0"
+                         title="Change theme">
+                        <i class="bi bi-moon-stars-fill" data-theme-icon="dark"  aria-hidden="true"></i>
+                        <i class="bi bi-sun-fill"         data-theme-icon="light" aria-hidden="true"></i>
+                        <i class="bi bi-fire"             data-theme-icon="red"   aria-hidden="true"></i>
+                        <div class="sf-theme-picker" role="menu" aria-label="Choose a theme">
+                            <button class="sf-theme-picker-item" type="button" role="menuitemradio"
+                                    aria-checked="@(activeTheme == "dark" ? "true" : "false")"
+                                    data-theme-value="dark">
+                                <span class="sf-theme-swatch sf-theme-swatch--dark" aria-hidden="true"></span>
+                                <i class="bi bi-moon-stars-fill me-1" aria-hidden="true"></i>Dark
+                            </button>
+                            <button class="sf-theme-picker-item" type="button" role="menuitemradio"
+                                    aria-checked="@(activeTheme == "light" ? "true" : "false")"
+                                    data-theme-value="light">
+                                <span class="sf-theme-swatch sf-theme-swatch--light" aria-hidden="true"></span>
+                                <i class="bi bi-sun-fill me-1" aria-hidden="true"></i>Light
+                            </button>
+                            <button class="sf-theme-picker-item" type="button" role="menuitemradio"
+                                    aria-checked="@(activeTheme == "red" ? "true" : "false")"
+                                    data-theme-value="red">
+                                <span class="sf-theme-swatch sf-theme-swatch--red" aria-hidden="true"></span>
+                                <i class="bi bi-fire me-1" aria-hidden="true"></i>Red &amp; Black
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                @* Logout — links back to consumer Account/Logout *@
+                <a href="@Url.Action("Logout", "Account", new { area = "" })"
+                   class="sf-admin-nav-link sf-admin-nav-link--danger"
+                   aria-label="Log out">
+                    <i class="bi bi-box-arrow-right me-1" aria-hidden="true"></i>Log Out
+                </a>
+            </div>
+
+        </div>
+    </header>
+
+    @* ── Flash messages (identical pattern to _Layout) ────────────────── *@
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="sf-flash-banner" role="alert" aria-live="polite">
+            <div class="container-xl d-flex align-items-center gap-2">
+                <i class="bi bi-check-circle-fill" aria-hidden="true"></i>
+                <span>@TempData["SuccessMessage"]</span>
+            </div>
+        </div>
+    }
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="sf-flash-banner" role="alert" aria-live="assertive"
+             style="background: var(--sf-color-danger); color: var(--primitive-white);">
+            <div class="container-xl d-flex align-items-center gap-2">
+                <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+                <span>@TempData["ErrorMessage"]</span>
+            </div>
+        </div>
+    }
+
+    @* ── Admin page wrapper: sidebar + content ────────────────────────── *@
+    <main id="main-content" tabindex="-1" class="sf-admin-page-wrapper">
+        @await Html.PartialAsync("~/Areas/Admin/Views/Shared/_AdminSidebar.cshtml")
+
+        <div class="sf-admin-content" id="sf-admin-content">
+            @RenderBody()
+        </div>
+    </main>
+
+    @* ── Scripts — Bootstrap FIRST, then sidebar, then page-specific sections ── *@
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/sf-admin-sidebar.js" asp-append-version="true"></script>
+
+    @* Per-page script injections (SignalR, spinner, sf-admin-tables.js, validation, etc.) *@
+    @await RenderSectionAsync("Scripts", required: false)
+
+    @* Shared UX utilities (admin nav highlight, flash auto-dismiss) — all element-guarded *@
+    <script src="~/js/scrumflix.js" asp-append-version="true"></script>
+
+    @* sf-spinner controller — globally available so any admin page can call sfSpinner.*
+       CSS is loaded above in <head>. No need to load per-page. *@
+    <script src="~/js/sf-spinner.js" asp-append-version="true"></script>
+
+    @* CSP-safe delete confirmation — wires any form.sf-confirm-form + data-confirm globally *@
+    <script src="~/js/sf-confirm.js" asp-append-version="true"></script>
+
+</body>
+</html>

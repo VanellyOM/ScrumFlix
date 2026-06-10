@@ -34,11 +34,17 @@ public interface ITmdbSyncService
     /// unless <paramref name="forceAll"/> is true.
     /// </summary>
     /// <param name="forceAll">When true, re-syncs all movies regardless of LastSyncedUtc.</param>
+    /// <param name="progress">
+    /// Optional progress sink. Receives a <see cref="TmdbSyncProgressReport"/> after
+    /// each movie is processed so callers can push real-time updates to the client
+    /// (e.g. via IHubContext&lt;TmdbProgressHub&gt;). Pass null to skip reporting.
+    /// </param>
     /// <param name="cancellationToken">Propagated from the caller or background host.</param>
     /// <returns>A result summarising movies synced, skipped, and failed.</returns>
     Task<TmdbSyncResult> SyncAllMoviesAsync(
-        bool              forceAll          = false,
-        CancellationToken cancellationToken = default);
+        bool                              forceAll          = false,
+        IProgress<TmdbSyncProgressReport>? progress         = null,
+        CancellationToken                 cancellationToken = default);
 
     /// <summary>
     /// Syncs TMDb metadata for a single movie identified by its local MovieId.
@@ -58,6 +64,24 @@ public interface ITmdbSyncService
     /// <returns>The number of genres added or updated.</returns>
     Task<int> SyncGenresAsync(CancellationToken cancellationToken = default);
 }
+
+/// <summary>
+/// Per-movie progress report emitted by SyncAllMoviesAsync after each movie is processed.
+/// Consumers pass this to IHubContext&lt;TmdbProgressHub&gt; to push real-time updates.
+/// </summary>
+/// <param name="Percent">Overall completion 0–100 based on movies processed vs total.</param>
+/// <param name="Message">Human-readable status for the spinner status line.</param>
+/// <param name="Synced">Running total of successfully synced movies.</param>
+/// <param name="Skipped">Running total of skipped movies.</param>
+/// <param name="Failed">Running total of failed movies.</param>
+/// <param name="Total">Total movies to process (denominator for Percent).</param>
+public record TmdbSyncProgressReport(
+    int    Percent,
+    string Message,
+    int    Synced,
+    int    Skipped,
+    int    Failed,
+    int    Total);
 
 /// <summary>
 /// Summary of a full-catalog sync operation.

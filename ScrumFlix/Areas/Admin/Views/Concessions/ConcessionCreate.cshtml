@@ -1,0 +1,100 @@
+@model ScrumFlix.Areas.Admin.ViewModels.ConcessionFormViewModel
+@{
+    ViewData["Title"] = "Add Concession Item";
+}
+
+<div class="sf-page-header">
+    <div class="container-xl">
+        <a asp-area="Admin" asp-controller="AdminManage" asp-action="Concessions"
+           class="sf-back-link mb-2 d-inline-flex align-items-center gap-1">
+            <i class="bi bi-arrow-left" aria-hidden="true"></i> Concessions
+        </a>
+        <h1 class="sf-page-title">
+            <i class="bi bi-plus-circle me-2" aria-hidden="true"></i>Add Concession Item
+        </h1>
+    </div>
+</div>
+
+<section class="sf-section">
+    <div class="container-xl">
+        <div class="row justify-content-center">
+            <div class="col-lg-5">
+                <div class="sf-form-card">
+                    <form asp-area="Admin" asp-controller="AdminManage" asp-action="ConcessionCreate"
+                          method="post" novalidate>
+                        @Html.AntiForgeryToken()
+                        <div asp-validation-summary="ModelOnly"
+                             class="sf-flash-banner sf-flash-banner--error mb-4" role="alert"></div>
+
+                        <div class="mb-3">
+                            <label asp-for="ItemName" class="sf-label"></label>
+                            <input asp-for="ItemName" class="sf-input"
+                                   placeholder="e.g. Large Popcorn" maxlength="100" />
+                            <span asp-validation-for="ItemName" class="sf-validation"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="LocationId" class="sf-label"></label>
+                            <select asp-for="LocationId" class="sf-select">
+                                <option value="">Select location…</option>
+                                @foreach (var l in Model.Locations)
+                                {
+                                    <option value="@l.LocationId"
+                                            selected="@(Model.LocationId == l.LocationId)">
+                                        @l.LocationName
+                                    </option>
+                                }
+                            </select>
+                            <span asp-validation-for="LocationId" class="sf-validation"></span>
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-6">
+                                <label asp-for="Price" class="sf-label"></label>
+                                <input asp-for="Price" class="sf-input" type="number"
+                                       min="0.01" step="0.01" />
+                                <span asp-validation-for="Price" class="sf-validation"></span>
+                            </div>
+                            <div class="col-6">
+                                <label asp-for="QuantityInStock" class="sf-label"></label>
+                                <input asp-for="QuantityInStock" class="sf-input" type="number" min="0" />
+                                <span asp-validation-for="QuantityInStock" class="sf-validation"></span>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label asp-for="Minimum" class="sf-label"></label>
+                            <input asp-for="Minimum" class="sf-input" type="number" min="0" />
+                            <small class="sf-text-muted d-block mt-1">
+                                Low-stock warning fires when quantity on hand reaches this level.
+                            </small>
+                            <span asp-validation-for="Minimum" class="sf-validation"></span>
+                        </div>
+
+                        <div class="mb-4">
+                            <div class="form-check form-switch mb-0">
+                                <input asp-for="IsActive" type="checkbox"
+                                       class="form-check-input" role="switch"
+                                       id="IsActiveToggle" />
+                                <label class="form-check-label sf-label mb-0" for="IsActiveToggle">
+                                    Active — visible in concession catalog
+                                </label>
+                            </div>
+                            <span asp-validation-for="IsActive" class="sf-validation"></span>
+                        </div>
+
+                        <div class="d-flex gap-3 pt-2">
+                            <button type="submit" class="btn sf-btn-primary flex-grow-1">
+                                <i class="bi bi-plus-circle me-2" aria-hidden="true"></i>Add Item
+                            </button>
+                            <a asp-area="Admin" asp-controller="AdminManage" asp-action="Concessions"
+                               class="btn sf-btn-ghost">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

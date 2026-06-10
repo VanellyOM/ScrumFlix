@@ -106,6 +106,14 @@ public class CartItem
     /// <summary>Gets or sets the showtime start for display on ticket items.</summary>
     public DateTime? ShowTime { get; set; }
 
+    /// <summary>
+    /// Gets or sets the theater screen name for display on ticket items
+    /// (e.g. "Screen 1", "IMAX"). Populated by ShowtimesController from
+    /// Showtime.TheaterScreen.ScreenName. Used on the order confirmation
+    /// page and receipt email to show the screen before the seat label.
+    /// </summary>
+    public string? ScreenName { get; set; }
+
     // ── Concession fields ───────────────────────────────────────────────────
 
     /// <summary>

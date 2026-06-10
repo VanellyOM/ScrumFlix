@@ -47,8 +47,33 @@ jobs:
           dotnet tool install -g dotnet-format || true
           dotnet format --verify-no-changes || true
 
-      - name: Run unit tests
+      # Unit tests are pure (no DB / no TMDB key) — always run.
+      - name: Run unit tests (ScrumFlix.Tests)
+        run: >
+          dotnet test tests/ScrumFlix.Tests/ScrumFlix.Tests.csproj
+          --no-build --verbosity normal
+
+      # Detect whether the live-DB secrets are present, WITHOUT interpolating
+      # secret values into the shell (read them via env, test for emptiness).
+      - name: Detect integration-test secrets
+        id: intsecrets
+        env:
+          MYSQL_CONNECTION: ${{ secrets.MYSQL_CONNECTION }}
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+        run: |
+          if [ -n "$MYSQL_CONNECTION" ] && [ -n "$TMDB_API_KEY" ]; then
+            echo "have=true"  >> "$GITHUB_OUTPUT"
+          else
+            echo "have=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Integration-test secrets absent — skipping integration tests (expected on forks/PRs)."
+          fi
+
+      # Integration tests need a live MySQL + TMDb key — run only when secrets exist.
+      - name: Run integration tests (requires live DB)
+        if: steps.intsecrets.outputs.have == 'true'
         env:
           TMDB__APIKEY: ${{ secrets.TMDB_API_KEY }}
           ConnectionStrings__MySQLConnection: ${{ secrets.MYSQL_CONNECTION }}
-        run: dotnet test --no-build --verbosity normal
+        run: >
+          dotnet test tests/ScrumFlix.IntegrationTests/ScrumFlix.IntegrationTests.csproj
+          --no-build --verbosity normal

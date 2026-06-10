@@ -94,18 +94,13 @@
 
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/js/all.min.js" integrity="sha512-6BTOlkauINO65nLhXhthZMtepgJSghyimIalb+crKRPhvhmsCdnIuGcVbR5/aQY2A+260iC1OPy1oCdB6pSSwQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
-	<!-- SignalR for Development environments -->
-	<environment include="Development">
-		<script src="~/js/signalr/dist/browser/signalr.js"></script>
-	</environment>
-
-	<!-- SignalR for Production environments -->
-	<environment exclude="Development">
-		<script src="~/js/signalr/dist/browser/signalr.min.js"></script>
-	</environment>
-
 	@* Per-page head content (meta tags, page-specific styles) *@
 	@await RenderSectionAsync("Head", required: false)
+	@*
+	 * SignalR is NOT loaded globally — it adds ~70 KB min to every page including
+	 * consumer-facing routes that have no hub connection. Views that need SignalR
+	 * load it themselves in @section Scripts. Currently: Schedule/Index, TmdbSyncPage.
+	 *@
 </head>
 <body>
 

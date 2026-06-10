@@ -2,16 +2,16 @@
 @{
     var isEdit = Model.LocationId > 0;
     ViewData["Title"] = isEdit ? "Edit Location" : "Add Location";
-
 }
 
 <div class="sf-page-header">
     <div class="container-xl">
-        <a asp-area="Admin" asp-controller="AdminManage" asp-action="Locations" class="sf-back-link mb-2 d-inline-flex align-items-center gap-1">
-            <i class="bi bi-arrow-left"></i> Locations
+        <a asp-area="Admin" asp-controller="AdminManage" asp-action="Locations"
+           class="sf-back-link mb-2 d-inline-flex align-items-center gap-1">
+            <i class="bi bi-arrow-left" aria-hidden="true"></i> Locations
         </a>
         <h1 class="sf-page-title">
-            <i class="bi @(isEdit ? "bi-pencil-square" : "bi-plus-circle") me-2"></i>@ViewData["Title"]
+            <i class="bi @(isEdit ? "bi-pencil-square" : "bi-plus-circle") me-2" aria-hidden="true"></i>@ViewData["Title"]
         </h1>
     </div>
 </div>
@@ -22,34 +22,66 @@
             <div class="col-lg-5">
                 <div class="sf-form-card">
                     <form asp-area="Admin" asp-controller="AdminManage"
-                          asp-action="@(isEdit ? "LocationEdit" : "LocationCreate")" method="post">
+                          asp-action="@(isEdit ? "LocationEdit" : "LocationCreate")" method="post"
+                          novalidate>
                         @Html.AntiForgeryToken()
                         @if (isEdit) { <input asp-for="LocationId" type="hidden" /> }
-                        <div asp-validation-summary="ModelOnly" class="sf-flash-banner sf-flash-banner--error mb-4" role="alert"></div>
+
+                        <div asp-validation-summary="ModelOnly"
+                             class="sf-flash-banner sf-flash-banner--error mb-4" role="alert"></div>
 
                         <div class="mb-3">
                             <label asp-for="LocationName" class="sf-label"></label>
-                            <input asp-for="LocationName" class="sf-input" placeholder="e.g. Downtown Cineplex" />
+                            <input asp-for="LocationName" class="sf-input"
+                                   placeholder="e.g. Downtown Cineplex"
+                                   autocomplete="organization"
+                                   maxlength="100" />
                             <span asp-validation-for="LocationName" class="sf-validation"></span>
                         </div>
 
-                        <div class="mb-4">
+                        <div class="mb-3">
                             <label asp-for="LocationAddress" class="sf-label"></label>
-                            <input asp-for="LocationAddress" class="sf-input" placeholder="e.g. 123 Main St" />
+                            <input asp-for="LocationAddress" class="sf-input"
+                                   placeholder="e.g. 123 Main St, Dallas, TX"
+                                   autocomplete="street-address"
+                                   maxlength="200" />
                             <span asp-validation-for="LocationAddress" class="sf-validation"></span>
                         </div>
 
-                        <div class="mb-4 d-flex align-items-center gap-2">
-                            <input asp-for="IsActive" type="checkbox" class="form-check-input" />
-                            <label asp-for="IsActive" class="sf-label mb-0">Active</label>
+                        <div class="mb-3">
+                            <label asp-for="TimeZoneId" class="sf-label"></label>
+                            <select asp-for="TimeZoneId"
+                                    asp-items="Model.AvailableTimeZones"
+                                    class="sf-select">
+                                <option value="">Select time zone…</option>
+                            </select>
+                            <span asp-validation-for="TimeZoneId" class="sf-validation"></span>
+                            <small class="sf-text-muted d-block mt-1">
+                                Used to display correct local times on QR codes and tickets.
+                            </small>
                         </div>
 
-                        <div class="d-flex gap-3">
+                        <div class="mb-4">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="form-check form-switch mb-0">
+                                    <input asp-for="IsActive" type="checkbox"
+                                           class="form-check-input" role="switch"
+                                           id="IsActiveToggle" />
+                                    <label class="form-check-label sf-label mb-0" for="IsActiveToggle">
+                                        Active — visible in scheduling and booking
+                                    </label>
+                                </div>
+                            </div>
+                            <span asp-validation-for="IsActive" class="sf-validation"></span>
+                        </div>
+
+                        <div class="d-flex gap-3 pt-2">
                             <button type="submit" class="btn sf-btn-primary flex-grow-1">
-                                <i class="bi @(isEdit ? "bi-save" : "bi-plus-circle") me-2"></i>
+                                <i class="bi @(isEdit ? "bi-save" : "bi-plus-circle") me-2" aria-hidden="true"></i>
                                 @(isEdit ? "Save Changes" : "Add Location")
                             </button>
-                            <a asp-area="Admin" asp-controller="AdminManage" asp-action="Locations" class="btn sf-btn-ghost">Cancel</a>
+                            <a asp-area="Admin" asp-controller="AdminManage" asp-action="Locations"
+                               class="btn sf-btn-ghost">Cancel</a>
                         </div>
                     </form>
                 </div>
