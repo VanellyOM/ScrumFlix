@@ -78,6 +78,7 @@ public interface IEmailService
         List<string>         screenNames,
         List<ReceiptLineItem> orderItems,
         string?              concessionQrBase64 = null,
+        string?              locationTimeZoneId = null, 
         CancellationToken    cancellationToken = default);
 
 

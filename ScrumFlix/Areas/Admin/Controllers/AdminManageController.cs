@@ -17,6 +17,7 @@
 
 using MiniExcelLibs;
 using MiniExcelLibs.Attributes;
+using ScrumFlix.Infrastructure;
 
 namespace ScrumFlix.Areas.Admin.Controllers;
 
@@ -87,11 +88,8 @@ public class AdminManageController : StaffControllerBase
             Showtimes = showtimes.Select(st =>
             {
                 // Convert UTC StartTime to the location's local time for display.
-                var tz         = st.TheaterScreen?.Location?.TimeZoneId is { } tzId
-                    ? TryFindTimeZone(tzId)
-                    : TimeZoneInfo.FindSystemTimeZoneById("Central Standard Time");
-                var startLocal = TimeZoneInfo.ConvertTimeFromUtc(
-                    DateTime.SpecifyKind(st.StartTime, DateTimeKind.Utc), tz);
+                var startLocal = TimeZoneHelper.ConvertFromUtc(
+                    st.StartTime, st.TheaterScreen?.Location?.TimeZoneId);
 
                 return new ShowtimeRowViewModel
                 {
@@ -142,11 +140,13 @@ public class AdminManageController : StaffControllerBase
         var screen    = await _db.TheaterScreens
             .Include(ts => ts.Location)
             .FirstOrDefaultAsync(ts => ts.TheaterScreenId == vm.TheaterScreenId);
-        var tz        = screen?.Location?.TimeZoneId is { } tzId
-            ? TryFindTimeZone(tzId)
-            : TimeZoneInfo.FindSystemTimeZoneById("Central Standard Time");
-        var startUtc  = TimeZoneInfo.ConvertTimeToUtc(
-            DateTime.SpecifyKind(vm.StartTime, DateTimeKind.Unspecified), tz);
+        // var tz        = screen?.Location?.TimeZoneId is { } tzId
+            // ? TryFindTimeZone(tzId)
+            // : TimeZoneInfo.FindSystemTimeZoneById("Central Standard Time");
+        // var startUtc  = TimeZoneInfo.ConvertTimeToUtc(
+            // DateTime.SpecifyKind(vm.StartTime, DateTimeKind.Unspecified), tz);
+		var startUtc  = TimeZoneHelper.ConvertToUtc(
+            vm.StartTime, screen?.Location?.TimeZoneId);
 
         var showtime = new Showtime
         {
@@ -179,11 +179,13 @@ public class AdminManageController : StaffControllerBase
 
         // Convert stored UTC back to location local time so the datetime-local
         // input shows the time the admin originally entered.
-        var tz        = st.TheaterScreen?.Location?.TimeZoneId is { } tzId
-            ? TryFindTimeZone(tzId)
-            : TimeZoneInfo.FindSystemTimeZoneById("Central Standard Time");
-        var startLocal = TimeZoneInfo.ConvertTimeFromUtc(
-            DateTime.SpecifyKind(st.StartTime, DateTimeKind.Utc), tz);
+        // var tz        = st.TheaterScreen?.Location?.TimeZoneId is { } tzId
+            // ? TryFindTimeZone(tzId)
+            // : TimeZoneInfo.FindSystemTimeZoneById("Central Standard Time");
+        // var startLocal = TimeZoneInfo.ConvertTimeFromUtc(
+            // DateTime.SpecifyKind(st.StartTime, DateTimeKind.Utc), tz);
+		var startLocal = TimeZoneHelper.ConvertFromUtc(
+                    st.StartTime, st.TheaterScreen?.Location?.TimeZoneId);
 
         var vm = new ShowtimeFormViewModel
         {
@@ -213,11 +215,8 @@ public class AdminManageController : StaffControllerBase
         var screen   = await _db.TheaterScreens
             .Include(ts => ts.Location)
             .FirstOrDefaultAsync(ts => ts.TheaterScreenId == vm.TheaterScreenId);
-        var tz       = screen?.Location?.TimeZoneId is { } tzId
-            ? TryFindTimeZone(tzId)
-            : TimeZoneInfo.FindSystemTimeZoneById("Central Standard Time");
-        var startUtc = TimeZoneInfo.ConvertTimeToUtc(
-            DateTime.SpecifyKind(vm.StartTime, DateTimeKind.Unspecified), tz);
+        var startUtc = TimeZoneHelper.ConvertToUtc(
+            vm.StartTime, screen?.Location?.TimeZoneId);
 
         st.MovieId         = vm.MovieId;
         st.TheaterScreenId = vm.TheaterScreenId;
@@ -602,40 +601,11 @@ public class AdminManageController : StaffControllerBase
         return View(new LocationIndexViewModel { Locations = locations });
     }
 
-    // ── Timezone helper ────────────────────────────────────────────────────
-
-    /// <summary>
-    /// Resolves a <see cref="TimeZoneInfo"/> from a Windows timezone ID string.
-    /// Falls back to Central Time if the ID is unrecognised — prevents a bad
-    /// <c>Location.TimeZoneId</c> value from crashing showtime create/edit.
-    /// </summary>
-    private static TimeZoneInfo TryFindTimeZone(string timeZoneId)
-    {
-        try   { return TimeZoneInfo.FindSystemTimeZoneById(timeZoneId); }
-        catch { return TimeZoneInfo.FindSystemTimeZoneById("Central Standard Time"); }
-    }
-
-    /// <summary>
-    /// Builds the list of US timezone options for the location form dropdown,
-    /// ordered from west to east. Uses Windows timezone IDs which .NET maps
-    /// automatically to IANA on Linux — no platform-specific handling needed.
-    /// </summary>
-    private static List<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem> BuildTimezoneList() =>
-    [
-        new() { Value = "Hawaiian Standard Time",      Text = "(UTC-10) Hawaii" },
-        new() { Value = "Alaskan Standard Time",       Text = "(UTC-9)  Alaska" },
-        new() { Value = "Pacific Standard Time",       Text = "(UTC-8)  Pacific — Los Angeles, Seattle" },
-        new() { Value = "US Mountain Standard Time",   Text = "(UTC-7)  Arizona (no DST)" },
-        new() { Value = "Mountain Standard Time",      Text = "(UTC-7)  Mountain — Denver, Salt Lake City" },
-        new() { Value = "Central Standard Time",       Text = "(UTC-6)  Central — Dallas, Chicago" },
-        new() { Value = "Eastern Standard Time",       Text = "(UTC-5)  Eastern — New York, Miami" },
-    ];
-
     /// <summary>GET: create-location form.</summary>
     public IActionResult LocationCreate()
     {
         if (RoleGuard(1) is { } r) return r;
-        return View(new LocationFormViewModel { AvailableTimeZones = BuildTimezoneList() });
+        return View(new LocationFormViewModel { AvailableTimeZones = TimeZoneHelper.BuildTimezoneSelectList() });
     }
 
     /// <summary>POST: persist new location.</summary>
@@ -645,7 +615,7 @@ public class AdminManageController : StaffControllerBase
         if (RoleGuard(1) is { } r) return r;
         if (!ModelState.IsValid)
         {
-            vm.AvailableTimeZones = BuildTimezoneList();
+            vm.AvailableTimeZones = TimeZoneHelper.BuildTimezoneSelectList();
             return View(vm);
         }
 
@@ -681,7 +651,7 @@ public class AdminManageController : StaffControllerBase
             LocationAddress   = loc.LocationAddress,
             IsActive          = loc.IsActive,
             TimeZoneId        = loc.TimeZoneId,
-            AvailableTimeZones = BuildTimezoneList()
+            AvailableTimeZones = TimeZoneHelper.BuildTimezoneSelectList()
         });
     }
 
@@ -692,7 +662,7 @@ public class AdminManageController : StaffControllerBase
         if (RoleGuard(1) is { } r) return r;
         if (!ModelState.IsValid)
         {
-            vm.AvailableTimeZones = BuildTimezoneList();
+            vm.AvailableTimeZones = TimeZoneHelper.BuildTimezoneSelectList();
             return View(vm);
         }
 
@@ -877,7 +847,7 @@ public class AdminManageController : StaffControllerBase
 
         // Central Time for export formatting. TimeOfSale is UTC; ShowtimeStart is
         // stored as local Central time (no UTC conversion at write time yet).
-        var centralTz = TimeZoneInfo.FindSystemTimeZoneById("Central Standard Time");
+        var centralTz = TimeZoneHelper.Resolve(TimeZoneHelper.CentralWindowsId);
 
         List<TicketExportRow> rows;
         try
@@ -908,12 +878,10 @@ public class AdminManageController : StaffControllerBase
             // Format datetimes in-memory as Central Time strings.
             rows = raw.Select(r =>
             {
-                var saleUtc   = DateTime.SpecifyKind(r.TimeOfSale, DateTimeKind.Utc);
-                var saleLocal = TimeZoneInfo.ConvertTimeFromUtc(saleUtc, centralTz);
-                var saleAbbr  = centralTz.IsDaylightSavingTime(saleLocal) ? "CDT" : "CST";
+                var saleLocal = TimeZoneHelper.ConvertFromUtc(r.TimeOfSale, centralTz);
+                var saleAbbr  = TimeZoneHelper.BuildAbbreviation(centralTz, centralTz.IsDaylightSavingTime(saleLocal));
 
-                // ShowtimeStart stored as local time — format directly, no UTC conversion.
-                var showAbbr  = centralTz.IsDaylightSavingTime(r.ShowtimeStart) ? "CDT" : "CST";
+                var showAbbr  = TimeZoneHelper.BuildAbbreviation(centralTz, centralTz.IsDaylightSavingTime(r.ShowtimeStart));
 
                 return new TicketExportRow(
                     r.TicketId,
@@ -977,7 +945,7 @@ public class AdminManageController : StaffControllerBase
         var from = vm.DateFrom.ToDateTime(TimeOnly.MinValue);
         var to   = vm.DateTo.ToDateTime(TimeOnly.MaxValue);
 
-        var centralTz = TimeZoneInfo.FindSystemTimeZoneById("Central Standard Time");
+        var centralTz = TimeZoneHelper.Resolve(TimeZoneHelper.CentralWindowsId);
 
         List<ConcessionExportRow> rows;
         try
@@ -1006,9 +974,8 @@ public class AdminManageController : StaffControllerBase
 
             rows = raw.Select(r =>
             {
-                var saleUtc   = DateTime.SpecifyKind(r.TimeOfSale, DateTimeKind.Utc);
-                var saleLocal = TimeZoneInfo.ConvertTimeFromUtc(saleUtc, centralTz);
-                var saleAbbr  = centralTz.IsDaylightSavingTime(saleLocal) ? "CDT" : "CST";
+                var saleLocal = TimeZoneHelper.ConvertFromUtc(r.TimeOfSale, centralTz);
+                var saleAbbr  = TimeZoneHelper.BuildAbbreviation(centralTz, centralTz.IsDaylightSavingTime(saleLocal));
 
                 return new ConcessionExportRow(
                     r.SaleId,
@@ -1041,62 +1008,6 @@ public class AdminManageController : StaffControllerBase
                 : $"concessions_{vm.DateFrom:yyyyMMdd}_{vm.DateTo:yyyyMMdd}.csv",
             vm.Format);
     }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // STAFF PORTAL TEST PAGE
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// GET: Staff Portal Test Page.
-    /// Mirrors the customer-facing Movies and Concessions tabs but runs entirely inside
-    /// the Admin area, uses the staff session identity (not the web.sales WebUser), and
-    /// links directly to the admin CRUD actions so edits are confirmed "online".
-    ///
-    /// Accessible to Manager (RoleId &lt;= 2) and Admin (RoleId 1).
-    /// </summary>
-    public async Task<IActionResult> StaffPortalTest()
-    {
-        if (RoleGuard(2) is { } r) return r;
-
-        var roleName = CurrentRoleId switch
-        {
-            1 => "Admin",
-            2 => "Manager",
-            3 => "Employee",
-            _ => "Unknown"
-        };
-
-        var movies = await _db.Movies
-            .Include(m => m.TmdbMetadata)
-            .Include(m => m.MovieGenres).ThenInclude(mg => mg.Genre)
-            .OrderBy(m => m.Title)
-            .AsNoTracking()
-            .ToListAsync();
-
-        var concessions = await _db.ConcessionItems
-            .Include(ci => ci.Location)
-            .Where(ci => ci.IsActive)
-            .OrderBy(ci => ci.ItemName)
-            .AsNoTracking()
-            .ToListAsync();
-
-        var vm = new StaffPortalTestViewModel
-        {
-            StaffUserId = CurrentUserId ?? 0,
-            StaffUserName = CurrentUserName ?? "(unknown)",
-            StaffRole = roleName,
-            Movies = movies,
-            ConcessionItems = concessions
-        };
-
-        _logger.LogInformation(
-            "StaffPortalTest loaded by {Role} UserId={UserId} — {MovieCount} movies, {ConcCount} concession items.",
-            roleName, CurrentUserId, movies.Count, concessions.Count);
-
-        return View(vm);
-    }
-
-
 
     private async Task<ShowtimeFormViewModel> BuildShowtimeFormAsync(ShowtimeFormViewModel vm)
     {

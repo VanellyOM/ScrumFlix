@@ -26,6 +26,7 @@
  */
 
 using QRCoder;
+using ScrumFlix.Infrastructure;
 
 namespace ScrumFlix.Services;
 
@@ -46,91 +47,6 @@ public class QrCodeService
     // TimeZoneInfo.FindSystemTimeZoneById() accepts Windows IDs on both Windows
     // and Linux — .NET auto-maps to IANA (e.g. "Central Standard Time" →
     // "America/Chicago"). Covers CST/CDT, MST/MDT, PST/PDT etc. automatically.
-    private static readonly TimeZoneInfo CentralTz = InitCentralTimeZone();
-
-    private static TimeZoneInfo InitCentralTimeZone()
-    {
-        try
-        {
-            return TimeZoneInfo.FindSystemTimeZoneById("Central Standard Time");
-        }
-        catch (TimeZoneNotFoundException)
-        {
-            return TimeZoneInfo.Utc;
-        }
-        catch (InvalidTimeZoneException)
-        {
-            return TimeZoneInfo.Utc;
-        }
-    }
-
-    /// <summary>
-    /// Resolves a <see cref="TimeZoneInfo"/> from a Windows timezone ID string.
-    /// Falls back to Central Time if the ID is null, empty, or unrecognised
-    /// so a bad Location.TimeZoneId never crashes QR generation.
-    /// </summary>
-    private static TimeZoneInfo ResolveTimeZone(string? timeZoneId)
-    {
-        if (string.IsNullOrWhiteSpace(timeZoneId)) return CentralTz;
-        try   { return TimeZoneInfo.FindSystemTimeZoneById(timeZoneId); }
-        catch { return CentralTz; }
-    }
-
-    /// <summary>
-    /// Converts a UTC <see cref="DateTime"/> to the given local timezone.
-    /// If <paramref name="utc"/> has <see cref="DateTimeKind.Unspecified"/> it is
-    /// treated as UTC — Pomelo/MySQL strips the Kind flag on read-back.
-    /// </summary>
-    private static DateTime ToLocal(DateTime utc, TimeZoneInfo tz)
-    {
-        if (utc.Kind == DateTimeKind.Unspecified)
-            utc = DateTime.SpecifyKind(utc, DateTimeKind.Utc);
-        return TimeZoneInfo.ConvertTimeFromUtc(utc, tz);
-    }
-
-    /// <summary>
-    /// Formats a UTC DateTime in the given timezone, appending the correct
-    /// DST/standard abbreviation (e.g. "2:00 PM CDT", "7:00 PM PST").
-    /// The abbreviation is derived from the timezone rules, not hardcoded.
-    /// </summary>
-    private static string FormatLocalTime(DateTime utc, string format, TimeZoneInfo tz)
-    {
-        var local = ToLocal(utc, tz);
-        // Build the abbreviation from the timezone's display name segments.
-        // TimeZoneInfo.GetAbbreviation() is not public, so we derive it:
-        //   "Central Standard Time" → standard abbr = "CST", DST abbr = "CDT"
-        //   "Eastern Standard Time" → "EST" / "EDT"
-        //   "Pacific Standard Time" → "PST" / "PDT"
-        // Pattern: take each word's first letter except "Time" and "Standard"/"Daylight".
-        var isDst  = tz.IsDaylightSavingTime(local);
-        var abbr   = BuildAbbreviation(tz, isDst);
-        return local.ToString(format) + " " + abbr;
-    }
-
-    /// <summary>
-    /// Derives a short timezone abbreviation from a <see cref="TimeZoneInfo"/>.
-    /// Uses the standard or daylight display name to extract initials
-    /// (e.g. "Central Standard Time" → "CST", "Central Daylight Time" → "CDT").
-    /// Falls back to the UTC offset string if the name cannot be parsed.
-    /// </summary>
-    private static string BuildAbbreviation(TimeZoneInfo tz, bool isDst)
-    {
-        // TimeZoneInfo exposes StandardName and DaylightName (e.g. "Central Standard Time")
-        var name  = isDst ? tz.DaylightName : tz.StandardName;
-        // Take the first letter of each word, skip generic words
-        var skip  = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-                    { "time", "and", "of", "the" };
-        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        var abbr  = string.Concat(parts
-            .Where(p => !skip.Contains(p))
-            .Select(p => p[0]));
-        // Validate: should be 2–4 uppercase letters (CST, CDT, EST, EDT, MST, PST…)
-        return abbr.Length is >= 2 and <= 4
-            ? abbr.ToUpperInvariant()
-            : (isDst ? tz.BaseUtcOffset + TimeSpan.FromHours(1) : tz.BaseUtcOffset)
-                .ToString(@"hh\:mm");
-    }
-
     /// <summary>
     /// Generates a Base64-encoded PNG QR code from an arbitrary string payload.
     /// Use this overload when encoding structured ticket info.
@@ -196,9 +112,9 @@ public class QrCodeService
         // showTime = Showtime.StartTime, now stored as UTC (converted at write time
         // in AdminManageController.ShowtimeCreate/Edit using the location's TimeZoneId).
         // Convert to the location's local time for display on the QR code.
-        var tz   = ResolveTimeZone(timeZoneId);
-        var date = showTime.HasValue ? ToLocal(showTime.Value, tz).ToString("yyyy-MM-dd")  : "N/A";
-        var time = showTime.HasValue ? FormatLocalTime(showTime.Value, "h:mm tt", tz)       : "N/A";
+        var tz   = TimeZoneHelper.Resolve(timeZoneId);
+        var date = showTime.HasValue ? TimeZoneHelper.ConvertFromUtc(showTime.Value, tz).ToString("yyyy-MM-dd") : "N/A";
+        var time = showTime.HasValue ? TimeZoneHelper.FormatWithAbbreviation(showTime.Value, "h:mm tt", tz)     : "N/A";
 
         var seat   = string.IsNullOrEmpty(seatLabel)    ? "GA"  : seatLabel;
         var screen = string.IsNullOrEmpty(screenName)   ? "N/A" : screenName;
@@ -224,9 +140,9 @@ public class QrCodeService
         decimal total,
         string? timeZoneId = null)
     {
-        var tz       = ResolveTimeZone(timeZoneId);
-        var date     = ToLocal(timeOfSale, tz).ToString("yyyy-MM-dd");
-        var time     = FormatLocalTime(timeOfSale, "h:mm tt", tz);
+        var tz   = TimeZoneHelper.Resolve(timeZoneId);
+        var date = TimeZoneHelper.ConvertFromUtc(timeOfSale, tz).ToString("yyyy-MM-dd");
+        var time = TimeZoneHelper.FormatWithAbbreviation(timeOfSale, "h:mm tt", tz);
         var itemList = string.Join(",", items.Select(i => $"{i.ItemName}x{i.Quantity}"));
         var totalStr = total.ToString("C");
 

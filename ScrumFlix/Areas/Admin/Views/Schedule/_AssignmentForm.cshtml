@@ -35,9 +35,14 @@
     }
 
     <div class="mb-3">
-        <label class="form-label sf-label" for="af-name">Assignment Name</label>
-        <input id="af-name" type="text" name="AssignmentName" class="form-control sf-input"
-               value="@Model.AssignmentName" maxlength="100" />
+        <label class="form-label sf-label" for="af-area">Assignment Area</label>
+        <select id="af-area" name="AssignmentAreaId" class="form-select sf-input" required>
+            <option value="">— Select Area —</option>
+            @foreach (var area in Model.Areas)
+            {
+                <option value="@area.Value" selected="@area.Selected">@area.Text</option>
+            }
+        </select>
     </div>
 
     <div class="mb-3">
@@ -55,12 +60,12 @@
         <label class="form-label sf-label" for="af-shift">Shift</label>
         <select id="af-shift" name="ShiftId" class="form-select sf-input" required>
             <option value="">— Select Shift —</option>
-            @foreach (var s in Model.Employees)
+            @foreach (var s in Model.Shifts)
             {
                 <option value="@s.Value" selected="@s.Selected">@s.Text</option>
             }
         </select>
-        @* Note: Employees list reused placeholder; Shifts list is separate *@
+        @* Phase 3 fix: now bound to Model.Shifts (was the Employees placeholder) *@
     </div>
 
     <div class="mb-3">

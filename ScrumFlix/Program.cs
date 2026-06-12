@@ -82,7 +82,6 @@ using Microsoft.AspNetCore.Http.Features;
 using QuestPDF.Infrastructure;
 using ScrumFlix.Filters;
 using ScrumFlix.Hubs;
-using ScrumFlix.Infrastructure;
 using ScrumFlix.Services.TMDB;
 using Serilog;
 using SixLabors.ImageSharp.Web.Caching;
@@ -126,7 +125,22 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     // when Aiven is briefly unreachable. The hardcoded version is safe —
     // Pomelo only uses it to select SQL dialect features, not for runtime queries.
     // Update the patch version here if Aiven upgrades the MySQL engine.
-    options.UseMySql(connectionString, new MySqlServerVersion(new Version(8, 0, 45)))
+    options.UseMySql(connectionString, new MySqlServerVersion(new Version(8, 0, 45)),
+           // Transient-failure resiliency: Somee → Aiven traverses the public
+           // internet, so brief connection drops (network blips, Aiven
+           // maintenance/failover) are expected. Retry up to 3 times with
+           // exponential backoff capped at 5s before surfacing the exception.
+           // First observed: SeatReservationExpiryService email alert,
+           // June 11 2026 ("Unable to connect to any of the specified MySQL hosts").
+           // NOTE: a retrying execution strategy FORBIDS bare BeginTransaction —
+           // every explicit transaction must be wrapped in
+           // Database.CreateExecutionStrategy().ExecuteAsync(...).
+           // CartController (checkout) does this; follow that pattern for any
+           // new explicit transactions.
+           mySqlOptions => mySqlOptions.EnableRetryOnFailure(
+               maxRetryCount: 3,
+               maxRetryDelay: TimeSpan.FromSeconds(5),
+               errorNumbersToAdd: null))
 
            // EnableSensitiveDataLogging: shows parameter values in EF log output.
            // Development only — never enable in Production (leaks PII).
@@ -180,6 +194,8 @@ builder.Services.AddSingleton<ISystemAccountProvider, SystemAccountProvider>();
 // SeatService: canonical ShowtimeSeat availability queries and atomic reservation.
 // Scoped — needs a fresh DbContext per request (atomic conditional UPDATE pattern).
 builder.Services.AddScoped<SeatService>();
+
+builder.Services.AddScoped<IDatabaseBackupService, DatabaseBackupService>();
 
 // SeatReservationExpiryService: background worker that polls every 60 seconds
 // and releases expired seat holds via SeatService.ReleaseExpiredReservationsAsync().

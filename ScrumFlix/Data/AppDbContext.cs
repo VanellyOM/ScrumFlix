@@ -95,6 +95,9 @@ public class AppDbContext : DbContext
     /// <summary>Scheduled work shifts at theater locations.</summary>
     public DbSet<Shift> Shifts { get; set; }
 
+    /// <summary>Normalized assignment-area lookup (Box Office, Concessions, ...).</summary>
+    public DbSet<AssignmentArea> AssignmentAreas { get; set; }
+
     /// <summary>Employee-to-shift assignments, optionally tied to a showtime.</summary>
     public DbSet<ScheduleAssignment> ScheduleAssignments { get; set; }
 
@@ -357,14 +360,33 @@ public class AppDbContext : DbContext
                   .OnDelete(DeleteBehavior.Restrict);
         });
 
+        // ── AssignmentArea (Phase 3) ──────────────────────────────────────
+        //
+        // Normalized lookup for assignment areas. AreaName is unique; areas
+        // referenced by assignments are protected by RESTRICT — retire with
+        // IsActive = false instead of deleting.
+
+        modelBuilder.Entity<AssignmentArea>(entity =>
+        {
+            entity.HasIndex(aa => aa.AreaName)
+                  .IsUnique()
+                  .HasDatabaseName("UQ_AssignmentArea_Name");
+        });
+
         // ── ScheduleAssignment ────────────────────────────────────────────
         //
         // ShowtimeId is nullable — not all assignments are tied to a screening.
-        // All three FKs must be explicitly mapped because the entity has multiple
+        // All four FKs must be explicitly mapped because the entity has multiple
         // optional and required FKs pointing to different principal tables.
 
         modelBuilder.Entity<ScheduleAssignment>(entity =>
         {
+            // AssignmentAreaId FK → AssignmentAreas (Phase 3 — replaces AssignmentName)
+            entity.HasOne(sa => sa.AssignmentArea)
+                  .WithMany(aa => aa.ScheduleAssignments)
+                  .HasForeignKey(sa => sa.AssignmentAreaId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
             // UserId FK → Users.UserId (corrected from EmployeeId 2026-05-08)
             entity.HasOne(sa => sa.User)
                   .WithMany(u => u.ScheduleAssignments)
@@ -406,6 +428,9 @@ public class AppDbContext : DbContext
         // The inverse nav on User is ApprovedTimesheets.
         // NoAction: if the approving user account is deleted, the approval record
         // is left in place (historical accuracy).
+        //
+        // Live DB enforces ON UPDATE CASCADE on all Timesheet FKs. EF Core does not
+        // expose OnUpdate behavior — this is handled at the DB constraint level.
 
         modelBuilder.Entity<Timesheet>(entity =>
         {
@@ -454,14 +479,18 @@ public class AppDbContext : DbContext
         // ── PayStub ───────────────────────────────────────────────────────
         //
         // One-to-one: each Payroll has at most one PayStub.
-        // Cascade: deleting a Payroll record removes its stub.
+        // Restrict: matches the live schema FK_PayStubs_Payroll, which has no
+        // ON DELETE clause (MySQL defaults to RESTRICT). The payroll engine never
+        // deletes Payroll rows, so a cascade was aspirational, not functional —
+        // keeping EF aligned with the DB prevents a spurious FK violation if a
+        // delete is ever attempted.
 
         modelBuilder.Entity<PayStub>(entity =>
         {
             entity.HasOne(ps => ps.Payroll)
                   .WithOne(p => p.PayStub)
                   .HasForeignKey<PayStub>(ps => ps.PayrollId)
-                  .OnDelete(DeleteBehavior.Cascade);
+                  .OnDelete(DeleteBehavior.Restrict);
         });
 
         // ── Seat ──────────────────────────────────────────────────────────

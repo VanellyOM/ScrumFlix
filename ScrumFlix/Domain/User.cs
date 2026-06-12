@@ -3,7 +3,7 @@
  * Description: Canonical User entity — maps to the Users table in defaultdb.
  *
  *              CRITICAL SECURITY NOTES:
- *              - UserPassword (varchar 20) is a legacy plaintext column present in the
+ *              - UserPassword (varchar 100) is a legacy plaintext column present in the
  *                canonical schema. It must be migrated to PasswordHash on first successful
  *                login, then nulled out. Never log or display UserPassword.
  *              - PasswordHash uses BCrypt or PBKDF2. Max 255 chars per schema (varchar(255)).
@@ -50,6 +50,10 @@ public class User
     /// Legacy plaintext password column. Present in canonical schema for migration purposes only.
     /// AuthService must hash this on first successful login and set to null.
     /// NEVER display, log, or transmit this value.
+    ///
+    /// UserPassword is NOT NULL in the live schema. On post-migration write, always
+    /// assign string.Empty — never null. AuthService enforces this on both
+    /// LoginAsync and ChangePasswordAsync paths.
     /// </summary>
     [MaxLength(100)]
     [Column("UserPassword")]

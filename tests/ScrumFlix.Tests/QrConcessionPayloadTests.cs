@@ -12,9 +12,10 @@
  * across cultures, so assertions key off that rather than the symbol.
  */
 
+using ScrumFlix.Infrastructure;
+using ScrumFlix.Services;
 using System;
 using System.Collections.Generic;
-using ScrumFlix.Services;
 using Xunit;
 
 namespace ScrumFlix.Tests;
@@ -69,7 +70,8 @@ public class QrConcessionPayloadTests
         // 2026-06-16 02:00 UTC → 2026-06-15 (21:00) CDT in America/Chicago.
         var timeOfSale = new DateTime(2026, 6, 16, 2, 0, 0, DateTimeKind.Utc);
 
-        var tz = TimeZoneTestHelper.ResolveCentral();
+        // FIX: Replaced obsolete TimeZoneTestHelper with TimeZoneHelper
+        var tz = TimeZoneHelper.Resolve(TimeZoneHelper.CentralWindowsId);
         if (tz is null) return;   // OS without Central tz data — no-op.
 
         var payload = QrCodeService.BuildConcessionPayload(

@@ -31,12 +31,23 @@
  *
  * Seat selection additions:
  *   - ShowtimeSeats included in all Showtime queries so AvailableSeats uses the
- *     accurate per-seat status check rather than the Capacity - Tickets.Count fallback.
+ *     accurate per-seat status count (SeatStatus.Available) rather than the
+ *     Capacity - Tickets.Count fallback, which can drift if seats are held/reserved
+ *     without a Ticket row.
  *   - vm.SeatNumbers forwarded to CartItem.SeatNumbers so the cart and downstream
  *     reservation logic know which specific seats were chosen.
  *   - ILogger<ShowtimesController> injected for POST diagnostics: logs all bound
  *     form values on entry and all ModelState errors on validation failure.
+ *
+ * Timezone fix:
+ *   CartItem.ShowTime and CartItem.DisplayName previously used Showtime.StartTime
+ *   directly (raw UTC), causing times to display as UTC on booking and cart pages.
+ *   Both fields now use TimeZoneHelper.ConvertFromUtc() with the location's
+ *   TimeZoneId so the displayed time matches the theater's local clock regardless
+ *   of where the viewer is browsing from.
  */
+
+using ScrumFlix.Infrastructure;
 
 namespace ScrumFlix.Controllers;
 
@@ -133,6 +144,9 @@ public class ShowtimesController : ConsumerControllerBase
     /// Uses Showtime.PricePerTicket — no PriceTier lookup.
     /// UserAtSale is the logged-in user's session UserId.
     /// SeatNumbers (optional comma-separated labels) is forwarded to CartItem.
+    /// ShowTime and DisplayName are stored in the theater's local time (converted
+    /// from UTC via TimeZoneHelper) so cart and confirmation pages show the
+    /// correct local time regardless of server or viewer timezone.
     /// </summary>
     [HttpPost]
     [ValidateAntiForgeryToken]
@@ -191,7 +205,8 @@ public class ShowtimesController : ConsumerControllerBase
             return View("ShowtimeBooking", vm);
         }
 
-        var locationId = showtime.TheaterScreen?.LocationId;
+        var locationId  = showtime.TheaterScreen?.LocationId;
+        var timeZoneId  = showtime.TheaterScreen?.Location?.TimeZoneId;
 
         if (locationId is null or 0)
         {
@@ -199,6 +214,12 @@ public class ShowtimesController : ConsumerControllerBase
                 "This showtime's theater location could not be determined. Please contact staff.");
             return View("ShowtimeBooking", vm);
         }
+
+        // Convert UTC StartTime to the theater's local time for display in cart
+        // and order confirmation. The viewer's own timezone is irrelevant — a
+        // California showtime at 7:00 PM Pacific should show "7:00 PM" to
+        // everyone, not "9:00 PM" to a Texas browser.
+        var startLocal = TimeZoneHelper.ConvertFromUtc(showtime.StartTime, timeZoneId);
 
         // Build cart item — price from Showtime.PricePerTicket, user from session.
         // SeatNumbers forwarded so CartService / reservation logic knows which
@@ -208,11 +229,11 @@ public class ShowtimesController : ConsumerControllerBase
             ItemType     = CartItemType.Ticket,
             ShowtimeId   = showtime.ShowtimeId,
             MovieName    = showtime.Movie?.Title,
-            ShowTime     = showtime.StartTime,
+            ShowTime     = startLocal,                                          // local time
             LocationId   = locationId,
             LocationName = showtime.TheaterScreen?.Location?.LocationName,
             ScreenName   = showtime.TheaterScreen?.ScreenName,
-            DisplayName  = $"{showtime.Movie?.Title} — {showtime.StartTime:h:mm tt}",
+            DisplayName  = $"{showtime.Movie?.Title} — {startLocal:h:mm tt}",  // local time
             UnitPrice    = showtime.PricePerTicket,
             Quantity     = vm.Quantity,
             UserAtSale   = userId.Value,

@@ -189,84 +189,103 @@ public class CartController : ConsumerControllerBase   // after S2
 
         if (ticketItems.Any())
         {
-            using var tx = await _db.Database.BeginTransactionAsync();
-            try
+            // EnableRetryOnFailure (Program.cs) forbids bare BeginTransaction —
+            // explicit transactions must run inside the execution strategy so the
+            // ENTIRE unit (begin → work → commit) can be replayed on a transient
+            // connection failure. The lambda returns an IActionResult for early
+            // validation exits, or null on success.
+            var ticketStrategy = _db.Database.CreateExecutionStrategy();
+            var ticketEarlyExit = await ticketStrategy.ExecuteAsync(async () =>
             {
-                foreach (var item in ticketItems)
+                // ── Retry-safe state reset ─────────────────────────────────
+                // On a retried attempt, the failed attempt's entities are still
+                // tracked as Added and issuedCodes still holds its codes —
+                // without this reset a retry would double-insert tickets.
+                _db.ChangeTracker.Clear();
+                issuedCodes.Clear();
+
+                using var tx = await _db.Database.BeginTransactionAsync();
+                try
                 {
-                    if (!item.ShowtimeId.HasValue)
-                        return BadRequest("Cart contains a ticket item with no ShowtimeId.");
-
-                    // Load canonical Showtime + Tickets for availability check
-                    var showtime = await _db.Showtimes
-                        .Include(st => st.Tickets)
-                        .FirstOrDefaultAsync(st => st.ShowtimeId == item.ShowtimeId.Value);
-
-                    if (showtime == null)
-                        return NotFound($"Showtime {item.ShowtimeId} not found.");
-
-                    var soldCount = showtime.Tickets.Count;
-                    var remaining = showtime.Capacity - soldCount;
-
-                    if (remaining < item.Quantity)
-                        return BadRequest(
-                            $"Only {remaining} seat(s) remaining for this showing. " +
-                            $"Requested: {item.Quantity}.");
-
-                    for (int q = 0; q < item.Quantity; q++)
+                    foreach (var item in ticketItems)
                     {
-                        var code = await GenerateUniqueTicketCodeAsync();
-                        issuedCodes.Add(code);
+                        if (!item.ShowtimeId.HasValue)
+                            return (IActionResult?)BadRequest("Cart contains a ticket item with no ShowtimeId.");
 
-                        // ShowtimeSeatId: assign the q-th resolved seat ID when available
-                        // (seat-picker flow). Null for general-admission flows where
-                        // ShowtimeSeatIds is empty. Index guard prevents out-of-range
-                        // if Quantity somehow exceeds the number of picked seats.
-                        int? seatId = q < item.ShowtimeSeatIds.Count
-                            ? item.ShowtimeSeatIds[q]
-                            : (int?)null;
+                        // Load canonical Showtime + Tickets for availability check
+                        var showtime = await _db.Showtimes
+                            .Include(st => st.Tickets)
+                            .FirstOrDefaultAsync(st => st.ShowtimeId == item.ShowtimeId.Value);
 
-                        _db.Tickets.Add(new Ticket
+                        if (showtime == null)
+                            return NotFound($"Showtime {item.ShowtimeId} not found.");
+
+                        var soldCount = showtime.Tickets.Count;
+                        var remaining = showtime.Capacity - soldCount;
+
+                        if (remaining < item.Quantity)
+                            return BadRequest(
+                                $"Only {remaining} seat(s) remaining for this showing. " +
+                                $"Requested: {item.Quantity}.");
+
+                        for (int q = 0; q < item.Quantity; q++)
                         {
-                            TicketCode      = code,
-                            ShowtimeId      = item.ShowtimeId.Value,
-                            UserAtSale      = item.UserAtSale > 0 ? item.UserAtSale : userId.Value,
-                            TimeOfSale      = DateTime.UtcNow,
-                            ShowtimeSeatId  = seatId   // null for GA; resolved ID for seat-picker
-                        });
+                            var code = await GenerateUniqueTicketCodeAsync();
+                            issuedCodes.Add(code);
+
+                            // ShowtimeSeatId: assign the q-th resolved seat ID when available
+                            // (seat-picker flow). Null for general-admission flows where
+                            // ShowtimeSeatIds is empty. Index guard prevents out-of-range
+                            // if Quantity somehow exceeds the number of picked seats.
+                            int? seatId = q < item.ShowtimeSeatIds.Count
+                                ? item.ShowtimeSeatIds[q]
+                                : (int?)null;
+
+                            _db.Tickets.Add(new Ticket
+                            {
+                                TicketCode      = code,
+                                ShowtimeId      = item.ShowtimeId.Value,
+                                UserAtSale      = item.UserAtSale > 0 ? item.UserAtSale : userId.Value,
+                                TimeOfSale      = DateTime.UtcNow,
+                                ShowtimeSeatId  = seatId   // null for GA; resolved ID for seat-picker
+                            });
+                        }
                     }
+
+                    await _db.SaveChangesAsync();
+
+                    // ── F-01 FIX: Finalize reserved seats within the same transaction ──
+                    // Flatten ShowtimeSeatIds across all assigned-seat ticket items.
+                    // CartItem.ShowtimeSeatIds is a List<int> (empty for GA flows) populated
+                    // by ShowtimesController when the seat picker resolves labels to IDs.
+                    // Distinct() guards against accidental duplicates across cart items.
+                    // FinalizeSeatsAsync is a no-op if the list is empty, so GA flows are
+                    // unaffected by this call.
+                    var seatIdsToFinalize = ticketItems
+                        .SelectMany(i => i.ShowtimeSeatIds)
+                        .Distinct()
+                        .ToList();
+
+                    if (seatIdsToFinalize.Any())
+                    {
+                        // FinalizeSeatsAsync: flips Status → 'Sold', removes SeatReservation rows.
+                        // Must run within this transaction so Ticket creation and seat finalization
+                        // are atomic — a failure rolls back both.
+                        await _seatService.FinalizeSeatsAsync(seatIdsToFinalize);
+                    }
+                    // ── End F-01 fix ───────────────────────────────────────────
+
+                    await tx.CommitAsync();
+                    return null; // success — no early exit
                 }
-
-                await _db.SaveChangesAsync();
-
-                // ── F-01 FIX: Finalize reserved seats within the same transaction ──
-                // Flatten ShowtimeSeatIds across all assigned-seat ticket items.
-                // CartItem.ShowtimeSeatIds is a List<int> (empty for GA flows) populated
-                // by ShowtimesController when the seat picker resolves labels to IDs.
-                // Distinct() guards against accidental duplicates across cart items.
-                // FinalizeSeatsAsync is a no-op if the list is empty, so GA flows are
-                // unaffected by this call.
-                var seatIdsToFinalize = ticketItems
-                    .SelectMany(i => i.ShowtimeSeatIds)
-                    .Distinct()
-                    .ToList();
-
-                if (seatIdsToFinalize.Any())
+                catch
                 {
-                    // FinalizeSeatsAsync: flips Status → 'Sold', removes SeatReservation rows.
-                    // Must run within this transaction so Ticket creation and seat finalization
-                    // are atomic — a failure rolls back both.
-                    await _seatService.FinalizeSeatsAsync(seatIdsToFinalize);
+                    await tx.RollbackAsync();
+                    throw;
                 }
-                // ── End F-01 fix ───────────────────────────────────────────
+            });
 
-                await tx.CommitAsync();
-            }
-            catch
-            {
-                await tx.RollbackAsync();
-                throw;
-            }
+            if (ticketEarlyExit is not null) return ticketEarlyExit;
         }
 
         // ── Concessions checkout ───────────────────────────────────────────
@@ -277,88 +296,104 @@ public class CartController : ConsumerControllerBase   // after S2
 
         if (concessionItems.Any())
         {
-            using var tx = await _db.Database.BeginTransactionAsync();
-            try
+            // Same execution-strategy wrapper as the ticket block above —
+            // required by EnableRetryOnFailure. Lambda returns an early-exit
+            // IActionResult or null on success.
+            var concessionStrategy = _db.Database.CreateExecutionStrategy();
+            var concessionEarlyExit = await concessionStrategy.ExecuteAsync(async () =>
             {
-                // Derive LocationId from the cart items — all concession items in the
-                // cart are guaranteed to share the same location (enforced by the
-                // location-conflict check in ShowtimesController). Fall back to the
-                // DB-loaded item's LocationId as a safety net.
-                var saleLocationId = concessionItems
-                    .Where(i => i.LocationId.HasValue)
-                    .Select(i => i.LocationId!.Value)
-                    .FirstOrDefault();
+                // ── Retry-safe state reset ─────────────────────────────────
+                // Detach any entities left tracked by a failed prior attempt
+                // (and the committed ticket block's entities — harmless, they
+                // are reloaded fresh where needed below).
+                _db.ChangeTracker.Clear();
+                completedSale = null;
 
-                var sale = new ConcessionSale
+                using var tx = await _db.Database.BeginTransactionAsync();
+                try
                 {
-                    UserId = userId.Value,
-                    CustomerEmail = userEmail,
-                    TimeOfSale = DateTime.UtcNow,
-                    Total = concessionItems.Sum(i => i.LineTotal),
-                    LocationId = saleLocationId  // correctly set from cart, not hardcoded default
-                };
+                    // Derive LocationId from the cart items — all concession items in the
+                    // cart are guaranteed to share the same location (enforced by the
+                    // location-conflict check in ShowtimesController). Fall back to the
+                    // DB-loaded item's LocationId as a safety net.
+                    var saleLocationId = concessionItems
+                        .Where(i => i.LocationId.HasValue)
+                        .Select(i => i.LocationId!.Value)
+                        .FirstOrDefault();
 
-                _db.ConcessionSales.Add(sale);
-                await _db.SaveChangesAsync(); // get ConcessionSaleId
-
-                foreach (var ci in concessionItems)
-                {
-                    if (!ci.ConcessionItemId.HasValue) continue;
-
-                    // Reload with tracking so we can decrement stock atomically
-                    var concItem = await _db.ConcessionItems
-                        .FirstOrDefaultAsync(x => x.ConcessionItemId == ci.ConcessionItemId.Value);
-
-                    if (concItem == null) continue;
-
-                    // Safety net: if cart LocationId was missing, use the DB item's location
-                    if (sale.LocationId == 0)
-                        sale.LocationId = concItem.LocationId;
-
-                    if (concItem.QuantityInStock < ci.Quantity)
-                        return BadRequest(
-                            $"Insufficient stock for {concItem.ItemName}. " +
-                            $"Available: {concItem.QuantityInStock}, Requested: {ci.Quantity}.");
-
-                    // Atomic stock decrement
-                    concItem.QuantityInStock -= ci.Quantity;
-
-                    // F-04: Low-stock admin alert — writes an AuditLog entry so the admin
-                    // dashboard can surface inventory warnings without a separate notification
-                    // service. Replace with AdminNotificationService.FlagLowStockAsync() when
-                    // that pattern is established (Sprint S6+).
-                    if (concItem.QuantityInStock <= concItem.Minimum)
+                    var sale = new ConcessionSale
                     {
-                        await _audit.LogAsync(
-                            userId: userId.Value,
-                            actionType: "LowStock",
-                            tableName: "ConcessionItem",
-                            objectId: concItem.ConcessionItemId,
-                            description: $"{concItem.ItemName} at or below minimum: " +
-                                         $"{concItem.QuantityInStock} remaining " +
-                                         $"(minimum: {concItem.Minimum}).");
+                        UserId = userId.Value,
+                        CustomerEmail = userEmail,
+                        TimeOfSale = DateTime.UtcNow,
+                        Total = concessionItems.Sum(i => i.LineTotal),
+                        LocationId = saleLocationId  // correctly set from cart, not hardcoded default
+                    };
+
+                    _db.ConcessionSales.Add(sale);
+                    await _db.SaveChangesAsync(); // get ConcessionSaleId
+
+                    foreach (var ci in concessionItems)
+                    {
+                        if (!ci.ConcessionItemId.HasValue) continue;
+
+                        // Reload with tracking so we can decrement stock atomically
+                        var concItem = await _db.ConcessionItems
+                            .FirstOrDefaultAsync(x => x.ConcessionItemId == ci.ConcessionItemId.Value);
+
+                        if (concItem == null) continue;
+
+                        // Safety net: if cart LocationId was missing, use the DB item's location
+                        if (sale.LocationId == 0)
+                            sale.LocationId = concItem.LocationId;
+
+                        if (concItem.QuantityInStock < ci.Quantity)
+                            return (IActionResult?)BadRequest(
+                                $"Insufficient stock for {concItem.ItemName}. " +
+                                $"Available: {concItem.QuantityInStock}, Requested: {ci.Quantity}.");
+
+                        // Atomic stock decrement
+                        concItem.QuantityInStock -= ci.Quantity;
+
+                        // F-04: Low-stock admin alert — writes an AuditLog entry so the admin
+                        // dashboard can surface inventory warnings without a separate notification
+                        // service. Replace with AdminNotificationService.FlagLowStockAsync() when
+                        // that pattern is established (Sprint S6+).
+                        if (concItem.QuantityInStock <= concItem.Minimum)
+                        {
+                            await _audit.LogAsync(
+                                userId: userId.Value,
+                                actionType: "LowStock",
+                                tableName: "ConcessionItem",
+                                objectId: concItem.ConcessionItemId,
+                                description: $"{concItem.ItemName} at or below minimum: " +
+                                             $"{concItem.QuantityInStock} remaining " +
+                                             $"(minimum: {concItem.Minimum}).");
+                        }
+
+                        _db.ConcessionSaleItems.Add(new ConcessionSaleItem
+                        {
+                            ConcessionSaleId = sale.ConcessionSaleId,
+                            ConcessionItemId = concItem.ConcessionItemId,
+                            Quantity = ci.Quantity,
+                            UnitPrice = ci.UnitPrice,
+                            LineTotal = ci.LineTotal
+                        });
                     }
 
-                    _db.ConcessionSaleItems.Add(new ConcessionSaleItem
-                    {
-                        ConcessionSaleId = sale.ConcessionSaleId,
-                        ConcessionItemId = concItem.ConcessionItemId,
-                        Quantity = ci.Quantity,
-                        UnitPrice = ci.UnitPrice,
-                        LineTotal = ci.LineTotal
-                    });
+                    await _db.SaveChangesAsync();
+                    await tx.CommitAsync();
+                    completedSale = sale;
+                    return null; // success — no early exit
                 }
+                catch
+                {
+                    await tx.RollbackAsync();
+                    throw;
+                }
+            });
 
-                await _db.SaveChangesAsync();
-                await tx.CommitAsync();
-                completedSale = sale;
-
-            }
-            catch
-            {
-                await tx.RollbackAsync();
-                throw;
-            }
+            if (concessionEarlyExit is not null) return concessionEarlyExit;
         }
 
         // ── Concession QR receipt ──────────────────────────────────────────

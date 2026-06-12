@@ -38,6 +38,7 @@ using MailKit.Net.Smtp;
 using MailKit.Security;
 using Microsoft.Extensions.Configuration;
 using MimeKit;
+using ScrumFlix.Infrastructure;
 
 namespace ScrumFlix.Services;
 
@@ -174,6 +175,7 @@ public sealed class EmailService : IEmailService
         List<string>         screenNames,
         List<ReceiptLineItem> orderItems,
         string?              concessionQrBase64 = null,
+        string?              locationTimeZoneId = null,
         CancellationToken    cancellationToken = default)
     {
         var hasTickets     = ticketCodes.Any();
@@ -447,7 +449,7 @@ public sealed class EmailService : IEmailService
             EscapeHtml(orderTotal) + "</td></tr>" +
             "<tr><td colspan=\"2\" style=\"font-family:'Segoe UI',Arial,sans-serif;" +
             "font-size:12px;color:" + TextMuted + ";\">" +
-            "Purchased: " + FormatCentralTime(timeOfSale) +
+            "Purchased: " + TimeZoneHelper.FormatWithAbbreviation(timeOfSale, "ddd MMM d, yyyy h:mm tt", locationTimeZoneId) +
             "</td></tr></table>\n");
 
         body.Append(
@@ -482,7 +484,7 @@ public sealed class EmailService : IEmailService
         plain.AppendLine("Subtotal:    " + orderSubtotal);
         plain.AppendLine("Sales Tax:   " + orderTax);
         plain.AppendLine("Order Total: " + orderTotal);
-        plain.AppendLine("Purchased: " + FormatCentralTime(timeOfSale));
+        plain.AppendLine("Purchased: " + TimeZoneHelper.FormatWithAbbreviation(timeOfSale, "ddd MMM d, yyyy h:mm tt", locationTimeZoneId));
         plain.AppendLine();
         plain.AppendLine("Enjoy the show!");
         plain.Append("--- ScrumFlix");
@@ -913,18 +915,5 @@ public sealed class EmailService : IEmailService
     private static string EscapeHtml(string input)
         => System.Net.WebUtility.HtmlEncode(input);
 
-    /// <summary>
-    /// Formats a UTC <see cref="DateTime"/> as US Central Time for display in emails.
-    /// Appends the correct abbreviation (CDT in summer, CST in winter).
-    /// Pomelo/MySQL strips Kind on read-back — Unspecified is treated as UTC.
-    /// </summary>
-    private static string FormatCentralTime(DateTime utc)
-    {
-        if (utc.Kind == DateTimeKind.Unspecified)
-            utc = DateTime.SpecifyKind(utc, DateTimeKind.Utc);
-        var centralTz = TimeZoneInfo.FindSystemTimeZoneById("Central Standard Time");
-        var local     = TimeZoneInfo.ConvertTimeFromUtc(utc, centralTz);
-        var abbr      = centralTz.IsDaylightSavingTime(local) ? "CDT" : "CST";
-        return local.ToString("ddd MMM d, yyyy h:mm tt") + " " + abbr;
-    }
+
 }

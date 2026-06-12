@@ -320,30 +320,3 @@ public class ExportViewModel
     [Display(Name = "Format")]
     public ExportFormat Format { get; set; } = ExportFormat.Csv;
 }
-
-// ── Staff Portal Test Page ─────────────────────────────────────────────────────
-
-/// <summary>
-/// ViewModel for the Staff Portal Test Page (Areas/Admin/Views/AdminManage/StaffPortalTest.cshtml).
-/// Surfaces the same data shown in the customer-facing Movies and Concessions tabs,
-/// but routed entirely through Admin/Manager actions and using the staff session identity.
-/// </summary>
-public class StaffPortalTestViewModel
-{
-    // ── Identity (from staff session, NOT web.sales) ──────────────────────
-    public string StaffUserName   { get; set; } = string.Empty;
-    public string StaffRole       { get; set; } = string.Empty;
-    public int    StaffUserId     { get; set; }
-
-    // ── Movies panel ──────────────────────────────────────────────────────
-    /// <summary>All movies with TMDB metadata loaded (same data as customer catalog).</summary>
-    public List<Movie>          Movies          { get; set; } = new();
-
-    // ── Concessions panel ─────────────────────────────────────────────────
-    /// <summary>All active concession items (same data as customer catalog).</summary>
-    public List<ConcessionItem> ConcessionItems { get; set; } = new();
-
-    // ── Computed ──────────────────────────────────────────────────────────
-    public int  LowStockCount    => ConcessionItems.Count(ci => ci.IsActive && ci.IsLowStock);
-    public bool HasLowStockItems => LowStockCount > 0;
-}

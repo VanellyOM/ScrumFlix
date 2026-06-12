@@ -34,6 +34,7 @@ global using ScrumFlix.Areas.Admin.ViewModels;
 global using ScrumFlix.Controllers;
 global using ScrumFlix.Data;
 global using ScrumFlix.Domain;
+global using ScrumFlix.Infrastructure;  
 global using ScrumFlix.Models;
 global using ScrumFlix.Services;
 global using ScrumFlix.ViewModels;

@@ -277,16 +277,25 @@ public static class LoggingConfiguration
 
         if (!string.IsNullOrWhiteSpace(mySqlConnectionString))
         {
-            lc.WriteTo.Async(
-                a => a.MySQL(
-                    connectionString: mySqlConnectionString,
-                    tableName: "Logs",
-                    restrictedToMinimumLevel: LogEventLevel.Information,
-                    storeTimestampInUtc: true,
-                    batchSize: 50),
-                bufferSize: 10_000);
+            try
+            {
+                lc.WriteTo.Async(
+                    a => a.MySQL(
+                        connectionString: mySqlConnectionString,
+                        tableName: "Logs",
+                        restrictedToMinimumLevel: LogEventLevel.Information,
+                        storeTimestampInUtc: true,
+                        batchSize: 50),
+                    bufferSize: 10_000);
 
-            Console.WriteLine("[Serilog] MySQL sink configured (async).");
+                Console.WriteLine("[Serilog] MySQL sink configured (async).");
+            }
+            catch (Exception ex)
+            {
+                // Prevent sink setup failures from crashing application startup.
+                Console.WriteLine("[Serilog] MySQL sink disabled — exception during setup: " + ex.Message);
+                Serilog.Debugging.SelfLog.WriteLine(ex.ToString());
+            }
         }
         else
         {

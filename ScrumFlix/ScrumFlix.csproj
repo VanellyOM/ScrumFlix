@@ -63,6 +63,10 @@
 		<None Remove="Web\**" />
 	</ItemGroup>
 
+	<!--<ItemGroup>
+	  <Content Remove="Areas\Admin\Views\AdminManage\StaffPortalTest.cshtml" />
+	</ItemGroup>-->
+
 	<ItemGroup>
 		<!-- ── HTMX — partial-page updates ──────────────────────────────────── -->
 		<!--
@@ -100,14 +104,14 @@
 
 		<!-- ── Data access — EF Core + MySQL provider ────────────────────────── -->
 		<!--
-		    Microsoft.EntityFrameworkCore 9.0.15 — ORM core.
-		    Microsoft.EntityFrameworkCore.Design 9.0.15 — design-time tools (migrations).
+		    Microsoft.EntityFrameworkCore 9.0.17 — ORM core.
+		    Microsoft.EntityFrameworkCore.Design 9.0.17 — design-time tools (migrations).
 		    Pomelo.EntityFrameworkCore.MySql 9.0.0 — MySQL provider for EF Core.
 		    INTENTIONALLY HELD AT 9.x: Pomelo 10.0.0 does not yet exist.
 		    Do NOT upgrade to EF Core 10.x until a matching Pomelo release is available.
 		-->
-		<PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.15" />
-		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.15">
+		<PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.17" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.17">
 			<PrivateAssets>all</PrivateAssets>
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
@@ -115,11 +119,11 @@
 
 		<!-- ── HTTP resilience ───────────────────────────────────────────────── -->
 		<!--
-		    Microsoft.Extensions.Http.Resilience 10.6.0 — Polly-based retry, circuit-breaker,
+		    Microsoft.Extensions.Http.Resilience 10.7.0 — Polly-based retry, circuit-breaker,
 		    and timeout policies for HttpClient. Used by TmdbConfiguration to configure
 		    resilient HTTP calls to the TMDb API (retry on 5xx/429, exponential backoff).
 		-->
-		<PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.6.0" />
+		<PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.7.0" />
 
 		<!-- ── Export — Excel + CSV streaming ───────────────────────────────── -->
 		<!--
@@ -143,11 +147,11 @@
 
 		<!-- ── PDF generation ────────────────────────────────────────────────── -->
 		<!--
-		    QuestPDF 2026.5.0 — fluent PDF generation library.
+		    QuestPDF 2026.6.0 — fluent PDF generation library.
 		    Used for staff pay stub PDFs and any other document generation features.
 		    Community license covers open-source and internal-tool use.
 		-->
-		<PackageReference Include="QuestPDF" Version="2026.5.0" />
+		<PackageReference Include="QuestPDF" Version="2026.6.0" />
 
 		<!-- ── QR code generation ────────────────────────────────────────────── -->
 		<!--

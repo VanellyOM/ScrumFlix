@@ -6,8 +6,8 @@
  *              A PayPeriod defines the date range for a payroll cycle.
  *              Timesheets and Payrolls are both scoped to a PayPeriod.
  *
- *              The canonical schema includes a CHECK constraint: EndDate >= StartDate.
- *              This must be enforced at both the service layer and ViewModel validation.
+ *              EndDate >= StartDate is enforced at the service layer and ViewModel
+ *              validation only — the live schema has no CHECK constraint on this.
  *
  *              Admin creates PayPeriods before the payroll run. The payroll engine then
  *              aggregates TimeEntries within [StartDate, EndDate] into Timesheets,
@@ -19,7 +19,7 @@ namespace ScrumFlix.Domain;
 /// <summary>
 /// A defined date range representing one payroll cycle.
 /// Maps to: PayPeriods (PayPeriodId, StartDate, EndDate)
-/// DB constraint: EndDate >= StartDate
+/// Service-layer rule: EndDate >= StartDate (no DB CHECK constraint exists)
 /// </summary>
 [Table("PayPeriods")]
 public class PayPeriod
@@ -37,12 +37,22 @@ public class PayPeriod
 
     /// <summary>
     /// Last day of the pay period (inclusive).
-    /// Must be >= StartDate (canonical CHECK constraint).
+    /// Must be >= StartDate (enforced at the service layer; no DB CHECK constraint).
     /// </summary>
     [Column("EndDate")]
     [DataType(DataType.Date)]
     [Display(Name = "End Date")]
     public DateOnly EndDate { get; set; }
+
+    /// <summary>
+    /// Concurrency lock for payroll generation (Revision 3 Part 3C / Phase 8).
+    /// Set true while a payroll run is in progress for this period so a second
+    /// admin cannot start a concurrent run; reset to false in a finally block.
+    /// Column added by phase3_database_prep_v1.sql Step 3 (default 0).
+    /// </summary>
+    [Column("IsGenerating")]
+    [Display(Name = "Generating")]
+    public bool IsGenerating { get; set; } = false;
 
     // ── Navigation properties ──────────────────────────────────────────────
 

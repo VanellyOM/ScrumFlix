@@ -43,14 +43,6 @@ public class ScheduleController : StaffControllerBase
     // ── Helpers ─────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Returns the UserId from the authenticated claims principal.
-    /// Replaces the WinForms Session.UserId static.
-    /// </summary>
-    //private int CurrentUserId =>
-    //    int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)
-    //        ?? throw new InvalidOperationException("UserId claim missing."));
-
-    /// <summary>
     /// Writes a record to AuditLog. Call after db.SaveChanges() so
     /// ObjectId is populated, then call SaveChanges() again.
     /// </summary>
@@ -126,6 +118,42 @@ public class ScheduleController : StaffControllerBase
                 Text = (u.Employee!.FirstName ?? "") + " " + (u.Employee.LastName ?? "")
                            + " (" + (u.Role != null ? (u.Role.RoleName ?? "") : "") + ")",
                 Selected = u.UserId == selectedUserId
+            })
+            .ToList();
+
+    /// <summary>
+    /// Active assignment areas for the assignment form dropdown (Phase 3 —
+    /// normalized lookup replacing the raw AssignmentName text input).
+    /// </summary>
+    private List<SelectListItem> GetAssignmentAreaSelectList(int? selectedId = null) =>
+        _db.AssignmentAreas
+            .Where(aa => aa.IsActive)
+            .OrderBy(aa => aa.AreaName)
+            .Select(aa => new SelectListItem
+            {
+                Value = aa.AssignmentAreaId.ToString(),
+                Text = aa.AreaName,
+                Selected = aa.AssignmentAreaId == selectedId
+            })
+            .ToList();
+
+    /// <summary>
+    /// Shift options for the assignment form (Phase 3 fix — the form previously
+    /// reused the Employees list as a placeholder for this dropdown).
+    /// </summary>
+    private List<SelectListItem> GetShiftSelectList(int? selectedId = null) =>
+        _db.Shifts
+            .Include(sh => sh.Location)
+            .Include(sh => sh.Role)
+            .OrderBy(sh => sh.StartTime)
+            .Select(sh => new SelectListItem
+            {
+                Value = sh.ShiftId.ToString(),
+                Text = (sh.Location!.LocationName ?? "") + " — "
+                           + sh.StartTime.ToString("MM/dd h:mm tt") + " – "
+                           + sh.EndTime.ToString("h:mm tt")
+                           + " (" + (sh.Role != null ? (sh.Role.RoleName ?? "") : "") + ")",
+                Selected = sh.ShiftId == selectedId
             })
             .ToList();
 
@@ -419,11 +447,13 @@ public class ScheduleController : StaffControllerBase
         var vm = new AssignmentFormViewModel
         {
             AssignmentId = assignment.AssignmentId,
-            AssignmentName = assignment.AssignmentName,
+            AssignmentAreaId = assignment.AssignmentAreaId,
             UserId = assignment.UserId,
             ShiftId = assignment.ShiftId,
             ShowtimeId = assignment.ShowtimeId,
+            Areas = GetAssignmentAreaSelectList(assignment.AssignmentAreaId),
             Employees = GetEmployeeSelectList(assignment.UserId),
+            Shifts = GetShiftSelectList(assignment.ShiftId),
             Showtimes = GetShowtimeSelectList(assignment.ShowtimeId)
         };
 
@@ -444,7 +474,7 @@ public class ScheduleController : StaffControllerBase
             return PartialView("_AssignmentForm", RepopulateAssignmentForm(form));
 
         var (user, shift, error) = await ValidateAssignment(
-            form.UserId, form.ShiftId, excludeAssignmentId: null);
+            form.UserId, form.ShiftId, form.AssignmentAreaId, excludeAssignmentId: null);
 
         if (error != null)
         {
@@ -454,7 +484,7 @@ public class ScheduleController : StaffControllerBase
 
         var assignment = new ScheduleAssignment
         {
-            AssignmentName = (form.AssignmentName?.Trim()) ?? "",
+            AssignmentAreaId = form.AssignmentAreaId,
             UserId = user!.UserId,
             ShiftId = shift!.ShiftId,
             ShowtimeId = form.ShowtimeId == 0 ? null : form.ShowtimeId
@@ -464,8 +494,8 @@ public class ScheduleController : StaffControllerBase
         await _db.SaveChangesAsync();
 
         Audit("ADD_SCHEDULE_ASSIGNMENT", "ScheduleAssignments", assignment.AssignmentId,
-            $"Added schedule assignment '{assignment.AssignmentName}'",
-            newValues: $"UserId={assignment.UserId}, ShiftId={assignment.ShiftId}, ShowtimeId={assignment.ShowtimeId}");
+            $"Added schedule assignment (AreaId {assignment.AssignmentAreaId})",
+            newValues: $"AssignmentAreaId={assignment.AssignmentAreaId}, UserId={assignment.UserId}, ShiftId={assignment.ShiftId}, ShowtimeId={assignment.ShowtimeId}");
 
         await _db.SaveChangesAsync();
 
@@ -497,7 +527,7 @@ public class ScheduleController : StaffControllerBase
         if (assignment == null) return NotFound();
 
         var (user, shift, error) = await ValidateAssignment(
-            form.UserId, form.ShiftId, excludeAssignmentId: assignment.AssignmentId);
+            form.UserId, form.ShiftId, form.AssignmentAreaId, excludeAssignmentId: assignment.AssignmentId);
 
         if (error != null)
         {
@@ -505,18 +535,18 @@ public class ScheduleController : StaffControllerBase
             return PartialView("_AssignmentForm", RepopulateAssignmentForm(form));
         }
 
-        var oldValues = $"AssignmentName={assignment.AssignmentName}, UserId={assignment.UserId}, ShiftId={assignment.ShiftId}, ShowtimeId={assignment.ShowtimeId}";
+        var oldValues = $"AssignmentAreaId={assignment.AssignmentAreaId}, UserId={assignment.UserId}, ShiftId={assignment.ShiftId}, ShowtimeId={assignment.ShowtimeId}";
         var oldLocationId = (await _db.Shifts.FindAsync(assignment.ShiftId))?.LocationId ?? 0;
 
-        assignment.AssignmentName = (form.AssignmentName?.Trim()) ?? "";
+        assignment.AssignmentAreaId = form.AssignmentAreaId;
         assignment.UserId = user!.UserId;
         assignment.ShiftId = shift!.ShiftId;
         assignment.ShowtimeId = form.ShowtimeId == 0 ? null : form.ShowtimeId;
 
         Audit("UPDATE_SCHEDULE_ASSIGNMENT", "ScheduleAssignments", assignment.AssignmentId,
-            $"Updated schedule assignment '{form.AssignmentName}'",
+            $"Updated schedule assignment (AreaId {assignment.AssignmentAreaId})",
             oldValues: oldValues,
-            newValues: $"AssignmentName={assignment.AssignmentName}, UserId={assignment.UserId}, ShiftId={assignment.ShiftId}, ShowtimeId={assignment.ShowtimeId}");
+            newValues: $"AssignmentAreaId={assignment.AssignmentAreaId}, UserId={assignment.UserId}, ShiftId={assignment.ShiftId}, ShowtimeId={assignment.ShowtimeId}");
 
         await _db.SaveChangesAsync();
 
@@ -542,6 +572,7 @@ public class ScheduleController : StaffControllerBase
         if (RoleGuard(2) is { } redirect) return redirect;
         var assignment = await _db.ScheduleAssignments
             .Include(a => a.Shift)
+            .Include(a => a.AssignmentArea)
             .FirstOrDefaultAsync(a => a.AssignmentId == assignmentId);
 
         if (assignment == null) return NotFound();
@@ -549,8 +580,8 @@ public class ScheduleController : StaffControllerBase
         var locationId = assignment.Shift?.LocationId ?? 0;
 
         Audit("DELETE_SCHEDULE_ASSIGNMENT", "ScheduleAssignments", assignment.AssignmentId,
-            $"Deleted schedule assignment '{assignment.AssignmentName}'",
-            oldValues: $"AssignmentName={assignment.AssignmentName}, UserId={assignment.UserId}, ShiftId={assignment.ShiftId}, ShowtimeId={assignment.ShowtimeId}");
+            $"Deleted schedule assignment '{assignment.AssignmentArea?.AreaName}'",
+            oldValues: $"AssignmentAreaId={assignment.AssignmentAreaId}, UserId={assignment.UserId}, ShiftId={assignment.ShiftId}, ShowtimeId={assignment.ShowtimeId}");
 
         _db.ScheduleAssignments.Remove(assignment);
         await _db.SaveChangesAsync();
@@ -584,6 +615,7 @@ public class ScheduleController : StaffControllerBase
 
     private List<AssignmentRowViewModel> GetAssignmentRows(int? locationId) =>
         _db.ScheduleAssignments
+            .Include(a => a.AssignmentArea)
             .Include(a => a.User).ThenInclude(u => u!.Employee)
             .Include(a => a.Shift).ThenInclude(s => s!.Role)
             .Include(a => a.Shift).ThenInclude(s => s!.Location)
@@ -593,7 +625,7 @@ public class ScheduleController : StaffControllerBase
             .Select(a => new AssignmentRowViewModel
             {
                 AssignmentId = a.AssignmentId,
-                AssignmentName = a.AssignmentName ?? "",
+                AreaName = a.AssignmentArea!.AreaName ?? "",
                 EmployeeName = a.User!.Employee!.FullName ?? "",
                 RoleName = a.Shift!.Role!.RoleName ?? "",
                 LocationName = a.Shift.Location!.LocationName ?? "",
@@ -678,7 +710,9 @@ public class ScheduleController : StaffControllerBase
             Assignments = GetAssignmentRows(locationId),
             AssignmentForm = new AssignmentFormViewModel
             {
+                Areas = GetAssignmentAreaSelectList(),
                 Employees = GetEmployeeSelectList(),
+                Shifts = GetShiftSelectList(),
                 Showtimes = GetShowtimeSelectList()
             }
         };
@@ -689,8 +723,15 @@ public class ScheduleController : StaffControllerBase
     /// Returns the hydrated User + Shift on success, or an error string on failure.
     /// </summary>
     private async Task<(User? user, Shift? shift, string? error)> ValidateAssignment(
-        int userId, int shiftId, int? excludeAssignmentId)
+        int userId, int shiftId, int assignmentAreaId, int? excludeAssignmentId)
     {
+        // Rule 0 (Phase 3): assignment area must exist and be active
+        bool areaOk = await _db.AssignmentAreas
+            .AnyAsync(aa => aa.AssignmentAreaId == assignmentAreaId && aa.IsActive);
+
+        if (!areaOk)
+            return (null, null, "Select a valid assignment area.");
+
         var user = await _db.Users
             .Include(u => u.Employee)
             .FirstOrDefaultAsync(u => u.UserId == userId);
@@ -738,7 +779,9 @@ public class ScheduleController : StaffControllerBase
 
     private AssignmentFormViewModel RepopulateAssignmentForm(AssignmentFormViewModel form)
     {
+        form.Areas = GetAssignmentAreaSelectList(form.AssignmentAreaId);
         form.Employees = GetEmployeeSelectList(form.UserId);
+        form.Shifts = GetShiftSelectList(form.ShiftId);
         form.Showtimes = GetShowtimeSelectList(form.ShowtimeId);
         return form;
     }

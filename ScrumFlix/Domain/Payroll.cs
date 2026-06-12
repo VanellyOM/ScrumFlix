@@ -9,7 +9,8 @@
  *              GrossPay calculation:
  *                GrossPay = Employee.PayRate × Timesheet.TotalHours
  *
- *              The canonical schema includes a CHECK constraint: GrossPay >= 0.
+ *              GrossPay >= 0 is enforced at the service layer only — the live
+ *              schema has no CHECK constraint on this column.
  *              A PayStub record is created for each Payroll after the payroll run completes.
  *
  *              Schema update: LocationId INT NOT NULL FK → Location added to match
@@ -21,7 +22,7 @@ namespace ScrumFlix.Domain;
 /// <summary>
 /// A computed gross pay record for one employee for one pay period.
 /// Maps to: Payrolls (PayrollId, EmployeeId, PayPeriodId, LocationId, GrossPay)
-/// DB constraint: GrossPay >= 0
+/// Service-layer rule: GrossPay >= 0 (no DB CHECK constraint exists)
 /// </summary>
 [Table("Payrolls")]
 public class Payroll
@@ -46,7 +47,7 @@ public class Payroll
     /// <summary>
     /// Gross pay for this employee for this period.
     /// Computed as Employee.PayRate × Timesheet.TotalHours by PayrollService.
-    /// Canonical CHECK constraint: GrossPay >= 0.
+    /// GrossPay >= 0 is enforced at the service layer only (no DB CHECK constraint).
     /// </summary>
     [Column("GrossPay")]
     [DataType(DataType.Currency)]

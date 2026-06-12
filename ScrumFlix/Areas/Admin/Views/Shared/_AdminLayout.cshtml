@@ -25,9 +25,40 @@
     Layout = null;    // standalone — no parent layout
     var layoutVm    = Context.Items["LayoutViewModel"] as LayoutViewModel
                       ?? new LayoutViewModel();
-    var userName    = layoutVm.UserName ?? "Admin";
+    var userName    = layoutVm.UserName ?? "Staff";
     var roleId      = layoutVm.RoleId;
     var activeTheme = layoutVm.ActiveTheme;
+
+    // ── Role-aware chrome ───────────────────────────────────────────────
+    // The Staff Portal serves Admin (1), Manager (2), and — once the
+    // Employee area ships in Phase 4 — Employee (3). Badge text, pill icon,
+    // and the brand-link target must match the session role so a Manager
+    // never gets routed to a RoleGuard(1) page by the layout itself.
+    var roleLabel = roleId switch
+    {
+        1 => "Admin",
+        2 => "Manager",
+        3 => "Employee",
+        _ => "Staff"
+    };
+    var rolePillIcon = roleId switch
+    {
+        1 => "bi-shield-fill",
+        2 => "bi-person-workspace",
+        3 => "bi-person-badge",
+        _ => "bi-person"
+    };
+    // Brand link — role-appropriate landing page (mirror of
+    // StaffControllerBase.StaffHome(); keep in sync):
+    //   Admin   → Admin Dashboard (RoleGuard(1))
+    //   Manager → Schedule Index  (RoleGuard(2))
+    //   Other   → consumer HomeDashboard (TODO Phase 4: Employee home)
+    var brandHref = roleId switch
+    {
+        1 => Url.Action("AdminDashboard", "AdminHome", new { area = "Admin" }),
+        2 => Url.Action("Index", "Schedule", new { area = "Admin" }),
+        _ => Url.Action("HomeDashboard", "Home", new { area = "" })
+    };
 }
 
 <!DOCTYPE html>
@@ -38,7 +69,7 @@
     <meta name="author" content="James Porter" />
     <meta name="description" content="This page includes content assisted by AI tools." />
 
-    <title>@(ViewData["Title"] != null ? $"{ViewData["Title"]} — ScrumFlix Admin" : "ScrumFlix Admin")</title>
+    <title>@(ViewData["Title"] != null ? $"{ViewData["Title"]} — ScrumFlix Staff" : $"ScrumFlix Staff — {roleLabel}")</title>
 
     <link rel="shortcut icon" href="~/favicon.ico" type="image/x-icon" />
 
@@ -80,19 +111,20 @@
     <header class="sf-admin-topbar" role="banner">
         <div class="sf-admin-topbar-inner">
 
-            @* Brand mark *@
+            @* Brand mark — href is role-aware (see brandHref above) so no role
+               is ever linked to a page its RoleGuard would reject *@
             <a class="sf-admin-topbar-brand"
-               asp-area="Admin" asp-controller="AdminHome" asp-action="AdminDashboard"
-               aria-label="ScrumFlix Admin home">
+               href="@brandHref"
+               aria-label="ScrumFlix Staff Portal home">
                 <img src="~/images/logo.png" alt="" height="34" class="me-2" aria-hidden="true" />
                 <span class="sf-brand-text">ScrumFlix</span>
-                <span class="sf-admin-topbar-badge">Admin</span>
+                <span class="sf-admin-topbar-badge">@roleLabel</span>
             </a>
 
             @* Right side: user pill + theme picker + logout *@
             <div class="d-flex align-items-center gap-3">
-                <span class="sf-user-pill" aria-label="Logged in as @userName">
-                    <i class="bi @(roleId == 1 ? "bi-shield-fill" : "bi-person-workspace") sf-user-pill-icon"
+                <span class="sf-user-pill" aria-label="Logged in as @userName (@roleLabel)">
+                    <i class="bi @rolePillIcon sf-user-pill-icon"
                        aria-hidden="true"></i>
                     <span>@userName</span>
                 </span>

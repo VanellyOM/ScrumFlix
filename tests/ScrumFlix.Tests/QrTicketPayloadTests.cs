@@ -13,9 +13,10 @@
  * v3-specific assertion helpers are adopted later.
  */
 
+using ScrumFlix.Infrastructure;
+using ScrumFlix.Services;
 using System;
 using System.Globalization;
-using ScrumFlix.Services;
 using Xunit;
 
 namespace ScrumFlix.Tests;
@@ -48,8 +49,8 @@ public class QrTicketPayloadTests
     }
 
     [Theory]
-    [InlineData(null,   "|MOVIE:N/A|")]
-    [InlineData("",     "|MOVIE:N/A|")]
+    [InlineData(null, "|MOVIE:N/A|")]
+    [InlineData("", "|MOVIE:N/A|")]
     [InlineData("Dune", "|MOVIE:Dune|")]
     public void BuildTicketPayload_MovieName_FallsBackToNA(string? movie, string expected)
     {
@@ -59,7 +60,7 @@ public class QrTicketPayloadTests
 
     [Theory]
     [InlineData(null, "|SEAT:GA|")]   // null seat → general admission
-    [InlineData("",   "|SEAT:GA|")]
+    [InlineData("", "|SEAT:GA|")]
     [InlineData("C4", "|SEAT:C4|")]
     public void BuildTicketPayload_Seat_DefaultsToGeneralAdmission(string? seat, string expected)
     {
@@ -68,8 +69,8 @@ public class QrTicketPayloadTests
     }
 
     [Theory]
-    [InlineData(null, "|SCREEN:N/A|",   "|LOCATION:N/A")]
-    [InlineData("",   "|SCREEN:N/A|",   "|LOCATION:N/A")]
+    [InlineData(null, "|SCREEN:N/A|", "|LOCATION:N/A")]
+    [InlineData("", "|SCREEN:N/A|", "|LOCATION:N/A")]
     public void BuildTicketPayload_ScreenAndLocation_FallBackToNA(
         string? value, string expectedScreen, string expectedLocation)
     {
@@ -86,7 +87,8 @@ public class QrTicketPayloadTests
         // payload proves the value was converted out of UTC, not formatted raw.
         var utc = new DateTime(2026, 6, 16, 2, 0, 0, DateTimeKind.Utc);
 
-        var tz = TimeZoneTestHelper.ResolveCentral();
+        // FIX: Replaced obsolete TimeZoneTestHelper with TimeZoneHelper
+        var tz = TimeZoneHelper.Resolve(TimeZoneHelper.CentralWindowsId);
         if (tz is null) return;   // OS without Central tz data (not the CI/Linux case) — no-op.
 
         var payload = QrCodeService.BuildTicketPayload(

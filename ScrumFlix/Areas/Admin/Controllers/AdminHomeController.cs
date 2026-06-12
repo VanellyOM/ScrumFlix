@@ -24,7 +24,7 @@
  *
  * Role guard: all actions require RoleId == 1 (Admin). Implemented via session
  * check rather than [Authorize] attribute since ScrumFlix uses session-based auth.
- * AdminGuard() returns a redirect if the check fails.
+ * RoleGuard() (inherited from StaffControllerBase) returns a redirect if the check fails.
  *
  * NOTE: AdminDashboard.cshtml must be updated to declare:
  *   @model ScrumFlix.Areas.Admin.ViewModels.AdminDashboardViewModel
@@ -64,25 +64,6 @@ public class AdminHomeController : StaffControllerBase
         _logger  = logger;
         _tmdbHub = tmdbHub;
     }
-
-    // ── Auth guard ─────────────────────────────────────────────────────────
-
-    /// <summary>
-    /// Returns a redirect to the login page if the session user is not an Admin (RoleId == 1).
-    /// Returns <see langword="null"/> if the user is authorized — callers check for null before proceeding.
-    /// </summary>
-    //private IActionResult? AdminGuard()
-    //{
-    //    var roleId = HttpContext.Session.GetInt32(AuthService.SessionRoleId);
-    //    if (roleId == 1) return null; // Admin — authorized
-
-    //    TempData["ErrorMessage"] = "Access denied. Admin role required.";
-    //    return RedirectToAction("Login", "Account", new { area = "" });
-    //}
-
-    /// <summary>Gets the currently authenticated staff member's UserId from the session.</summary>
-    //private int? CurrentUserId =>
-    //    HttpContext.Session.GetInt32(AuthService.SessionUserId);
 
     // ── Dashboard ──────────────────────────────────────────────────────────
 

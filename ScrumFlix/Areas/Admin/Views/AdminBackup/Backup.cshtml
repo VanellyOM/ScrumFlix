@@ -1,0 +1,211 @@
+@*
+ * View:    /ScrumFlix/Areas/Admin/Views/AdminBackup/Backup.cshtml
+ * Purpose: Database Backup page — table-selection checklist, format info,
+ *          and optional email delivery toggle.
+ *
+ * Controller: AdminBackupController.Backup (GET) / TriggerBackup (POST)
+ * Model:      ScrumFlix.Areas.Admin.ViewModels.BackupViewModel
+ *
+ * Spinner: uses sf-export-spinner (sf-export.js, loaded globally by
+ *          _AdminLayout) with a custom label for the backup action.
+ *
+ * Table grouping: tables are grouped by BackupTableDescriptor.Category so
+ *          the checklist stays scannable as the table count grows.
+ *@
+
+
+@model ScrumFlix.Areas.Admin.ViewModels.BackupViewModel
+@{
+	ViewData["Title"] = "Database Backup";
+	var grouped = Model.AvailableTables.GroupBy(t => t.Category).ToList();
+	var selectedSet = new HashSet<string>(Model.SelectedTableKeys, StringComparer.OrdinalIgnoreCase);
+}
+
+<div class="sf-page-header">
+	<div class="container-xl">
+		<h1 class="sf-page-title">
+			<i class="bi bi-database me-2" aria-hidden="true"></i>Database Backup
+		</h1>
+		<p class="sf-page-subtitle">
+			Generate a point-in-time snapshot of selected tables as a .zip archive containing
+			JSON and SQL INSERT files.
+		</p>
+	</div>
+</div>
+
+<section class="sf-section">
+	<div class="container-xl">
+
+		@* ── Flash banners ─────────────────────────────────────────────── *@
+		@if (TempData["ErrorMessage"] is string errMsg)
+		{
+			<div class="sf-flash-banner sf-flash-banner--danger d-flex gap-2 align-items-center mb-4" role="alert">
+				<i class="bi bi-x-circle-fill flex-shrink-0" aria-hidden="true"></i>
+				<span>@errMsg</span>
+			</div>
+		}
+		@if (TempData["SuccessMessage"] is string okMsg)
+		{
+			<div class="sf-flash-banner sf-flash-banner--success d-flex gap-2 align-items-center mb-4" role="alert">
+				<i class="bi bi-check-circle-fill flex-shrink-0" aria-hidden="true"></i>
+				<span>@okMsg</span>
+			</div>
+		}
+
+		<div class="row g-4">
+
+			@* ── Left column: table checklist ───────────────────────────── *@
+			<div class="col-lg-8">
+				<form asp-area="Admin"
+					  asp-controller="AdminBackup"
+					  asp-action="TriggerBackup"
+					  method="post"
+					  class="sf-export-form">
+					@Html.AntiForgeryToken()
+
+					<div class="sf-form-card mb-4">
+						<div class="d-flex align-items-center justify-content-between mb-3">
+							<h2 class="h5 mb-0">
+								<i class="bi bi-table me-2" aria-hidden="true"></i>Select tables
+							</h2>
+							<div class="d-flex gap-3" style="font-size:.875rem">
+								<button type="button" class="btn btn-link p-0 sf-text-muted"
+										onclick="setAllCheckboxes(true)"
+										style="font-size:.875rem">
+									Select all
+								</button>
+								<button type="button" class="btn btn-link p-0 sf-text-muted"
+										onclick="setAllCheckboxes(false)"
+										style="font-size:.875rem">
+									Clear all
+								</button>
+							</div>
+						</div>
+
+						@foreach (var group in grouped)
+						{
+							<p class="sf-admin-nav-section-label mb-2 mt-3">@group.Key.ToUpperInvariant()</p>
+							<div class="row g-2 mb-1">
+								@foreach (var table in group)
+								{
+									var checkId = $"tbl_{table.Key}";
+									var isChecked = selectedSet.Contains(table.Key);
+									<div class="col-sm-6">
+										<div class="form-check sf-backup-row @(table.ExcludedByDefault ? "sf-backup-row--excluded" : "")">
+											<input class="form-check-input sf-backup-checkbox"
+												   type="checkbox"
+												   name="SelectedTableKeys"
+												   value="@table.Key"
+												   id="@checkId"
+											@(isChecked ? "checked" : "") />
+											<label class="form-check-label" for="@checkId">
+												<span class="d-block fw-medium">@table.DisplayName</span>
+												<span class="d-block sf-text-muted" style="font-size:.8rem">
+													@table.Description
+													@if (table.IsLargeTable)
+													{
+														<span class="badge bg-secondary ms-1" style="font-size:.7rem">large</span>
+													}
+													@if (table.ExcludedByDefault)
+													{
+														<span class="badge bg-secondary ms-1" style="font-size:.7rem">transient</span>
+													}
+												</span>
+											</label>
+										</div>
+									</div>
+								}
+							</div>
+						}
+					</div>
+
+					@* ── Options ──────────────────────────────────────────── *@
+					<div class="sf-form-card mb-4">
+						<h2 class="h5 mb-3">
+							<i class="bi bi-gear me-2" aria-hidden="true"></i>Options
+						</h2>
+
+						<div class="form-check mb-2">
+							<input class="form-check-input" type="checkbox"
+								   asp-for="SendEmail" id="optSendEmail" />
+							<label class="form-check-label" for="optSendEmail">
+								Email backup to admin
+								<span class="sf-text-muted" style="font-size:.875rem">
+									— sends the .zip to the configured <code>Email:AdminTo</code> address
+								</span>
+							</label>
+						</div>
+					</div>
+
+					<div class="sf-export-spinner-wrap d-none mt-3">
+						<div class="sf-spinner sf-export-spinner" role="progressbar"
+							 aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+							<svg class="sf-spinner__svg" viewBox="0 0 100 100" aria-hidden="true">
+								<circle class="sf-spinner__track" cx="50" cy="50" r="45"></circle>
+								<circle class="sf-spinner__ring" cx="50" cy="50" r="45"></circle>
+							</svg>
+							<span class="sf-spinner__pct" aria-hidden="true">0%</span>
+						</div>
+						<p class="sf-spinner__status mt-2">Generating backup — this may take a moment…</p>
+					</div>
+
+					<button type="submit" class="btn sf-btn-primary sf-export-btn">
+						<i class="bi bi-download me-2" aria-hidden="true"></i>Generate &amp; download backup
+					</button>
+				</form>
+			</div>
+
+			@* ── Right column: info panel ──────────────────────────────── *@
+			<div class="col-lg-4">
+				<div class="sf-form-card mb-4">
+					<h2 class="h6 mb-3">
+						<i class="bi bi-info-circle me-2" aria-hidden="true"></i>What you get
+					</h2>
+					<p class="sf-text-muted" style="font-size:.875rem; line-height:1.6">
+						A <code>.zip</code> archive containing:
+					</p>
+					<ul class="sf-text-muted mb-3" style="font-size:.875rem; line-height:1.8; padding-left:1.2rem">
+						<li><code>manifest.json</code> — snapshot metadata and row counts</li>
+						<li><code>json/</code> — one <code>.json</code> file per table</li>
+						<li>
+							<code>sql/</code> — one <code>.sql</code> INSERT file per table,
+							plus an <code>00_import_order.sql</code> guide
+						</li>
+					</ul>
+					<p class="sf-text-muted" style="font-size:.875rem; line-height:1.6">
+						The SQL files can be imported directly via the MySQL CLI, DBeaver,
+						or the Aiven query console.
+					</p>
+				</div>
+
+				<div class="sf-form-card mb-4">
+					<h2 class="h6 mb-3">
+						<i class="bi bi-shield-lock me-2" aria-hidden="true"></i>Security note
+					</h2>
+					<p class="sf-text-muted" style="font-size:.875rem; line-height:1.6">
+						<strong>Password fields are excluded.</strong> The Users table export
+						omits <code>UserPassword</code> and <code>PasswordHash</code> so the
+						backup archive cannot be used to extract credentials.
+					</p>
+				</div>
+
+				<div class="sf-form-card">
+					<h2 class="h6 mb-3">
+						<i class="bi bi-clock-history me-2" aria-hidden="true"></i>Large tables
+					</h2>
+					<p class="sf-text-muted" style="font-size:.875rem; line-height:1.6">
+						Tables tagged <span class="badge bg-secondary">large</span> are
+						queried in 5 000-row pages to stay within Somee.com memory limits.
+						Generating a full backup including <strong>Showtime seats</strong>
+						(44 K+ rows) may take 10–20 seconds.
+					</p>
+				</div>
+			</div>
+
+		</div>
+	</div>
+</section>
+
+@section Scripts {
+	<script src="~/js/sf-backup.js"></script>
+}

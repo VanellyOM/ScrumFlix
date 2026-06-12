@@ -10,13 +10,18 @@
  *                The DB column is UserId (FK → Users.UserId), NOT EmployeeId (FK → Employees).
  *                The model previously declared EmployeeId/Employee, which would map to the wrong
  *                column and the wrong table. Updated to match the canonical schema exactly.
+ *
+ *              PHASE 3 (2026-06-11):
+ *                AssignmentName (raw varchar) replaced by AssignmentAreaId FK → AssignmentAreas.
+ *                Migration: phase3_database_prep_v1.sql Step 2. Display name now comes from
+ *                AssignmentArea.AreaName via the navigation property.
  */
 
 namespace ScrumFlix.Domain;
 
 /// <summary>
 /// An assignment linking a user account to a scheduled shift, optionally tied to a showtime.
-/// Maps to: ScheduleAssignments (AssignmentId, AssignmentName, UserId, ShiftId, ShowtimeId)
+/// Maps to: ScheduleAssignments (AssignmentId, UserId, AssignmentAreaId, ShiftId, ShowtimeId)
 /// </summary>
 [Table("ScheduleAssignments")]
 public class ScheduleAssignment
@@ -26,12 +31,13 @@ public class ScheduleAssignment
     [Column("AssignmentId")]
     public int AssignmentId { get; set; }
 
-    /// <summary>A descriptive label for this assignment (e.g., "Box Office", "Concession Stand").</summary>
-    [Required]
-    [MaxLength(50)]
-    [Column("AssignmentName")]
-    [Display(Name = "Assignment")]
-    public string AssignmentName { get; set; } = string.Empty;
+    /// <summary>
+    /// FK → AssignmentAreas.AssignmentAreaId. Replaces the raw AssignmentName
+    /// varchar (dropped in the Phase 3 migration) with a normalized lookup.
+    /// </summary>
+    [Column("AssignmentAreaId")]
+    [Display(Name = "Assignment Area")]
+    public int AssignmentAreaId { get; set; }
 
     /// <summary>
     /// The Users.UserId of the user assigned to this shift.
@@ -57,6 +63,10 @@ public class ScheduleAssignment
     /// <summary>The user account assigned to this shift.</summary>
     [ForeignKey(nameof(UserId))]
     public User? User { get; set; }
+
+    /// <summary>The normalized assignment area (Box Office, Concessions, …).</summary>
+    [ForeignKey(nameof(AssignmentAreaId))]
+    public AssignmentArea? AssignmentArea { get; set; }
 
     /// <summary>The shift being covered.</summary>
     [ForeignKey(nameof(ShiftId))]

@@ -1,25 +1,30 @@
 /*
  * File:    tests/ScrumFlix.Tests/TimeZoneTestHelper.cs
- * Purpose: Resolves US Central time the same way QrCodeService does — accepting
- *          either the IANA id ("America/Chicago") or the Windows id
- *          ("Central Standard Time"). .NET maps between them on both Linux and
- *          Windows, but returns null if neither resolves so tests can no-op
- *          gracefully on an OS without tz data instead of failing spuriously.
+ * Purpose: Previously the only way for tests to resolve Central Time in a
+ *          try/catch — a parallel re-implementation of app-side logic.
+ *
+ *          Now that TimeZoneHelper (ScrumFlix.Infrastructure) is part of the
+ *          main assembly referenced by this test project, call sites should use
+ *          TimeZoneHelper.Resolve(TimeZoneHelper.CentralWindowsId) directly.
+ *
+ *          This file is retained so the QrTicketPayloadTests and
+ *          QrConcessionPayloadTests that still reference ResolveCentral()
+ *          continue to compile until they are migrated. Once all callers are
+ *          updated, delete this file.
  */
 
 using System;
+using ScrumFlix.Infrastructure;
 
 namespace ScrumFlix.Tests;
 
+[Obsolete("Use TimeZoneHelper.Resolve(TimeZoneHelper.CentralWindowsId) directly.")]
 internal static class TimeZoneTestHelper
 {
+    /// <summary>
+    /// Resolves US Central Time.
+    /// Prefer <see cref="TimeZoneHelper.Resolve"/> for new test code.
+    /// </summary>
     public static TimeZoneInfo? ResolveCentral()
-    {
-        foreach (var id in new[] { "America/Chicago", "Central Standard Time" })
-        {
-            try { return TimeZoneInfo.FindSystemTimeZoneById(id); }
-            catch { /* try the next identifier */ }
-        }
-        return null;
-    }
+        => TimeZoneHelper.Resolve(TimeZoneHelper.CentralWindowsId);
 }

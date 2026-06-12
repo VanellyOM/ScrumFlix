@@ -65,8 +65,19 @@ public sealed class AccountController : Controller
     public IActionResult Login(string? returnUrl = null)
     {
         // Already logged in — don't show the login form again.
-        if (HttpContext.Session.GetInt32(AuthService.SessionRoleId) is not null)
-            return RedirectToAction("HomeDashboard", "Home");
+        // Staff sessions return to their role-appropriate portal landing
+        // (mirror of StaffControllerBase.StaffHome(); keep in sync);
+        // consumer/WebUser sessions go to the public HomeDashboard.
+        if (HttpContext.Session.GetInt32(AuthService.SessionRoleId) is { } activeRoleId)
+        {
+            return activeRoleId switch
+            {
+                1 => RedirectToAction("AdminDashboard", "AdminHome", new { area = "Admin" }),
+                2 => RedirectToAction("Index", "Schedule", new { area = "Admin" }),
+                // TODO Phase 4: Employee area scaffold — RoleId 3 → Employee home
+                _ => RedirectToAction("HomeDashboard", "Home")
+            };
+        }
 
         var vm = new LoginViewModel { ReturnUrl = returnUrl };
         return View(vm);
@@ -90,15 +101,20 @@ public sealed class AccountController : Controller
         {
             case LoginOutcome.Success:
                 // ── Post-login routing ─────────────────────────────────────
-                // Staff users (any role) go directly to the Admin Dashboard so
-                // they never land on the consumer-facing HomeDashboard.
+                // Staff users go to the landing page for THEIR role — never to
+                // a page their RoleGuard would reject. (Previously all staff
+                // were sent to AdminDashboard, which is RoleGuard(1); Managers
+                // immediately tripped the guard and were dumped onto the
+                // consumer HomeDashboard with an "Access denied" flash.)
                 // A safe returnUrl that points into the Admin area takes
-                // precedence (e.g. the user bookmarked a specific staff page).
+                // precedence (e.g. the user bookmarked a specific staff page);
+                // if it is beyond their role, RoleGuard redirects them to their
+                // role home — same destination, one extra hop, no error loop.
                 var roleId = HttpContext.Session.GetInt32(AuthService.SessionRoleId);
                 if (roleId.HasValue)
                 {
                     // Staff session — honour a returnUrl only if it points to
-                    // the Admin area; otherwise send to AdminDashboard.
+                    // the Admin area; otherwise send to the role landing page.
                     if (!string.IsNullOrWhiteSpace(vm.ReturnUrl)
                         && Url.IsLocalUrl(vm.ReturnUrl)
                         && vm.ReturnUrl.Contains("/Admin/", StringComparison.OrdinalIgnoreCase))
@@ -106,7 +122,15 @@ public sealed class AccountController : Controller
                         return Redirect(vm.ReturnUrl);
                     }
 
-                    return RedirectToAction("AdminDashboard", "AdminHome", new { area = "Admin" });
+                    // Mirror of StaffControllerBase.StaffHome() — keep in sync.
+                    return roleId switch
+                    {
+                        1 => RedirectToAction("AdminDashboard", "AdminHome", new { area = "Admin" }),
+                        2 => RedirectToAction("Index", "Schedule", new { area = "Admin" }),
+                        // TODO Phase 4: Employee area scaffold — change to
+                        //   RedirectToAction("Index", "EmployeeHome", new { area = "Employee" })
+                        _ => RedirectToAction("HomeDashboard", "Home", new { area = "" })
+                    };
                 }
 
                 // Consumer / no-role session — standard safe-URL redirect
