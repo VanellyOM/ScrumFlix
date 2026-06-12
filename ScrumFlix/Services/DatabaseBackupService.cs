@@ -41,6 +41,7 @@ using System.IO.Compression;
 using System.Text;
 using System.Text.Json;
 using ScrumFlix.Infrastructure;
+using ScrumFlix.Services.Backup;
 
 namespace ScrumFlix.Services;
 
@@ -124,16 +125,35 @@ public sealed class DatabaseBackupService : IDatabaseBackupService
     public IReadOnlyList<BackupTableDescriptor> GetAvailableTables() => TableRegistry;
 
     /// <inheritdoc />
-    public async Task<BackupResult> GenerateAsync(
+    /// <remarks>
+    /// Back-compat entry point. Preserves the original behaviour exactly — a
+    /// data-only backup (JSON + INSERT scripts) over the given tables — by
+    /// delegating to the options overload with <see cref="BackupMode.DataOnly"/>.
+    /// </remarks>
+    public Task<BackupResult> GenerateAsync(
         IEnumerable<string>? tableKeys,
         CancellationToken cancellationToken = default)
+        => GenerateAsync(
+            DatabaseBackupOptions.From(BackupMode.DataOnly, tableKeys?.ToList()),
+            cancellationToken);
+
+    /// <inheritdoc />
+    public async Task<BackupResult> GenerateAsync(
+        DatabaseBackupOptions options,
+        CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(options);
+        if (!options.HasAnySection)
+            throw new InvalidOperationException("Backup requested with no sections selected.");
+
         var takenAtUtc = DateTime.UtcNow;
         var timestamp = takenAtUtc.ToString("yyyyMMdd_HHmmss");
         var folderName = $"scrumflix_backup_{timestamp}";
 
         // Resolve which tables to include, preserving registry order.
-        var keySet = tableKeys?.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        // Registry keys are the SQL table names (see [Table] attributes), so the
+        // same list scopes both the data section and the schema CREATE section.
+        var keySet = options.SelectedTableKeys?.ToHashSet(StringComparer.OrdinalIgnoreCase);
         var tables = keySet is { Count: > 0 }
             ? TableRegistry.Where(t => keySet.Contains(t.Key)).ToList()
             : TableRegistry.Where(t => !t.ExcludedByDefault).ToList();
@@ -142,37 +162,108 @@ public sealed class DatabaseBackupService : IDatabaseBackupService
         var jsonFiles = new Dictionary<string, byte[]>();  // key → JSON UTF-8
         var sqlFiles = new Dictionary<string, byte[]>();  // key → SQL UTF-8
 
-        // ── Serialise each table ──────────────────────────────────────────
-        foreach (var table in tables)
+        // ── Data section (rows → JSON + INSERT) ───────────────────────────
+        if (options.IncludeData)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            try
+            foreach (var table in tables)
             {
-                var (json, sql, rowCount) = await SerialiseTableAsync(table, cancellationToken);
-                jsonFiles[table.Key] = json;
-                sqlFiles[table.Key] = sql;
-                rowCounts[table.Key] = rowCount;
+                cancellationToken.ThrowIfCancellationRequested();
 
-                _logger.LogDebug("Backup: serialised {Table} — {Rows} rows", table.Key, rowCount);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Backup: failed to serialise table {Table} — skipping", table.Key);
-                rowCounts[table.Key] = -1;  // -1 signals a serialisation error
+                try
+                {
+                    var (json, sql, rowCount) = await SerialiseTableAsync(table, cancellationToken);
+                    jsonFiles[table.Key] = json;
+                    sqlFiles[table.Key] = sql;
+                    rowCounts[table.Key] = rowCount;
+
+                    _logger.LogDebug("Backup: serialised {Table} — {Rows} rows", table.Key, rowCount);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Backup: failed to serialise table {Table} — skipping", table.Key);
+                    rowCounts[table.Key] = -1;  // -1 signals a serialisation error
+                }
             }
         }
 
-        // ── Build .zip ────────────────────────────────────────────────────
-        var zipBytes = BuildZip(folderName, tables, jsonFiles, sqlFiles, rowCounts, takenAtUtc);
+        // ── Schema + object sections (raw DDL over the EF connection) ──────
+        SchemaSection? schemaSection = null;
+        DatabaseObjectSection? objectSection = null;
+
+        var needsConnection = options.IncludeSchema
+            || options.IncludeStoredProcedures
+            || options.IncludeViews
+            || options.IncludeTriggers;
+
+        if (needsConnection)
+        {
+            var connection = _db.Database.GetDbConnection();
+            var introspector = new MySqlIntrospector(connection);
+            var openedHere = await introspector.OpenIfClosedAsync(cancellationToken);
+            try
+            {
+                var schemaName = await introspector.GetDatabaseNameAsync(cancellationToken);
+
+                if (options.IncludeSchema)
+                {
+                    var tableNames = tables.Select(t => t.Key).ToList();
+                    schemaSection = await new SchemaBackupProvider(introspector, _logger)
+                        .CaptureAsync(tableNames, options.DropBeforeCreate, takenAtUtc, cancellationToken);
+                }
+
+                if (options.IncludeStoredProcedures || options.IncludeViews || options.IncludeTriggers)
+                {
+                    objectSection = await new DatabaseObjectBackupProvider(introspector, _logger)
+                        .CaptureAsync(
+                            schemaName,
+                            options.IncludeStoredProcedures,
+                            options.IncludeViews,
+                            options.IncludeTriggers,
+                            options.DropBeforeCreate,
+                            takenAtUtc,
+                            cancellationToken);
+                }
+            }
+            finally
+            {
+                if (openedHere) await introspector.CloseAsync();
+            }
+        }
+
+        // ── Assemble the .zip ─────────────────────────────────────────────
+        var zipBytes = AssembleArchive(
+            folderName, options, tables, jsonFiles, sqlFiles, rowCounts,
+            schemaSection, objectSection, takenAtUtc);
 
         return new BackupResult
         {
-            ZipBytes = zipBytes,
-            FileName = $"scrumflix_backup_{timestamp}.zip",
-            TakenAtUtc = takenAtUtc,
-            RowCounts = rowCounts,
+            ZipBytes         = zipBytes,
+            FileName         = $"scrumflix_backup_{timestamp}.zip",
+            TakenAtUtc       = takenAtUtc,
+            RowCounts        = rowCounts,
+            SchemaTableCount = schemaSection?.TableNames.Count ?? 0,
+            ProcedureCount   = objectSection?.Procedures.Count ?? 0,
+            FunctionCount    = objectSection?.Functions.Count ?? 0,
+            ViewCount        = objectSection?.Views.Count ?? 0,
+            TriggerCount     = objectSection?.Triggers.Count ?? 0,
+            IncludedSections = BuildSectionLabels(options, schemaSection, objectSection),
         };
+    }
+
+    /// <summary>Builds the human-readable section labels for the result/audit log.</summary>
+    private static IReadOnlyList<string> BuildSectionLabels(
+        DatabaseBackupOptions options, SchemaSection? schema, DatabaseObjectSection? objects)
+    {
+        var labels = new List<string>();
+        if (schema is { TableNames.Count: > 0 })       labels.Add("Schema");
+        if (options.IncludeData)                        labels.Add("Data");
+        if (objects is not null)
+        {
+            if (objects.Procedures.Count + objects.Functions.Count > 0) labels.Add("Stored routines");
+            if (objects.Views.Count > 0)                                labels.Add("Views");
+            if (objects.Triggers.Count > 0)                             labels.Add("Triggers");
+        }
+        return labels;
     }
 
     // ── Serialisation helpers ──────────────────────────────────────────────
@@ -540,75 +631,130 @@ public sealed class DatabaseBackupService : IDatabaseBackupService
 
     // ── Zip builder ────────────────────────────────────────────────────────
 
-    private static byte[] BuildZip(
+    private static byte[] AssembleArchive(
         string folderName,
+        DatabaseBackupOptions options,
         List<BackupTableDescriptor> tables,
         Dictionary<string, byte[]> jsonFiles,
         Dictionary<string, byte[]> sqlFiles,
         Dictionary<string, int> rowCounts,
+        SchemaSection? schema,
+        DatabaseObjectSection? objects,
         DateTime takenAtUtc)
     {
         using var ms = new MemoryStream();
         using (var zip = new ZipArchive(ms, ZipArchiveMode.Create, leaveOpen: true))
         {
-            // ── manifest.json ──────────────────────────────────────────────
-            var manifest = new
-            {
-                GeneratedAt = takenAtUtc.ToString("o"),
-                Application = "ScrumFlix",
-                Version = "Phase 5",
-                TablesBackedUp = rowCounts.Where(kv => kv.Value >= 0)
-                                          .Select(kv => new { Table = kv.Key, Rows = kv.Value })
-                                          .ToList(),
-                TablesErrored = rowCounts.Where(kv => kv.Value < 0)
-                                          .Select(kv => kv.Key)
-                                          .ToList(),
-                TotalRows = rowCounts.Values.Where(v => v >= 0).Sum(),
-                Note = "Users table: UserPassword and PasswordHash are excluded from this backup for security."
-            };
+            // ── manifest.json (typed) ──────────────────────────────────────
+            var manifest = ManifestBuilder.Build(options, rowCounts, schema, objects, takenAtUtc);
             WriteEntry(zip, $"{folderName}/manifest.json",
                 JsonSerializer.SerializeToUtf8Bytes(manifest, JsonOpts));
 
-            // ── JSON files ─────────────────────────────────────────────────
-            foreach (var table in tables)
+            // ── restore_full.sql (master script) ───────────────────────────
+            WriteEntry(zip, $"{folderName}/restore_full.sql",
+                BuildMasterRestoreScript(options, schema, objects, takenAtUtc));
+
+            // ── schema/ ────────────────────────────────────────────────────
+            if (schema is not null)
+                foreach (var file in schema.Files)
+                    WriteEntry(zip, $"{folderName}/{file.RelativePath}", file.Content);
+
+            // ── data: json/ and sql/ (unchanged layout) ────────────────────
+            if (options.IncludeData)
             {
-                if (!jsonFiles.TryGetValue(table.Key, out var json)) continue;
-                WriteEntry(zip, $"{folderName}/json/{table.Key}.json", json);
+                foreach (var table in tables)
+                {
+                    if (!jsonFiles.TryGetValue(table.Key, out var json)) continue;
+                    WriteEntry(zip, $"{folderName}/json/{table.Key}.json", json);
+                }
+
+                // Import-order guide — tells the admin in which order to source each file
+                var importSb = new StringBuilder();
+                importSb.AppendLine("-- ScrumFlix backup import guide (data)");
+                importSb.AppendLine($"-- Generated: {takenAtUtc:yyyy-MM-dd HH:mm:ss} UTC");
+                importSb.AppendLine("-- Run from the backup ROOT folder in the mysql client:  SOURCE sql/00_import_order.sql;");
+                importSb.AppendLine();
+                importSb.AppendLine("SET FOREIGN_KEY_CHECKS = 0;");
+                importSb.AppendLine();
+                int orderIndex = 1;
+                foreach (var table in tables)
+                {
+                    if (!sqlFiles.ContainsKey(table.Key)) continue;
+                    importSb.AppendLine($"SOURCE sql/{orderIndex:D2}_{table.Key}.sql;");
+                    orderIndex++;
+                }
+                importSb.AppendLine();
+                importSb.AppendLine("SET FOREIGN_KEY_CHECKS = 1;");
+                WriteEntry(zip, $"{folderName}/sql/00_import_order.sql",
+                    Encoding.UTF8.GetBytes(importSb.ToString()));
+
+                int fileIndex = 1;
+                foreach (var table in tables)
+                {
+                    if (!sqlFiles.TryGetValue(table.Key, out var sql)) continue;
+                    WriteEntry(zip, $"{folderName}/sql/{fileIndex:D2}_{table.Key}.sql", sql);
+                    fileIndex++;
+                }
             }
 
-            // ── SQL files ──────────────────────────────────────────────────
-            // Import order file — tells the admin in which order to source each file
-            var importSb = new StringBuilder();
-            importSb.AppendLine("-- ScrumFlix backup import guide");
-            importSb.AppendLine($"-- Generated: {takenAtUtc:yyyy-MM-dd HH:mm:ss} UTC");
-            importSb.AppendLine("-- Run this via: mysql -u <user> -p <database> < 00_import_order.sql");
-            importSb.AppendLine();
-            importSb.AppendLine("SET FOREIGN_KEY_CHECKS = 0;");
-            importSb.AppendLine();
-            int fileIndex = 1;
-            foreach (var table in tables)
-            {
-                if (!sqlFiles.ContainsKey(table.Key)) continue;
-                var sqlFileName = $"{fileIndex:D2}_{table.Key}.sql";
-                importSb.AppendLine($"SOURCE {sqlFileName};");
-                fileIndex++;
-            }
-            importSb.AppendLine();
-            importSb.AppendLine("SET FOREIGN_KEY_CHECKS = 1;");
-            WriteEntry(zip, $"{folderName}/sql/00_import_order.sql",
-                Encoding.UTF8.GetBytes(importSb.ToString()));
-
-            fileIndex = 1;
-            foreach (var table in tables)
-            {
-                if (!sqlFiles.TryGetValue(table.Key, out var sql)) continue;
-                var sqlFileName = $"{fileIndex:D2}_{table.Key}.sql";
-                WriteEntry(zip, $"{folderName}/sql/{sqlFileName}", sql);
-                fileIndex++;
-            }
+            // ── routines/ (procedures, functions, views, triggers) ─────────
+            if (objects is not null)
+                foreach (var file in objects.Files)
+                    WriteEntry(zip, $"{folderName}/{file.RelativePath}", file.Content);
         }
 
         return ms.ToArray();
+    }
+
+    /// <summary>
+    /// Builds restore_full.sql — a master script that SOURCEs each included
+    /// section in dependency-safe order (schema → data → routines/views/triggers).
+    /// Only references sections actually present in the archive.
+    /// </summary>
+    private static byte[] BuildMasterRestoreScript(
+        DatabaseBackupOptions options,
+        SchemaSection? schema,
+        DatabaseObjectSection? objects,
+        DateTime takenAtUtc)
+    {
+        var hasSchema   = schema is { TableNames.Count: > 0 };
+        var hasObjects  = objects is { IsEmpty: false };
+
+        var sb = new StringBuilder();
+        sb.AppendLine("-- ScrumFlix full restore script");
+        sb.AppendLine($"-- Generated: {takenAtUtc:yyyy-MM-dd HH:mm:ss} UTC");
+        sb.AppendLine("--");
+        sb.AppendLine("-- SOURCE and DELIMITER are mysql-client directives, so run this");
+        sb.AppendLine("-- interactively from the extracted backup folder root:");
+        sb.AppendLine("--   mysql -u <user> -p <database>");
+        sb.AppendLine("--   mysql> SOURCE restore_full.sql;");
+        sb.AppendLine();
+        sb.AppendLine("SET FOREIGN_KEY_CHECKS = 0;");
+        sb.AppendLine("SET UNIQUE_CHECKS = 0;");
+        sb.AppendLine();
+
+        if (hasSchema)
+        {
+            sb.AppendLine("-- 1) Table structure");
+            sb.AppendLine("SOURCE schema/00_schema.sql;");
+            sb.AppendLine();
+        }
+        if (options.IncludeData)
+        {
+            sb.AppendLine("-- 2) Table data");
+            sb.AppendLine("SOURCE sql/00_import_order.sql;");
+            sb.AppendLine();
+        }
+        if (hasObjects)
+        {
+            sb.AppendLine("-- 3) Stored routines, views, and triggers");
+            sb.AppendLine("SOURCE routines/00_routines.sql;");
+            sb.AppendLine();
+        }
+
+        sb.AppendLine("SET UNIQUE_CHECKS = 1;");
+        sb.AppendLine("SET FOREIGN_KEY_CHECKS = 1;");
+        return Encoding.UTF8.GetBytes(sb.ToString());
     }
 
     private static void WriteEntry(ZipArchive zip, string entryName, byte[] data)

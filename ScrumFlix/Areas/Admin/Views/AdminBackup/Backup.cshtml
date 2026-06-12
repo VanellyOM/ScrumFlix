@@ -27,8 +27,8 @@
 			<i class="bi bi-database me-2" aria-hidden="true"></i>Database Backup
 		</h1>
 		<p class="sf-page-subtitle">
-			Generate a point-in-time snapshot of selected tables as a .zip archive containing
-			JSON and SQL INSERT files.
+			Generate a point-in-time backup as a .zip archive — table structure, data,
+			stored procedures, functions, views, and triggers.
 		</p>
 	</div>
 </div>
@@ -122,9 +122,66 @@
 					@* ── Options ──────────────────────────────────────────── *@
 					<div class="sf-form-card mb-4">
 						<h2 class="h5 mb-3">
-							<i class="bi bi-gear me-2" aria-hidden="true"></i>Options
+							<i class="bi bi-gear me-2" aria-hidden="true"></i>What to include
 						</h2>
 
+						<p class="sf-text-muted mb-3" style="font-size:.875rem; line-height:1.6">
+							A <strong>full backup</strong> (all boxes checked) is a complete
+							disaster-recovery package — structure, data, and stored objects.
+							Uncheck items to narrow the scope.
+						</p>
+
+						<div class="form-check mb-2">
+							<input class="form-check-input" type="checkbox" asp-for="IncludeSchema" id="optSchema" />
+							<label class="form-check-label" for="optSchema">
+								<span class="fw-medium">Table structure</span>
+								<span class="d-block sf-text-muted" style="font-size:.8rem">
+									<code>CREATE TABLE</code> DDL with indexes and constraints, for the selected tables
+								</span>
+							</label>
+						</div>
+						<div class="form-check mb-2">
+							<input class="form-check-input" type="checkbox" asp-for="IncludeData" id="optData" />
+							<label class="form-check-label" for="optData">
+								<span class="fw-medium">Table data</span>
+								<span class="d-block sf-text-muted" style="font-size:.8rem">
+									JSON files and <code>INSERT</code> scripts for the selected tables
+								</span>
+							</label>
+						</div>
+						<div class="form-check mb-2">
+							<input class="form-check-input" type="checkbox" asp-for="IncludeStoredProcedures" id="optRoutines" />
+							<label class="form-check-label" for="optRoutines">
+								<span class="fw-medium">Stored procedures &amp; functions</span>
+								<span class="d-block sf-text-muted" style="font-size:.8rem">
+									e.g. <code>GenerateSeatsForScreen</code>, <code>SeedShowtimesByTheater</code>
+								</span>
+							</label>
+						</div>
+						<div class="form-check mb-2">
+							<input class="form-check-input" type="checkbox" asp-for="IncludeViews" id="optViews" />
+							<label class="form-check-label" for="optViews">
+								<span class="fw-medium">Views</span>
+							</label>
+						</div>
+						<div class="form-check mb-3">
+							<input class="form-check-input" type="checkbox" asp-for="IncludeTriggers" id="optTriggers" />
+							<label class="form-check-label" for="optTriggers">
+								<span class="fw-medium">Triggers</span>
+							</label>
+						</div>
+
+						<hr class="my-3" />
+
+						<div class="form-check mb-2">
+							<input class="form-check-input" type="checkbox" asp-for="DropBeforeCreate" id="optDrop" />
+							<label class="form-check-label" for="optDrop">
+								Add <code>DROP ... IF EXISTS</code> before each object
+								<span class="d-block sf-text-muted" style="font-size:.8rem">
+									Lets a restore replace existing objects instead of failing on "already exists"
+								</span>
+							</label>
+						</div>
 						<div class="form-check mb-2">
 							<input class="form-check-input" type="checkbox"
 								   asp-for="SendEmail" id="optSendEmail" />
@@ -165,16 +222,20 @@
 						A <code>.zip</code> archive containing:
 					</p>
 					<ul class="sf-text-muted mb-3" style="font-size:.875rem; line-height:1.8; padding-left:1.2rem">
-						<li><code>manifest.json</code> — snapshot metadata and row counts</li>
+						<li><code>manifest.json</code> — what the archive contains, row counts, object lists</li>
+						<li><code>restore_full.sql</code> — master script that restores every included section in order</li>
+						<li><code>schema/</code> — <code>CREATE TABLE</code> DDL per table</li>
 						<li><code>json/</code> — one <code>.json</code> file per table</li>
 						<li>
 							<code>sql/</code> — one <code>.sql</code> INSERT file per table,
 							plus an <code>00_import_order.sql</code> guide
 						</li>
+						<li><code>routines/</code> — procedures, functions, views, and triggers</li>
 					</ul>
 					<p class="sf-text-muted" style="font-size:.875rem; line-height:1.6">
-						The SQL files can be imported directly via the MySQL CLI, DBeaver,
-						or the Aiven query console.
+						Restore by opening the mysql client in the extracted folder and running
+						<code>SOURCE restore_full.sql;</code> (routines use <code>DELIMITER</code>,
+						which only the client honours).
 					</p>
 				</div>
 

@@ -96,14 +96,37 @@ public class AdminBackupController : StaffControllerBase
             ? vm.SelectedTableKeys
             : vm.AvailableTables.Where(t => !t.ExcludedByDefault).Select(t => t.Key).ToList();
 
+        // Build the capture options from the form toggles.
+        var options = new DatabaseBackupOptions
+        {
+            IncludeSchema           = vm.IncludeSchema,
+            IncludeData             = vm.IncludeData,
+            IncludeStoredProcedures = vm.IncludeStoredProcedures,
+            IncludeViews            = vm.IncludeViews,
+            IncludeTriggers         = vm.IncludeTriggers,
+            DropBeforeCreate        = vm.DropBeforeCreate,
+            SelectedTableKeys       = selectedKeys,
+        };
+
+        // Guard: at least one section must be selected.
+        if (!options.HasAnySection)
+        {
+            TempData["ErrorMessage"] =
+                "Select at least one section to back up (schema, data, routines, views, or triggers).";
+            return RedirectToAction(nameof(Backup));
+        }
+
         _logger.LogInformation(
-            "Admin {User} triggered database backup — {TableCount} tables selected.",
-            CurrentUserName, selectedKeys.Count);
+            "Admin {User} triggered database backup — {TableCount} tables; " +
+            "schema={Schema}, data={Data}, routines={Routines}, views={Views}, triggers={Triggers}.",
+            CurrentUserName, selectedKeys.Count,
+            options.IncludeSchema, options.IncludeData, options.IncludeStoredProcedures,
+            options.IncludeViews, options.IncludeTriggers);
 
         BackupResult result;
         try
         {
-            result = await _backup.GenerateAsync(selectedKeys, HttpContext.RequestAborted);
+            result = await _backup.GenerateAsync(options, HttpContext.RequestAborted);
         }
         catch (Exception ex)
         {
@@ -120,17 +143,36 @@ public class AdminBackupController : StaffControllerBase
         }
 
         // ── Audit log ──────────────────────────────────────────────────────
-        var summary = $"Backup generated: {result.TotalRows:N0} rows across " +
-                      $"{result.RowCounts.Count} tables. File: {result.FileName}.";
+        var sectionList = result.IncludedSections.Count > 0
+            ? string.Join(", ", result.IncludedSections)
+            : "none";
+        var objectSummary = result.HasSchemaObjects
+            ? $" Schema objects: {result.SchemaTableCount} tables, {result.ProcedureCount} procedures, " +
+              $"{result.FunctionCount} functions, {result.ViewCount} views, {result.TriggerCount} triggers."
+            : string.Empty;
+
+        var summary = $"Backup generated [{sectionList}]: {result.TotalRows:N0} rows across " +
+                      $"{result.RowCounts.Count} tables.{objectSummary} File: {result.FileName}.";
 
         await _audit.LogAsync(
             userId,
             actionType:  "BACKUP",
             tableName:   "Backup",
             description: summary,
-            newValues:   System.Text.Json.JsonSerializer.Serialize(
-                             result.RowCounts.OrderBy(kv => kv.Key)
-                                             .Select(kv => new { Table = kv.Key, Rows = kv.Value })));
+            newValues:   System.Text.Json.JsonSerializer.Serialize(new
+            {
+                Sections   = result.IncludedSections,
+                Tables     = result.RowCounts.OrderBy(kv => kv.Key)
+                                             .Select(kv => new { Table = kv.Key, Rows = kv.Value }),
+                Schema     = new
+                {
+                    Tables     = result.SchemaTableCount,
+                    Procedures = result.ProcedureCount,
+                    Functions  = result.FunctionCount,
+                    Views      = result.ViewCount,
+                    Triggers   = result.TriggerCount,
+                }
+            }));
 
         _logger.LogInformation(
             "Backup complete — {TotalRows} rows, {TableCount} tables, file: {FileName}.",

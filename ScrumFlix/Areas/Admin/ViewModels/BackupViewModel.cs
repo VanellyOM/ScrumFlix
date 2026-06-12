@@ -35,4 +35,26 @@ public class BackupViewModel
     /// in addition to returning it as a file download.
     /// </summary>
     public bool SendEmail { get; set; } = false;
+
+    // ── Section toggles (Phase 4+ schema-backup upgrade) ───────────────────
+    // Defaults below describe a Full disaster-recovery backup. The admin can
+    // narrow this to data-only, schema-only, or any custom combination.
+
+    /// <summary>Include CREATE TABLE DDL (indexes/constraints inline) for selected tables.</summary>
+    public bool IncludeSchema { get; set; } = true;
+
+    /// <summary>Include table rows as JSON files and batched INSERT scripts.</summary>
+    public bool IncludeData { get; set; } = true;
+
+    /// <summary>Include CREATE PROCEDURE / CREATE FUNCTION DDL for all stored routines.</summary>
+    public bool IncludeStoredProcedures { get; set; } = true;
+
+    /// <summary>Include CREATE VIEW DDL for all views.</summary>
+    public bool IncludeViews { get; set; } = true;
+
+    /// <summary>Include CREATE TRIGGER DDL for all triggers.</summary>
+    public bool IncludeTriggers { get; set; } = true;
+
+    /// <summary>Prepend DROP ... IF EXISTS before each CREATE so a restore replaces cleanly.</summary>
+    public bool DropBeforeCreate { get; set; } = true;
 }

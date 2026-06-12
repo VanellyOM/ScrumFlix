@@ -54,6 +54,25 @@ public interface IDatabaseBackupService
         CancellationToken    cancellationToken = default);
 
     /// <summary>
+    /// Generates a backup archive whose contents are governed by
+    /// <paramref name="options"/> — any combination of table schema (CREATE TABLE),
+    /// table data (JSON + INSERT), stored procedures, functions, views, and triggers.
+    /// This is the full-capability entry point used by the Admin backup page.
+    /// </summary>
+    /// <param name="options">
+    /// Which sections to capture and which tables to scope schema/data to.
+    /// See <see cref="DatabaseBackupOptions"/> and <see cref="BackupMode"/>.
+    /// </param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>
+    /// A <see cref="BackupResult"/> describing the archive: zip bytes, filename,
+    /// per-table row counts, and counts of captured schema objects.
+    /// </returns>
+    Task<BackupResult> GenerateAsync(
+        DatabaseBackupOptions options,
+        CancellationToken     cancellationToken = default);
+
+    /// <summary>
     /// Returns the full list of tables available for backup, with metadata
     /// (display name, row estimate, whether the table is large/paged).
     /// Used to populate the table-selection checklist on the backup page.
@@ -81,7 +100,29 @@ public sealed class BackupResult
     public required IReadOnlyDictionary<string, int> RowCounts { get; init; }
 
     /// <summary>Total rows across all tables.</summary>
-    public int TotalRows => RowCounts.Values.Sum();
+    public int TotalRows => RowCounts.Values.Where(v => v >= 0).Sum();
+
+    /// <summary>Number of tables whose CREATE TABLE DDL was captured (schema section).</summary>
+    public int SchemaTableCount { get; init; }
+
+    /// <summary>Number of stored procedures captured.</summary>
+    public int ProcedureCount { get; init; }
+
+    /// <summary>Number of stored functions captured.</summary>
+    public int FunctionCount { get; init; }
+
+    /// <summary>Number of views captured.</summary>
+    public int ViewCount { get; init; }
+
+    /// <summary>Number of triggers captured.</summary>
+    public int TriggerCount { get; init; }
+
+    /// <summary>Human-readable list of the sections present in the archive (e.g. "Schema", "Data", "Triggers").</summary>
+    public IReadOnlyList<string> IncludedSections { get; init; } = [];
+
+    /// <summary>True when the archive contains any non-table-data DDL (schema/routines/views/triggers).</summary>
+    public bool HasSchemaObjects =>
+        SchemaTableCount > 0 || ProcedureCount > 0 || FunctionCount > 0 || ViewCount > 0 || TriggerCount > 0;
 }
 
 /// <summary>
