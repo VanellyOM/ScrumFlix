@@ -32,6 +32,8 @@
  */
 
 
+using Microsoft.Extensions.DependencyInjection;
+using ScrumFlix.Services.BackgroundQueue;
 using ScrumFlix.Services.Progress;
 
 namespace ScrumFlix.Areas.Admin.Controllers;
@@ -49,19 +51,22 @@ public class AdminHomeController : StaffControllerBase
     /// application configuration, and structured logger.
     /// </summary>
     private readonly IProgressReporterFactory _reporterFactory;
+    private readonly IBackgroundTaskQueue     _taskQueue;
 
     public AdminHomeController(
         AppDbContext db,
         ITmdbSyncService tmdb,
         IConfiguration config,
         ILogger<AdminHomeController> logger,
-        IProgressReporterFactory reporterFactory)
+        IProgressReporterFactory reporterFactory,
+        IBackgroundTaskQueue taskQueue)
     {
         _db      = db;
         _tmdb    = tmdb;
         _config  = config;
         _logger  = logger;
         _reporterFactory = reporterFactory;
+        _taskQueue       = taskQueue;
     }
 
     // ── Dashboard ──────────────────────────────────────────────────────────
@@ -133,37 +138,117 @@ public class AdminHomeController : StaffControllerBase
     {
         if (RoleGuard(1) is { } redirect) return redirect;
 
+        var isAjax = string.Equals(
+            Request.Headers["X-Requested-With"], "XMLHttpRequest", StringComparison.OrdinalIgnoreCase);
+
         _logger.LogInformation(
-            "Admin User {UserId} triggered TMDb sync (forceAll={ForceAll}, movieId={MovieId}, operationId={OperationId}).",
-            CurrentUserId, forceAll, movieId, operationId);
+            "Admin User {UserId} triggered TMDb sync (forceAll={ForceAll}, movieId={MovieId}, " +
+            "operationId={OperationId}, ajax={Ajax}).",
+            CurrentUserId, forceAll, movieId, operationId, isAjax);
 
-        TmdbSyncResult? result = null;
-        IProgressReporter? reporter = null;
-
-        try
+        // ── Single-movie sync: fast, synchronous, no progress framework. ──────
+        // Kept on the original synchronous path (no queue, no reporter) because
+        // a single movie completes in well under a second and has no progress UI.
+        if (movieId.HasValue)
         {
-            // Always sync genres first — MovieGenres cannot resolve without the Genres table
-            await _tmdb.SyncGenresAsync();
-
-            if (movieId.HasValue)
+            TmdbSyncResult singleResult;
+            try
             {
-                // Single-movie sync — no per-movie progress needed, fast enough to skip
+                await _tmdb.SyncGenresAsync();
                 var success = await _tmdb.SyncMovieAsync(movieId.Value);
-                result = success
-                    ? new TmdbSyncResult(1, 0, 0)
-                    : new TmdbSyncResult(0, 0, 1);
-            }
-            else
-            {
-                // Full catalog sync — wire progress to the shared ProgressHub.
-                // Fall back to a server-generated id if the client didn't supply
-                // one (e.g. JS disabled) so the sync still runs, just without a
-                // client subscribed to the broadcasts.
-                reporter = string.IsNullOrWhiteSpace(operationId)
-                    ? _reporterFactory.Create("TMDb Sync", HttpContext.RequestAborted)
-                    : _reporterFactory.Create(operationId, "TMDb Sync", HttpContext.RequestAborted);
+                singleResult = success ? new TmdbSyncResult(1, 0, 0) : new TmdbSyncResult(0, 0, 1);
 
-                var progressReporter = new Progress<TmdbSyncProgressReport>(report =>
+                TempData[success ? "SuccessMessage" : "InfoMessage"] = success
+                    ? "Movie TMDb metadata synced successfully."
+                    : "No TMDb match found for that movie.";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Single-movie TMDb sync failed for MovieId={MovieId}.", movieId);
+                singleResult = new TmdbSyncResult(0, 0, 1);
+                TempData["ErrorMessage"] = "TMDb sync encountered an unexpected error. Check the application logs.";
+            }
+
+            if (isAjax)
+            {
+                return Json(new
+                {
+                    operationId = (string?)null,
+                    succeeded   = singleResult.Synced,
+                    skipped     = singleResult.Skipped,
+                    failed      = singleResult.Failed,
+                    total       = singleResult.Total,
+                });
+            }
+
+            var singleVm = await BuildDashboardViewModelAsync();
+            singleVm.TmdbSync.LastSyncResult    = singleResult;
+            singleVm.TmdbSync.LastSyncWasForced = false;
+            return View("AdminDashboard", singleVm);
+        }
+
+        // ── Full-catalog sync, no JavaScript (no X-Requested-With) ────────────
+        // Graceful degradation: run synchronously inline (the pre-4.3 behaviour)
+        // and return the full dashboard view. No reporter is minted because no
+        // client is subscribed to ProgressHub. This keeps the feature usable
+        // with JS disabled, just without a live progress spinner.
+        if (!isAjax)
+        {
+            TmdbSyncResult? syncResult = null;
+            try
+            {
+                await _tmdb.SyncGenresAsync();
+                syncResult = await _tmdb.SyncAllMoviesAsync(forceAll);
+
+                TempData[syncResult.Failed == 0 ? "SuccessMessage" : "InfoMessage"] =
+                    syncResult.Failed == 0
+                        ? $"TMDb sync complete — {syncResult.Synced} movie(s) synced, {syncResult.Skipped} skipped."
+                        : $"TMDb sync finished with {syncResult.Failed} failure(s). " +
+                          $"Synced: {syncResult.Synced}, Skipped: {syncResult.Skipped}. Check logs for details.";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "TMDb sync (non-AJAX) triggered by Admin User {UserId} failed.", CurrentUserId);
+                TempData["ErrorMessage"] = "TMDb sync encountered an unexpected error. Check the application logs.";
+            }
+
+            var fallbackVm = await BuildDashboardViewModelAsync();
+            fallbackVm.TmdbSync.LastSyncResult    = syncResult;
+            fallbackVm.TmdbSync.LastSyncWasForced = forceAll;
+            return View("AdminDashboard", fallbackVm);
+        }
+
+        // ── Full-catalog sync, AJAX: background-queue path (Phase 4.3) ────────
+        // Mint the reporter NOW so its operation id is known immediately and the
+        // client (already connected to /progressHub on page load) can join the
+        // group. The reporter is created with a NON-request-bound token
+        // (CancellationToken.None): the HTTP request returns before the work
+        // runs, so binding to HttpContext.RequestAborted would cancel the sync
+        // the instant the response is sent. User cancellation flows solely via
+        // ProgressHub.ClientCancel → IProgressReporterFactory.Cancel →
+        // reporter.CancellationToken.
+        var reporter = string.IsNullOrWhiteSpace(operationId)
+            ? _reporterFactory.Create("TMDb Sync")
+            : _reporterFactory.Create(operationId, "TMDb Sync");
+
+        // Capture primitives needed inside the background closure — no HttpContext
+        // (and therefore no CurrentUserId/session) is available once enqueued.
+        var triggeredByUserId = CurrentUserId ?? 0;
+        var force             = forceAll;
+        var reporterFactory   = _reporterFactory;  // singleton — safe to use after this request ends
+
+        await _taskQueue.QueueBackgroundWorkItemAsync(async (sp, _) =>
+        {
+            // Scoped services resolve from the per-item scope created by the host.
+            var tmdb   = sp.GetRequiredService<ITmdbSyncService>();
+            var logger = sp.GetRequiredService<ILogger<AdminHomeController>>();
+
+            try
+            {
+                // Always sync genres first — MovieGenres cannot resolve without Genres.
+                await tmdb.SyncGenresAsync(reporter.CancellationToken);
+
+                var progress = new Progress<TmdbSyncProgressReport>(report =>
                 {
                     reporter.Report(ProgressState.InProgress(
                         operationId:   reporter.OperationId,
@@ -176,77 +261,58 @@ public class AdminHomeController : StaffControllerBase
                         failed:        report.Failed));
                 });
 
-                result = await _tmdb.SyncAllMoviesAsync(forceAll, progressReporter, reporter.CancellationToken);
+                var result = await tmdb.SyncAllMoviesAsync(force, progress, reporter.CancellationToken);
 
-                // Broadcast completion so the spinner transitions to its complete state
+                logger.LogInformation(
+                    "TMDb sync (queued) complete for Admin User {UserId} — {Synced} synced, " +
+                    "{Skipped} skipped, {Failed} failed (operationId={OperationId}).",
+                    triggeredByUserId, result.Synced, result.Skipped, result.Failed, reporter.OperationId);
+
                 reporter.Complete(
                     $"TMDb sync complete — {result.Synced} synced, {result.Skipped} skipped, {result.Failed} failed.");
             }
-
-            if (result.Failed == 0)
+            catch (OperationCanceledException)
             {
-                TempData["SuccessMessage"] = movieId.HasValue
-                    ? "Movie TMDb metadata synced successfully."
-                    : $"TMDb sync complete — {result.Synced} movie(s) synced, {result.Skipped} skipped.";
+                logger.LogInformation(
+                    "TMDb sync (queued) cancelled (operationId={OperationId}).", reporter.OperationId);
+                reporter.Error("Sync cancelled.");
             }
-            else
+            catch (Exception ex)
             {
-                TempData["InfoMessage"] =
-                    $"TMDb sync finished with {result.Failed} failure(s). " +
-                    $"Synced: {result.Synced}, Skipped: {result.Skipped}. " +
-                    "Check Serilog logs for details.";
+                logger.LogError(ex,
+                    "TMDb sync (queued) failed for Admin User {UserId} (operationId={OperationId}).",
+                    triggeredByUserId, reporter.OperationId);
+                reporter.Error("Sync failed — check application logs.");
             }
-        }
-        catch (OperationCanceledException)
-        {
-            _logger.LogInformation(
-                "TMDb sync cancelled by Admin User {UserId} (operationId={OperationId}).",
-                CurrentUserId, operationId);
-
-            reporter?.Error("Sync cancelled.");
-            TempData["InfoMessage"] = "TMDb sync was cancelled.";
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "TMDb sync triggered by Admin User {UserId} failed.", CurrentUserId);
-
-            // Broadcast error so the spinner shows the error state immediately
-            reporter?.Error("Sync failed — check application logs.");
-
-            TempData["ErrorMessage"] = "TMDb sync encountered an unexpected error. Check the application logs.";
-        }
-        finally
-        {
-            if (reporter is not null)
+            finally
             {
-                _reporterFactory.Release(reporter.OperationId);
+                // Release the cancellation-registry entry now the operation is terminal.
+                reporterFactory.Release(reporter.OperationId);
             }
-        }
+        });
 
-        // Rebuild dashboard stats and embed the sync result into the ViewModel
-        var vm = await BuildDashboardViewModelAsync();
-        vm.TmdbSync.LastSyncResult    = result;
-        vm.TmdbSync.LastSyncWasForced = forceAll;
+        // Return immediately — the work runs on QueuedHostedService. The client
+        // joins reporter.OperationId's ProgressHub group and watches the spinner,
+        // then htmx-swaps the coverage stats panel on the terminal ProgressUpdate.
+        return Json(new { operationId = reporter.OperationId });
+    }
 
-        // sf-tmdb-sync.js submits via fetch (no page navigation) so the
-        // ProgressHub connection survives for the full duration of the sync.
-        // Respond with a small JSON payload it can use to refresh the page
-        // in place once the spinner shows "Complete!". A normal form POST
-        // (no X-Requested-With — JS disabled, or single-movie quick links)
-        // falls back to the original full-view redirect.
-        if (string.Equals(Request.Headers["X-Requested-With"], "XMLHttpRequest", StringComparison.OrdinalIgnoreCase))
-        {
-            return Json(new
-            {
-                operationId = reporter?.OperationId,
-                succeeded   = result?.Synced  ?? 0,
-                skipped     = result?.Skipped ?? 0,
-                failed      = result?.Failed  ?? 0,
-                total       = result?.Total   ?? 0,
-            });
-        }
+    // ── TMDb Sync coverage stats partial (HTMX swap target) ─────────────────
 
-        return View("AdminDashboard", vm);
+    /// <summary>
+    /// GET /Admin/AdminHome/TmdbSyncStatsPartial
+    /// Returns the coverage stat-cards panel as a partial view so the TMDb sync
+    /// page can refresh it in place (HTMX outerHTML swap into
+    /// <c>#tmdb-coverage-stats</c>) once a queued sync completes — replacing the
+    /// previous full-page <c>window.location.reload()</c>.
+    /// </summary>
+    [HttpGet]
+    public async Task<IActionResult> TmdbSyncStatsPartial()
+    {
+        if (RoleGuard(1) is { } redirect) return redirect;
+
+        var vm = await BuildTmdbCoverageStatsAsync();
+        return PartialView("_TmdbSyncStatsPartial", vm);
     }
 
     // ── Dedicated TMDb Sync Page ───────────────────────────────────────────
@@ -502,6 +568,31 @@ public class AdminHomeController : StaffControllerBase
             MoviesWithPoster = moviesWithPoster,
             MoviesWithTrailer = moviesWithTrailer,
             ApiKeyConfigured = !string.IsNullOrWhiteSpace(_config["Tmdb:ApiKey"])
+        };
+    }
+
+    /// <summary>
+    /// Builds a coverage-only <see cref="TmdbSyncPageViewModel"/> for the
+    /// <c>_TmdbSyncStatsPartial</c> HTMX swap. Computes just the catalog-wide
+    /// coverage counters (no per-movie paged query, no API call) — the partial
+    /// renders only the stat cards + progress bar, so the heavier per-movie list
+    /// built by <see cref="BuildTmdbSyncPageViewModelAsync"/> is intentionally
+    /// skipped here.
+    /// </summary>
+    private async Task<TmdbSyncPageViewModel> BuildTmdbCoverageStatsAsync()
+    {
+        var staleThreshold = DateTime.UtcNow.AddHours(-24);
+
+        return new TmdbSyncPageViewModel
+        {
+            TotalMovies        = await _db.Movies.CountAsync(),
+            MoviesWithMetadata = await _db.MovieTmdbMetadata.CountAsync(),
+            MoviesWithPoster   = await _db.MovieTmdbMetadata.CountAsync(m => m.PosterPath != null),
+            MoviesWithTrailer  = await _db.MovieTmdbMetadata.CountAsync(m => m.TrailerYouTubeKey != null),
+            StaleMovies        = await _db.MovieTmdbMetadata
+                                     .CountAsync(m => m.LastSyncedUtc == null || m.LastSyncedUtc < staleThreshold),
+            ApiKeyConfigured   = !string.IsNullOrWhiteSpace(_config["Tmdb:ApiKey"]),
+            // Movies left empty — the stats partial does not render the per-movie table.
         };
     }
 }

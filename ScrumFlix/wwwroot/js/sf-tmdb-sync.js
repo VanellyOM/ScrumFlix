@@ -1,35 +1,37 @@
 /**
  * File:    /wwwroot/js/sf-tmdb-sync.js
- * Purpose: Wires the TmdbSyncPage bulk-sync forms to the Phase 4.0 shared
- *          progress framework (ProgressHub / sf-progress.js) and drives the
- *          sf-spinner component.
+ * Purpose: Wires the TmdbSyncPage bulk-sync forms to the shared progress
+ *          framework (ProgressHub / sf-progress.js) under the Phase 4.3
+ *          background-queue model, and drives the sf-spinner component.
+ *
+ * Phase 4.3 model:
+ *   1. On page load, open the /progressHub connection ONCE (sfProgress.connect).
+ *      No operation is running yet — this just removes the connect-vs-navigation
+ *      race that plagued the synchronous design.
+ *   2. On bulk-sync submit: generate an operation id, set the hidden field,
+ *      join that operation's group on the already-open connection, then POST the
+ *      form via fetch. The server enqueues the sync on a background queue and
+ *      returns { operationId } almost immediately — the long sync runs on
+ *      QueuedHostedService while ProgressUpdate events stream in over the
+ *      pre-established connection.
+ *   3. On the terminal ProgressUpdate (isComplete), refresh the coverage stat
+ *      cards in place via an HTMX outerHTML swap of #tmdb-coverage-stats —
+ *      NOT a full-page reload.
  *
  * Requires (loaded before this file in TmdbSyncPage @section Scripts):
  *   - signalr.js / signalr.min.js
+ *   - htmx.min.js
  *   - sf-spinner.js   (exposes window.sfSpinner)
  *   - sf-progress.js  (exposes window.sfProgress)
  *
  * HTML elements expected in TmdbSyncPage.cshtml:
+ *   #tmdb-coverage-stats  — coverage stat-cards panel (HTMX swap target)
  *   #tmdb-sync-spinner    — .sf-spinner wrapper
  *   #sync-progress-wrap   — container hidden with d-none until sync starts
  *   #sync-status-msg      — status text below the spinner
  *   #cnt-synced / #cnt-skipped / #cnt-failed / #cnt-total  — live counters
  *   .sf-sync-trigger-form — the two bulk-sync <form> elements
  *   .sf-sync-operation-id — hidden <input name="operationId"> inside each form
- *
- * Flow:
- *   1. On submit, prevent the default full-page POST (which would navigate
- *      the page and kill the in-flight SignalR negotiate/connection before
- *      any progress could be shown).
- *   2. Generate a client-side operation id, connect to /progressHub, and
- *      join that operation's group via sfProgress.track().
- *   3. POST the form via fetch (X-Requested-With: XMLHttpRequest), which
- *      runs the synchronous server-side sync while the SignalR connection
- *      stays alive on this page and receives "ProgressUpdate" events.
- *   4. On completion (either the "ProgressUpdate" complete event or the
- *      fetch response, whichever arrives first), reload the page so the
- *      dashboard reflects the new TMDb sync stats — matching the original
- *      full-page-POST behaviour's end state.
  *
  * CSP compliance: no inline script blocks — all logic lives here.
  */
@@ -52,11 +54,21 @@
 
     var syncRunning = false;
 
+    // Open the hub connection once, now, on page load.
+    var hub = (window.sfProgress && typeof sfProgress.connect === 'function')
+        ? sfProgress.connect()
+        : null;
+
     function showProgress() {
         progressWrap.classList.remove('d-none');
         syncButtons.forEach(function (b) { b.disabled = true; });
         sfSpinner.indeterminate(spinner, true);
         syncRunning = true;
+    }
+
+    function releaseButtons() {
+        syncButtons.forEach(function (b) { b.disabled = false; });
+        syncRunning = false;
     }
 
     function updateCounters(state) {
@@ -70,70 +82,63 @@
         if (window.crypto && typeof window.crypto.randomUUID === 'function') {
             return window.crypto.randomUUID().replace(/-/g, '');
         }
-        // Fallback for older browsers without crypto.randomUUID
         return 'op' + Date.now().toString(16) + Math.random().toString(16).slice(2);
     }
 
-    // Reload the page once, regardless of how many "finish" signals arrive
-    // (ProgressUpdate complete event AND/OR the fetch response).
-    var reloaded = false;
-    function reloadOnce() {
-        if (reloaded) return;
-        reloaded = true;
-        setTimeout(function () {
-            window.location.reload();
-        }, 800);
+    // Refresh the coverage stat cards in place (no full-page reload).
+    function refreshCoverageStats() {
+        if (typeof htmx === 'undefined') return;
+        htmx.ajax('GET', '/Admin/AdminHome/TmdbSyncStatsPartial', {
+            target: '#tmdb-coverage-stats',
+            swap: 'outerHTML'
+        });
     }
 
     function showFetchError(message) {
         if (statusMsg) statusMsg.textContent = message;
         sfSpinner.error(spinner, message);
-        syncButtons.forEach(function (b) { b.disabled = false; });
-        syncRunning = false;
+        releaseButtons();
     }
 
     syncForms.forEach(function (form) {
         form.addEventListener('submit', function (evt) {
-            if (syncRunning) return;
+            if (syncRunning) { evt.preventDefault(); return; }
 
-            if (!window.sfProgress) {
-                // No progress framework available — fall back to the
-                // original full-page POST behaviour.
-                return;
-            }
+            // No progress framework / hub — fall back to the original full-page
+            // POST (the controller runs a synchronous sync for non-AJAX requests).
+            if (!hub) return;
 
             evt.preventDefault();
 
-            var opField = form.querySelector('.sf-sync-operation-id');
+            var opField     = form.querySelector('.sf-sync-operation-id');
             var operationId = newOperationId();
             if (opField) opField.value = operationId;
 
             showProgress();
 
-            var tracker = sfProgress.track({
-                operationId: operationId,
-                spinner:     spinner,
-                statusEl:    statusMsg,
-                onUpdate:    updateCounters,
-                onComplete:  function (state) {
+            // Join the operation group on the already-open connection.
+            hub.join(operationId, {
+                spinner:    spinner,
+                statusEl:   statusMsg,
+                onUpdate:   updateCounters,
+                onComplete: function (state) {
                     updateCounters(state);
-                    reloadOnce();
+                    releaseButtons();
+                    refreshCoverageStats();
                 },
                 onError: function (state) {
                     showFetchError(state.status || 'Sync failed.');
                 }
             });
 
-            // Submit via fetch — no page navigation, so the SignalR
-            // connection above stays alive for the duration of the sync.
+            // POST the trigger. The server enqueues the work and returns
+            // { operationId } almost immediately; progress arrives via SignalR.
             var formData = new FormData(form);
 
-            tracker.ready.then(function () {
-                return fetch(form.action, {
-                    method: 'POST',
-                    body: formData,
-                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
-                });
+            fetch(form.action, {
+                method: 'POST',
+                body: formData,
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
             }).then(function (res) {
                 if (!res.ok) {
                     return res.text().then(function (text) {
@@ -141,22 +146,18 @@
                         showFetchError('Sync failed (HTTP ' + res.status + ').');
                     });
                 }
-
                 var contentType = res.headers.get('content-type') || '';
                 if (contentType.indexOf('application/json') === -1) {
-                    // Likely a redirect to Login/AccessDenied (session expired
-                    // mid-sync) rather than the expected JSON payload.
+                    // Likely a redirect to Login/AccessDenied (session expired).
                     console.warn('TmdbSyncRun: unexpected response content-type', contentType);
-                    reloadOnce();
+                    showFetchError('Sync could not start — please sign in again.');
                     return;
                 }
-
-                // Success — if the "ProgressUpdate" complete event already
-                // reloaded the page, this is a no-op. If it was missed,
-                // this triggers the reload as a fallback.
+                // Body is just { operationId, ... } — progress drives the UI from here.
                 return res.json().then(function (data) {
-                    updateCounters(data);
-                    reloadOnce();
+                    if (!data || !data.operationId) {
+                        console.warn('TmdbSyncRun: response missing operationId', data);
+                    }
                 });
             }).catch(function (err) {
                 console.error('TmdbSyncRun request failed:', err);

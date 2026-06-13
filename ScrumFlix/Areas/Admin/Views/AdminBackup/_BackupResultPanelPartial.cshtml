@@ -1,0 +1,53 @@
+@*
+ * File:   /ScrumFlix/Areas/Admin/Views/AdminBackup/_BackupResultPanelPartial.cshtml
+ * Model:  ScrumFlix.Areas.Admin.ViewModels.BackupResultPanelViewModel
+ *
+ * Purpose:
+ *   "Backup ready — Download" panel, swapped into the backup page via HTMX once
+ *   a queued backup completes (Phase 4.3):
+ *     htmx.ajax('GET', '/Admin/AdminBackup/BackupResultPanel?operationId=...',
+ *               { target: '#backup-result-panel', swap: 'outerHTML' })
+ *
+ *   The Download button is a plain GET link to DownloadBackup, which streams the
+ *   staged .zip as an attachment (Content-Disposition) — the browser downloads
+ *   it without navigating away from the page, and DownloadBackup evicts the
+ *   cache entry on first stream.
+ *
+ *   IMPORTANT: the ROOT element carries id="backup-result-panel" so an outerHTML
+ *   swap preserves the id. The pre-swap placeholder in Backup.cshtml uses the
+ *   same id and starts empty/hidden.
+ *
+ * Phase: 4.3 — Background-queue redesign
+ *@
+@model ScrumFlix.Areas.Admin.ViewModels.BackupResultPanelViewModel
+@{
+    var downloadUrl = Url.Action("DownloadBackup", "AdminBackup",
+        new { area = "Admin", operationId = Model.OperationId });
+}
+
+<div id="backup-result-panel" class="sf-form-card sf-backup-result-panel mt-3" role="status" aria-live="polite">
+    <div class="d-flex align-items-center gap-3 flex-wrap">
+        <i class="bi bi-check-circle-fill text-success" style="font-size:1.75rem;" aria-hidden="true"></i>
+        <div class="flex-grow-1">
+            <h2 class="h6 mb-1">Backup ready</h2>
+            <p class="sf-text-muted mb-0" style="font-size:.875rem;">
+                @if (!string.IsNullOrWhiteSpace(Model.FileName))
+                {
+                    <span><code>@Model.FileName</code> is staged and ready to download.</span>
+                }
+                else
+                {
+                    <span>Your backup archive is staged and ready to download.</span>
+                }
+            </p>
+        </div>
+        <a href="@downloadUrl" class="btn sf-btn-primary">
+            <i class="bi bi-download me-2" aria-hidden="true"></i>Download .zip
+        </a>
+    </div>
+    <p class="sf-text-muted mt-2 mb-0" style="font-size:.8rem;">
+        <i class="bi bi-info-circle me-1" aria-hidden="true"></i>
+        The staged archive expires after a few minutes — download it now. Re-run the
+        backup if the link stops working.
+    </p>
+</div>

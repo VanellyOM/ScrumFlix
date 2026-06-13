@@ -82,6 +82,7 @@ using Microsoft.AspNetCore.Http.Features;
 using QuestPDF.Infrastructure;
 using ScrumFlix.Filters;
 using ScrumFlix.Hubs;
+using ScrumFlix.Services.BackgroundQueue;
 using ScrumFlix.Services.Progress;
 using ScrumFlix.Services.TMDB;
 using Serilog;
@@ -202,6 +203,18 @@ builder.Services.AddScoped<IDatabaseBackupService, DatabaseBackupService>();
 // cross-request cancellation registry (Cancel() arrives via a separate
 // SignalR connection from the operation that created the reporter).
 builder.Services.AddSingleton<IProgressReporterFactory, ProgressReporterFactory>();
+
+// Phase 4.3 background-queue redesign — in-process Channel-based work queue
+// (System.Threading.Channels, BCL only; no Hangfire/Quartz). The triggering
+// HTTP request (TMDb sync, database backup) enqueues a work item and returns
+// immediately; QueuedHostedService drains the channel, running each item in its
+// own DI scope. Singleton: the channel must outlive any single request.
+// NOTE (Somee.com): an in-process queue loses queued/in-flight items on an
+// app-pool recycle — not a regression, since the old synchronous operation died
+// with its recycled request just the same. Persistence is intentionally out of scope.
+builder.Services.AddSingleton<IBackgroundTaskQueue>(_ =>
+    new BackgroundTaskQueue(capacity: 10));
+builder.Services.AddHostedService<QueuedHostedService>();
 
 // SeatReservationExpiryService: background worker that polls every 60 seconds
 // and releases expired seat holds via SeatService.ReleaseExpiredReservationsAsync().

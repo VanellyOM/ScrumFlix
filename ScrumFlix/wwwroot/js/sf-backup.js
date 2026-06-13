@@ -1,22 +1,29 @@
 /**
  * File:    /wwwroot/js/sf-backup.js
- * Purpose: Client-side controller for the Admin Database Backup page.
+ * Purpose: Client-side controller for the Admin Database Backup page
+ *          (Phase 4.3 background-queue model).
  *
- *          - setAllCheckboxes(checked) — wires the "Select all" / "Clear all"
- *            buttons to toggle all .sf-backup-checkbox inputs at once.
- *          - Row count badge update: updates a running "X tables selected"
- *            counter in the submit button label as the admin checks/unchecks.
- *          - Phase 4.2 two-phase backup flow:
- *              1. On submit, mint an operation id, join its ProgressHub group
- *                 (via sf-progress.js) BEFORE posting, then POST the form via
- *                 fetch so the page does not navigate away while the backup
- *                 (with real per-table/per-section progress) is generated.
- *              2. On success, fetch GET /Admin/AdminBackup/DownloadBackup and
- *                 trigger the browser's file-save dialog for the returned .zip.
- *              3. On error, show an inline banner and re-enable the form.
+ *          - setAllCheckboxes(checked) — "Select all" / "Clear all" buttons.
+ *          - Row count badge update in the submit button label.
+ *          - Backup flow:
+ *              1. On page load, open the /progressHub connection ONCE
+ *                 (sfProgress.connect) so there is no connect-vs-navigation race.
+ *              2. On submit: generate an operation id, join its group on the
+ *                 already-open connection, then POST the form via fetch. The
+ *                 server enqueues generation on a background queue and returns
+ *                 { operationId } almost immediately; per-table/per-section
+ *                 progress streams in over SignalR.
+ *              3. On the terminal ProgressUpdate (isComplete), swap in the
+ *                 "Backup ready — Download" panel via an HTMX outerHTML swap of
+ *                 #backup-result-panel. The user clicks Download (a GET link to
+ *                 DownloadBackup) to stream the staged .zip. No iframe / synthetic
+ *                 click, so none of the previous download-vs-fetch teardown races
+ *                 apply.
+ *              4. On error, show an inline banner and re-enable the form.
  *
  * Requires (loaded via @section Scripts in Backup.cshtml):
  *   - signalr.js / signalr.min.js
+ *   - htmx.min.js
  *   - sf-spinner.js   (loaded globally by _AdminLayout)
  *   - sf-progress.js
  *
@@ -36,6 +43,8 @@
     var cancelBtn   = null;
     var errorBanner = null;
     var errorText   = null;
+    var hub         = null;
+    var submitting  = false;
 
     function init() {
         checkboxes  = document.querySelectorAll('.sf-backup-checkbox');
@@ -57,6 +66,10 @@
         }
 
         if (form && submitBtn && spinnerWrap && spinnerEl) {
+            // Open the hub connection once, now, on page load.
+            if (window.sfProgress && typeof sfProgress.connect === 'function') {
+                hub = sfProgress.connect();
+            }
             form.addEventListener('submit', handleSubmit);
         }
     }
@@ -108,36 +121,34 @@
     function resetUi() {
         submitBtn.disabled = false;
         if (cancelBtn) cancelBtn.disabled = false;
+        submitting = false;
     }
 
-    /** Triggers a browser download for the staged .zip and tidies up the UI. */
-    function downloadBackup(operationId) {
-        var url = '/Admin/AdminBackup/DownloadBackup?operationId=' + encodeURIComponent(operationId);
-
-        // Use a hidden <iframe> rather than a synthetic <a> click. In some
-        // browsers (notably Firefox), programmatically clicking an <a> for a
-        // same-document download can be treated as enough of a navigation
-        // event to abort other in-flight requests on the page — including
-        // the still-resolving TriggerBackup fetch and the ProgressHub
-        // SignalR connection, surfacing as a spurious NetworkError even
-        // though the backup already succeeded. An iframe navigation is
-        // scoped to the iframe's own browsing context and doesn't affect
-        // the parent document's requests.
-        var iframe = document.createElement('iframe');
-        iframe.style.display = 'none';
-        iframe.src = url;
-        document.body.appendChild(iframe);
-
-        setTimeout(function () {
-            iframe.remove();
-            if (spinnerWrap) spinnerWrap.classList.add('d-none');
-            if (spinnerEl) sfSpinner.reset(spinnerEl);
-            resetUi();
-        }, 1500);
+    /** Swaps in the "Backup ready — Download" panel for the completed operation. */
+    function showResultPanel(operationId) {
+        if (typeof htmx === 'undefined') {
+            // Fallback: no HTMX — point the user straight at the download URL.
+            if (statusEl) statusEl.textContent = 'Backup ready.';
+            window.location.href =
+                '/Admin/AdminBackup/DownloadBackup?operationId=' + encodeURIComponent(operationId);
+            return;
+        }
+        htmx.ajax('GET', '/Admin/AdminBackup/BackupResultPanel?operationId=' + encodeURIComponent(operationId), {
+            target: '#backup-result-panel',
+            swap: 'outerHTML'
+        });
+        if (spinnerWrap) spinnerWrap.classList.add('d-none');
+        if (spinnerEl) sfSpinner.reset(spinnerEl);
+        resetUi();
     }
 
     function handleSubmit(evt) {
+        // No progress framework available — allow the native POST (degraded).
+        if (!hub) return;
+
         evt.preventDefault();
+        if (submitting) return;
+        submitting = true;
         hideError();
 
         var operationId = newOperationId();
@@ -148,29 +159,19 @@
         submitBtn.disabled = true;
         if (cancelBtn) cancelBtn.disabled = false;
 
-        var downloaded = false;
-        function downloadOnce(id) {
-            if (downloaded) return;
-            downloaded = true;
-            downloadBackup(id);
-        }
-
-        var tracker = null;
-        if (window.sfProgress) {
-            tracker = sfProgress.track({
-                operationId: operationId,
-                spinner:     spinnerEl,
-                statusEl:    statusEl,
-                cancelBtn:   cancelBtn,
-                onComplete:  function () {
-                    downloadOnce(operationId);
-                },
-                onError: function (state) {
-                    showError(state.status || 'Backup failed.');
-                    resetUi();
-                }
-            });
-        }
+        // Join the operation group on the already-open connection.
+        hub.join(operationId, {
+            spinner:    spinnerEl,
+            statusEl:   statusEl,
+            cancelBtn:  cancelBtn,
+            onComplete: function () {
+                showResultPanel(operationId);
+            },
+            onError: function (state) {
+                showError(state.status || 'Backup failed.');
+                resetUi();
+            }
+        });
 
         var formData = new FormData(form);
 
@@ -178,65 +179,36 @@
             method: 'POST',
             body: formData,
             headers: { 'X-Requested-With': 'XMLHttpRequest' }
-        })
-            .then(function (res) {
-                return res.text().then(function (text) {
-                    var data = null;
-                    try {
-                        data = text ? JSON.parse(text) : null;
-                    } catch (parseErr) {
-                        console.error('TriggerBackup: non-JSON response', {
-                            status: res.status,
-                            statusText: res.statusText,
-                            redirected: res.redirected,
-                            url: res.url,
-                            bodyPreview: text.slice(0, 500)
-                        });
-                    }
-                    return { ok: res.ok, data: data, raw: text, status: res.status };
-                });
-            })
-            .then(function (result) {
-                // If the SignalR "complete" event already fired and triggered
-                // the download (see onComplete below), the click on the
-                // synthetic <a> can cause the browser to tear down other
-                // in-flight requests on the page — including this fetch,
-                // which then resolves with a non-ok/empty body or rejects
-                // entirely. The backup already succeeded in that case, so
-                // there's nothing left to report here.
-                if (downloaded) return;
-
-                if (!result.ok || result.data === null) {
-                    showError(
-                        (result.data && result.data.error) ||
-                        ('Backup failed (HTTP ' + result.status + '). See console for details.')
-                    );
-                    resetUi();
-                    if (tracker) tracker.stop();
-                    return;
+        }).then(function (res) {
+            return res.text().then(function (text) {
+                var data = null;
+                try { data = text ? JSON.parse(text) : null; }
+                catch (parseErr) {
+                    console.error('TriggerBackup: non-JSON response', {
+                        status: res.status, statusText: res.statusText,
+                        redirected: res.redirected, url: res.url,
+                        bodyPreview: text.slice(0, 500)
+                    });
                 }
-                // Normally driven by the "ProgressUpdate" complete event
-                // (onComplete above) so the spinner reaches 100% via real
-                // progress before the download starts. If that event was
-                // missed (e.g. SignalR disconnected mid-run), fall back to
-                // downloading immediately now that the response confirms the
-                // backup is ready.
-                downloadOnce(result.data.operationId);
-            })
-            .catch(function (err) {
-                // Same race as above: if the download already started via
-                // onComplete, a NetworkError here is an artifact of that
-                // navigation tearing down this fetch, not a real failure.
-                if (downloaded) {
-                    console.warn('TriggerBackup: fetch interrupted after download already started (safe to ignore).', err);
-                    return;
-                }
-
-                console.error('TriggerBackup request failed:', err);
-                showError('Backup request failed — check your connection and try again.');
-                resetUi();
-                if (tracker) tracker.stop();
+                return { ok: res.ok, data: data, status: res.status };
             });
+        }).then(function (result) {
+            if (!result.ok || result.data === null) {
+                showError(
+                    (result.data && result.data.error) ||
+                    ('Backup failed (HTTP ' + result.status + '). See console for details.')
+                );
+                resetUi();
+                return;
+            }
+            // Accepted — generation is running on the background queue. Progress
+            // and the terminal "complete" (which swaps in the download panel)
+            // arrive over SignalR; nothing more to do with this response.
+        }).catch(function (err) {
+            console.error('TriggerBackup request failed:', err);
+            showError('Backup request failed — check your connection and try again.');
+            resetUi();
+        });
     }
 
     // Expose setAllCheckboxes globally for the onclick buttons in the view

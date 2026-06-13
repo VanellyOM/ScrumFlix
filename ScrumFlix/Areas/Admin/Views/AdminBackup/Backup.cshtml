@@ -220,6 +220,11 @@
 						<i class="bi bi-download me-2" aria-hidden="true"></i>Generate &amp; download backup
 					</button>
 				</form>
+
+				@* HTMX swap target — the "Backup ready — Download" panel
+				   (_BackupResultPanelPartial) is swapped in here on completion.
+				   Starts empty; sf-backup.js issues the htmx.ajax outerHTML swap. *@
+				<div id="backup-result-panel"></div>
 			</div>
 
 			@* ── Right column: info panel ──────────────────────────────── *@
@@ -286,6 +291,9 @@
 		<script src="~/js/signalr/dist/browser/signalr.min.js"></script>
 	</environment>
 	@* sf-spinner.js is loaded globally by _AdminLayout — no per-page load needed *@
+	@* HTMX — loaded per-page (like SignalR); used to swap #backup-result-panel on completion.
+	   cdn.jsdelivr.net is already permitted by the CSP script-src directive. *@
+	<script src="https://cdn.jsdelivr.net/npm/htmx.org@1.9.12/dist/htmx.min.js"></script>
 	<script src="~/js/sf-progress.js" asp-append-version="true"></script>
 	<script src="~/js/sf-backup.js" asp-append-version="true"></script>
 }

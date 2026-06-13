@@ -26,7 +26,9 @@
  */
 
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.DependencyInjection;
 using ScrumFlix.Infrastructure;
+using ScrumFlix.Services.BackgroundQueue;
 using ScrumFlix.Services.Progress;
 
 namespace ScrumFlix.Areas.Admin.Controllers;
@@ -41,6 +43,7 @@ public class AdminBackupController : StaffControllerBase
     private readonly ILogger<AdminBackupController>  _logger;
     private readonly IProgressReporterFactory        _reporterFactory;
     private readonly IMemoryCache                    _cache;
+    private readonly IBackgroundTaskQueue            _taskQueue;
 
     /// <summary>
     /// How long a generated backup .zip stays in <see cref="_cache"/> after
@@ -61,7 +64,8 @@ public class AdminBackupController : StaffControllerBase
         IConfiguration                 config,
         ILogger<AdminBackupController> logger,
         IProgressReporterFactory       reporterFactory,
-        IMemoryCache                   cache)
+        IMemoryCache                   cache,
+        IBackgroundTaskQueue           taskQueue)
     {
         _backup = backup;
         _audit  = audit;
@@ -70,6 +74,7 @@ public class AdminBackupController : StaffControllerBase
         _logger = logger;
         _reporterFactory = reporterFactory;
         _cache  = cache;
+        _taskQueue = taskQueue;
     }
 
     // ── GET: Backup ────────────────────────────────────────────────────────
@@ -122,7 +127,8 @@ public class AdminBackupController : StaffControllerBase
     {
         if (RoleGuard(1) is { } r) return r;
 
-        var userId = CurrentUserId ?? 0;
+        var userId   = CurrentUserId ?? 0;
+        var userName = CurrentUserName ?? $"User #{userId}";
 
         // Re-populate AvailableTables (not posted back, needs to be rebuilt)
         vm.AvailableTables = _backup.GetAvailableTables();
@@ -156,140 +162,188 @@ public class AdminBackupController : StaffControllerBase
         _logger.LogInformation(
             "Admin {User} triggered database backup — {TableCount} tables; " +
             "schema={Schema}, data={Data}, routines={Routines}, views={Views}, triggers={Triggers}.",
-            CurrentUserName, selectedKeys.Count,
+            userName, selectedKeys.Count,
             options.IncludeSchema, options.IncludeData, options.IncludeStoredProcedures,
             options.IncludeViews, options.IncludeTriggers);
 
+        // ── Mint reporter + enqueue (Phase 4.3 background-queue path) ─────────
+        // The reporter is created with a NON-request-bound token: the HTTP
+        // request returns before the work runs, so binding to
+        // HttpContext.RequestAborted would cancel the backup the instant the
+        // response is sent. User cancellation flows via ProgressHub.ClientCancel
+        // → IProgressReporterFactory.Cancel → reporter.CancellationToken.
         var reporter = string.IsNullOrWhiteSpace(vm.OperationId)
-            ? _reporterFactory.Create("Database Backup", HttpContext.RequestAborted)
-            : _reporterFactory.Create(vm.OperationId, "Database Backup", HttpContext.RequestAborted);
+            ? _reporterFactory.Create("Database Backup")
+            : _reporterFactory.Create(vm.OperationId, "Database Backup");
 
-        BackupResult result;
-        try
+        // Capture primitives the background closure needs — no HttpContext/session
+        // is available once the work is dequeued.
+        var sendEmail        = vm.SendEmail;
+        var cacheKey         = BackupCacheKeyPrefix + reporter.OperationId;
+        var cacheTtl         = BackupCacheTtl;
+        var reporterFactory  = _reporterFactory;  // singleton — safe to use after this request ends
+
+        await _taskQueue.QueueBackgroundWorkItemAsync(async (sp, _) =>
         {
-            result = await _backup.GenerateAsync(options, reporter, reporter.CancellationToken);
-        }
-        catch (OperationCanceledException)
-        {
-            _logger.LogInformation(
-                "Database backup cancelled by Admin {User} (operationId={OperationId}).",
-                CurrentUserName, reporter.OperationId);
+            // Resolve services from the per-item DI scope. IMemoryCache is a
+            // singleton, but it is still resolved through the scope provider for
+            // consistency — a scope resolves singletons from the root container,
+            // so the same shared cache instance is returned either way.
+            var backup = sp.GetRequiredService<IDatabaseBackupService>();
+            var audit  = sp.GetRequiredService<IAuditService>();
+            var email  = sp.GetRequiredService<IEmailService>();
+            var config = sp.GetRequiredService<IConfiguration>();
+            var cache  = sp.GetRequiredService<IMemoryCache>();
+            var logger = sp.GetRequiredService<ILogger<AdminBackupController>>();
 
-            reporter.Error("Backup cancelled.");
-            _reporterFactory.Release(reporter.OperationId);
+            BackupResult result;
+            try
+            {
+                result = await backup.GenerateAsync(options, reporter, reporter.CancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                logger.LogInformation(
+                    "Database backup cancelled by Admin {User} (operationId={OperationId}).",
+                    userName, reporter.OperationId);
+                reporter.Error("Backup cancelled.");
+                reporterFactory.Release(reporter.OperationId);
+                return;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Database backup failed for Admin {User}.", userName);
+                reporter.Error("Backup failed — check application logs.");
+                reporterFactory.Release(reporter.OperationId);
 
-            return BadRequest(new { error = "Backup was cancelled." });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Database backup failed for Admin {User}.", CurrentUserName);
+                await audit.LogAsync(
+                    userId,
+                    actionType:  "BACKUP_FAILED",
+                    tableName:   "Backup",
+                    description: $"Database backup failed: {ex.Message}");
+                return;
+            }
 
-            reporter.Error("Backup failed — check application logs.");
-            _reporterFactory.Release(reporter.OperationId);
+            // ── Audit log ──────────────────────────────────────────────────
+            var sectionList = result.IncludedSections.Count > 0
+                ? string.Join(", ", result.IncludedSections)
+                : "none";
+            var objectSummary = result.HasSchemaObjects
+                ? $" Schema objects: {result.SchemaTableCount} tables, {result.ProcedureCount} procedures, " +
+                  $"{result.FunctionCount} functions, {result.ViewCount} views, {result.TriggerCount} triggers."
+                : string.Empty;
 
-            await _audit.LogAsync(
+            var summary = $"Backup generated [{sectionList}]: {result.TotalRows:N0} rows across " +
+                          $"{result.TableCount} table(s).{objectSummary} File: {result.FileName}.";
+
+            await audit.LogAsync(
                 userId,
-                actionType:  "BACKUP_FAILED",
+                actionType:  "BACKUP",
                 tableName:   "Backup",
-                description: $"Database backup failed: {ex.Message}");
-
-            return BadRequest(new
-            {
-                error = $"Backup failed: {ex.Message}. Check application logs for details."
-            });
-        }
-
-        // ── Audit log ──────────────────────────────────────────────────────
-        var sectionList = result.IncludedSections.Count > 0
-            ? string.Join(", ", result.IncludedSections)
-            : "none";
-        var objectSummary = result.HasSchemaObjects
-            ? $" Schema objects: {result.SchemaTableCount} tables, {result.ProcedureCount} procedures, " +
-              $"{result.FunctionCount} functions, {result.ViewCount} views, {result.TriggerCount} triggers."
-            : string.Empty;
-
-        var summary = $"Backup generated [{sectionList}]: {result.TotalRows:N0} rows across " +
-                      $"{result.TableCount} table(s).{objectSummary} File: {result.FileName}.";
-
-        await _audit.LogAsync(
-            userId,
-            actionType:  "BACKUP",
-            tableName:   "Backup",
-            description: summary,
-            newValues:   System.Text.Json.JsonSerializer.Serialize(new
-            {
-                Sections   = result.IncludedSections,
-                TableCount = result.TableCount,
-                Tables     = result.RowCounts.OrderBy(kv => kv.Key)
-                                             .Select(kv => new { Table = kv.Key, Rows = kv.Value }),
-                Schema     = new
+                description: summary,
+                newValues:   System.Text.Json.JsonSerializer.Serialize(new
                 {
-                    Tables     = result.SchemaTableCount,
-                    Procedures = result.ProcedureCount,
-                    Functions  = result.FunctionCount,
-                    Views      = result.ViewCount,
-                    Triggers   = result.TriggerCount,
-                }
-            }));
+                    Sections   = result.IncludedSections,
+                    TableCount = result.TableCount,
+                    Tables     = result.RowCounts.OrderBy(kv => kv.Key)
+                                                 .Select(kv => new { Table = kv.Key, Rows = kv.Value }),
+                    Schema     = new
+                    {
+                        Tables     = result.SchemaTableCount,
+                        Procedures = result.ProcedureCount,
+                        Functions  = result.FunctionCount,
+                        Views      = result.ViewCount,
+                        Triggers   = result.TriggerCount,
+                    }
+                }));
 
-        _logger.LogInformation(
-            "Backup complete — {TotalRows} rows, {TableCount} table(s), file: {FileName}.",
-            result.TotalRows, result.TableCount, result.FileName);
+            logger.LogInformation(
+                "Backup complete — {TotalRows} rows, {TableCount} table(s), file: {FileName}.",
+                result.TotalRows, result.TableCount, result.FileName);
 
-        // ── Optional email delivery ────────────────────────────────────────
-        if (vm.SendEmail)
-        {
-            var adminTo = _config["Email:AdminTo"];
-            if (!string.IsNullOrWhiteSpace(adminTo))
+            // ── Optional email delivery ────────────────────────────────────
+            if (sendEmail)
             {
-                var localTime   = TimeZoneHelper.ConvertFromUtc(result.TakenAtUtc, TimeZoneHelper.CentralWindowsId);
-                var bodyHtml    = $"<p>ScrumFlix database backup completed successfully.</p>" +
-                                  $"<p><strong>Taken at:</strong> {localTime:ddd MMM d, yyyy h:mm tt} CDT</p>" +
-                                  $"<p><strong>Tables:</strong> {result.TableCount}</p>" +
-                                  $"<p><strong>Total rows:</strong> {result.TotalRows:N0}</p>" +
-                                  $"<p>The backup archive is attached.</p>";
+                var adminTo = config["Email:AdminTo"];
+                if (!string.IsNullOrWhiteSpace(adminTo))
+                {
+                    var localTime = TimeZoneHelper.ConvertFromUtc(result.TakenAtUtc, TimeZoneHelper.CentralWindowsId);
+                    var bodyHtml  = $"<p>ScrumFlix database backup completed successfully.</p>" +
+                                    $"<p><strong>Taken at:</strong> {localTime:ddd MMM d, yyyy h:mm tt} CDT</p>" +
+                                    $"<p><strong>Tables:</strong> {result.TableCount}</p>" +
+                                    $"<p><strong>Total rows:</strong> {result.TotalRows:N0}</p>" +
+                                    $"<p>The backup archive is attached.</p>";
 
-                // Fire-and-forget — do not block the response on SMTP
-                _ = _email.SendWithPdfAttachmentAsync(
+                    var sendTask = email.SendWithPdfAttachmentAsync(
                         toEmail:            adminTo,
                         toName:             "ScrumFlix Admin",
                         subject:            $"ScrumFlix DB Backup — {result.FileName}",
                         bodyHtml:           bodyHtml,
                         attachmentBytes:    result.ZipBytes,
                         attachmentFileName: result.FileName,
-                        cancellationToken:  CancellationToken.None)
-                    .ContinueWith(t =>
+                        cancellationToken:  CancellationToken.None);
+
+                    // Fire-and-forget but safe: run a background task that awaits the sendTask and logs outcome.
+                    await Task.Run(async () =>
                     {
-                        if (t.IsFaulted)
-                            _logger.LogWarning(t.Exception,
-                                "Backup email delivery failed for {FileName}.", result.FileName);
-                        else
-                            _logger.LogInformation(
-                                "Backup email sent to {AdminTo} — {FileName}.", adminTo, result.FileName);
-                    }, TaskScheduler.Default);
+                        try
+                        {
+                            await sendTask.ConfigureAwait(false);
+                            logger.LogInformation("Backup email sent to {AdminTo} — {FileName}.", adminTo, result.FileName);
+                        }
+                        catch (Exception ex)
+                        {
+                            logger.LogWarning(ex, "Backup email delivery failed for {FileName}.", result.FileName);
+                        }
+                    });
+                }
+                else
+                {
+                    logger.LogWarning(
+                        "Backup email requested but Email:AdminTo is not configured. Skipping email.");
+                }
             }
-            else
-            {
-                _logger.LogWarning(
-                    "Backup email requested but Email:AdminTo is not configured. Skipping email.");
-            }
-        }
 
-        // ── Stage the .zip for download and signal completion ──────────────
-        _cache.Set(
-            BackupCacheKeyPrefix + reporter.OperationId,
-            (result.ZipBytes, result.FileName),
-            BackupCacheTtl);
+            // ── Stage the .zip for download and signal completion ──────────
+            cache.Set(cacheKey, (result.ZipBytes, result.FileName), cacheTtl);
 
-        reporter.Complete(
-            $"Backup complete — {result.TotalRows:N0} rows across {result.TableCount} table(s).");
-        _reporterFactory.Release(reporter.OperationId);
-
-        return Json(new
-        {
-            operationId = reporter.OperationId,
-            fileName    = result.FileName,
+            reporter.Complete(
+                $"Backup complete — {result.TotalRows:N0} rows across {result.TableCount} table(s).");
+            reporterFactory.Release(reporter.OperationId);
         });
+
+        // Return immediately — generation runs on QueuedHostedService. The client
+        // (already connected to /progressHub on page load) joins this operation's
+        // group, watches the spinner, then htmx-swaps in the download panel on the
+        // terminal ProgressUpdate.
+        return Json(new { operationId = reporter.OperationId });
+    }
+
+    // ── GET: BackupResultPanel (HTMX swap target) ───────────────────────────
+
+    /// <summary>
+    /// GET /Admin/AdminBackup/BackupResultPanel?operationId=...
+    /// Returns the "Backup ready — Download" panel as a partial view so the
+    /// backup page can swap it in (HTMX outerHTML into <c>#backup-result-panel</c>)
+    /// once a queued backup completes. The Download button points at
+    /// <see cref="DownloadBackup"/> for the same operation id.
+    /// </summary>
+    [HttpGet]
+    public IActionResult BackupResultPanel(string operationId)
+    {
+        if (RoleGuard(1) is { } r) return r;
+
+        if (string.IsNullOrWhiteSpace(operationId))
+            return NotFound();
+
+        // Surface the staged file name when still cached, so the panel can label
+        // the download. Absence is non-fatal — the button still works until TTL.
+        string? fileName = null;
+        if (_cache.TryGetValue<(byte[] ZipBytes, string FileName)>(BackupCacheKeyPrefix + operationId, out var staged))
+            fileName = staged.FileName;
+
+        return PartialView("_BackupResultPanelPartial",
+            new BackupResultPanelViewModel(operationId, fileName));
     }
 
     // ── GET: DownloadBackup ──────────────────────────────────────────────────
