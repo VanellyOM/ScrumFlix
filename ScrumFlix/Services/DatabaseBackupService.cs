@@ -42,6 +42,7 @@ using System.Text;
 using System.Text.Json;
 using ScrumFlix.Infrastructure;
 using ScrumFlix.Services.Backup;
+using ScrumFlix.Services.Progress;
 
 namespace ScrumFlix.Services;
 
@@ -138,8 +139,15 @@ public sealed class DatabaseBackupService : IDatabaseBackupService
             cancellationToken);
 
     /// <inheritdoc />
+    public Task<BackupResult> GenerateAsync(
+        DatabaseBackupOptions options,
+        CancellationToken cancellationToken = default)
+        => GenerateAsync(options, progress: null, cancellationToken);
+
+    /// <inheritdoc />
     public async Task<BackupResult> GenerateAsync(
         DatabaseBackupOptions options,
+        IProgressReporter? progress,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -162,12 +170,32 @@ public sealed class DatabaseBackupService : IDatabaseBackupService
         var jsonFiles = new Dictionary<string, byte[]>();  // key → JSON UTF-8
         var sqlFiles = new Dictionary<string, byte[]>();  // key → SQL UTF-8
 
+        // ── Progress unit accounting ───────────────────────────────────────
+        // Each table serialised in the data section counts as one unit, plus
+        // one unit per connection-based section (schema, database objects).
+        // This gives the spinner a coarse but real "X of Y" progress signal
+        // without instrumenting SchemaBackupProvider/DatabaseObjectBackupProvider
+        // internals.
+        var needsConnectionForProgress = options.IncludeSchema
+            || options.IncludeStoredProcedures
+            || options.IncludeViews
+            || options.IncludeTriggers;
+
+        var totalUnits = (options.IncludeData ? tables.Count : 0)
+            + (options.IncludeSchema ? 1 : 0)
+            + (needsConnectionForProgress
+               && (options.IncludeStoredProcedures || options.IncludeViews || options.IncludeTriggers) ? 1 : 0);
+
+        var completedUnits = 0;
+        var failedUnits = 0;
+
         // ── Data section (rows → JSON + INSERT) ───────────────────────────
         if (options.IncludeData)
         {
             foreach (var table in tables)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                progress?.CancellationToken.ThrowIfCancellationRequested();
 
                 try
                 {
@@ -182,7 +210,19 @@ public sealed class DatabaseBackupService : IDatabaseBackupService
                 {
                     _logger.LogWarning(ex, "Backup: failed to serialise table {Table} — skipping", table.Key);
                     rowCounts[table.Key] = -1;  // -1 signals a serialisation error
+                    failedUnits++;
                 }
+
+                completedUnits++;
+                progress?.Report(ProgressState.InProgress(
+                    operationId:   progress.OperationId,
+                    operationName: "Database Backup",
+                    status:        $"Backed up table {table.DisplayName} ({completedUnits} of {totalUnits})…",
+                    current:       completedUnits,
+                    total:         totalUnits,
+                    succeeded:     completedUnits - failedUnits,
+                    skipped:       0,
+                    failed:        failedUnits));
             }
         }
 
@@ -206,13 +246,30 @@ public sealed class DatabaseBackupService : IDatabaseBackupService
 
                 if (options.IncludeSchema)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    progress?.CancellationToken.ThrowIfCancellationRequested();
+
                     var tableNames = tables.Select(t => t.Key).ToList();
                     schemaSection = await new SchemaBackupProvider(introspector, _logger)
                         .CaptureAsync(tableNames, options.DropBeforeCreate, takenAtUtc, cancellationToken);
+
+                    completedUnits++;
+                    progress?.Report(ProgressState.InProgress(
+                        operationId:   progress.OperationId,
+                        operationName: "Database Backup",
+                        status:        $"Captured table structure ({completedUnits} of {totalUnits})…",
+                        current:       completedUnits,
+                        total:         totalUnits,
+                        succeeded:     completedUnits - failedUnits,
+                        skipped:       0,
+                        failed:        failedUnits));
                 }
 
                 if (options.IncludeStoredProcedures || options.IncludeViews || options.IncludeTriggers)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    progress?.CancellationToken.ThrowIfCancellationRequested();
+
                     objectSection = await new DatabaseObjectBackupProvider(introspector, _logger)
                         .CaptureAsync(
                             schemaName,
@@ -222,6 +279,17 @@ public sealed class DatabaseBackupService : IDatabaseBackupService
                             options.DropBeforeCreate,
                             takenAtUtc,
                             cancellationToken);
+
+                    completedUnits++;
+                    progress?.Report(ProgressState.InProgress(
+                        operationId:   progress.OperationId,
+                        operationName: "Database Backup",
+                        status:        $"Captured database objects ({completedUnits} of {totalUnits})…",
+                        current:       completedUnits,
+                        total:         totalUnits,
+                        succeeded:     completedUnits - failedUnits,
+                        skipped:       0,
+                        failed:        failedUnits));
                 }
             }
             finally
@@ -231,6 +299,16 @@ public sealed class DatabaseBackupService : IDatabaseBackupService
         }
 
         // ── Assemble the .zip ─────────────────────────────────────────────
+        progress?.Report(ProgressState.InProgress(
+            operationId:   progress?.OperationId ?? string.Empty,
+            operationName: "Database Backup",
+            status:        "Assembling archive…",
+            current:       totalUnits,
+            total:         totalUnits,
+            succeeded:     totalUnits - failedUnits,
+            skipped:       0,
+            failed:        failedUnits));
+
         var zipBytes = AssembleArchive(
             folderName, options, tables, jsonFiles, sqlFiles, rowCounts,
             schemaSection, objectSection, takenAtUtc);
@@ -241,6 +319,7 @@ public sealed class DatabaseBackupService : IDatabaseBackupService
             FileName         = $"scrumflix_backup_{timestamp}.zip",
             TakenAtUtc       = takenAtUtc,
             RowCounts        = rowCounts,
+            TableCount       = tables.Count,
             SchemaTableCount = schemaSection?.TableNames.Count ?? 0,
             ProcedureCount   = objectSection?.Procedures.Count ?? 0,
             FunctionCount    = objectSection?.Functions.Count ?? 0,

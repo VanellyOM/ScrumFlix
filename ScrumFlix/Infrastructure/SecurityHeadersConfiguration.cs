@@ -241,6 +241,7 @@ public static class SecurityHeadersConfiguration
                                       //builder.AddConnectSrc()
                                       //    .Self();
           builder.AddFrameSrc()
+          .Self()
           .From("https://www.youtube.com");
 
           builder.AddFrameAncestors()
@@ -412,6 +413,7 @@ public static class SecurityHeadersConfiguration
                                       //builder.AddConnectSrc()
                                       //    .Self();
           builder.AddFrameSrc()
+          .Self()
           .From("https://www.youtube.com");
 
           builder.AddFrameAncestors()

@@ -28,6 +28,8 @@
  *              RoleId, IsActive, and audit timestamps are included.
  */
 
+using ScrumFlix.Services.Progress;
+
 namespace ScrumFlix.Services;
 
 /// <summary>
@@ -63,11 +65,25 @@ public interface IDatabaseBackupService
     /// Which sections to capture and which tables to scope schema/data to.
     /// See <see cref="DatabaseBackupOptions"/> and <see cref="BackupMode"/>.
     /// </param>
+    /// <param name="progress">
+    /// Optional progress sink (Phase 4.2 shared progress framework). Receives
+    /// per-table updates during the data section and per-section updates
+    /// (schema, stored procedures/functions, views, triggers) during the
+    /// connection-based sections. Pass null to skip reporting — existing
+    /// callers and tests are unaffected.
+    /// </param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>
     /// A <see cref="BackupResult"/> describing the archive: zip bytes, filename,
     /// per-table row counts, and counts of captured schema objects.
     /// </returns>
+    Task<BackupResult> GenerateAsync(
+        DatabaseBackupOptions options,
+        IProgressReporter? progress,
+        CancellationToken     cancellationToken = default);
+
+    /// <inheritdoc cref="GenerateAsync(DatabaseBackupOptions, IProgressReporter?, CancellationToken)"/>
+    /// <remarks>Back-compat overload with no progress reporting.</remarks>
     Task<BackupResult> GenerateAsync(
         DatabaseBackupOptions options,
         CancellationToken     cancellationToken = default);
@@ -96,11 +112,23 @@ public sealed class BackupResult
     /// <summary>UTC timestamp when the backup snapshot was taken.</summary>
     public required DateTime TakenAtUtc     { get; init; }
 
-    /// <summary>Row counts per table included in this backup.</summary>
+    /// <summary>Row counts per table included in this backup. Empty when IncludeData is false.</summary>
     public required IReadOnlyDictionary<string, int> RowCounts { get; init; }
 
-    /// <summary>Total rows across all tables.</summary>
+    /// <summary>Total rows across all tables. Zero when IncludeData is false.</summary>
     public int TotalRows => RowCounts.Values.Where(v => v >= 0).Sum();
+
+    /// <summary>
+    /// Number of tables in scope for this backup (selected tables minus
+    /// excluded-by-default tables, or all non-excluded tables if none were
+    /// selected) — regardless of which sections (schema/data/etc.) were
+    /// actually captured. Use this for "N tables" summaries; use
+    /// <see cref="RowCounts"/>.Count specifically when describing data rows.
+    /// Defaults to 0 for callers that don't set it (e.g. older test fixtures);
+    /// <see cref="DatabaseBackupService.GenerateAsync(DatabaseBackupOptions, ScrumFlix.Services.Progress.IProgressReporter?, CancellationToken)"/>
+    /// always populates it.
+    /// </summary>
+    public int TableCount { get; init; }
 
     /// <summary>Number of tables whose CREATE TABLE DDL was captured (schema section).</summary>
     public int SchemaTableCount { get; init; }

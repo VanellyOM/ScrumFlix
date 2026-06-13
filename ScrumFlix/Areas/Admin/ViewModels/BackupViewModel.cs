@@ -57,4 +57,14 @@ public class BackupViewModel
 
     /// <summary>Prepend DROP ... IF EXISTS before each CREATE so a restore replaces cleanly.</summary>
     public bool DropBeforeCreate { get; set; } = true;
+
+    // ── Phase 4.2 progress framework ────────────────────────────────────────
+
+    /// <summary>
+    /// Client-generated operation id (GUID) used to scope ProgressHub
+    /// broadcasts during backup generation. Set by sf-backup.js before
+    /// submitting the form so the client can join the SignalR group before
+    /// the POST resolves. Optional — a server-generated id is used if absent.
+    /// </summary>
+    public string? OperationId { get; set; }
 }

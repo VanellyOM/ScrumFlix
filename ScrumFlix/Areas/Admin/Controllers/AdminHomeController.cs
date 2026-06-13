@@ -32,8 +32,7 @@
  */
 
 
-using Microsoft.AspNetCore.SignalR;
-using ScrumFlix.Hubs;
+using ScrumFlix.Services.Progress;
 
 namespace ScrumFlix.Areas.Admin.Controllers;
 
@@ -49,20 +48,20 @@ public class AdminHomeController : StaffControllerBase
     /// Initializes AdminHomeController with database context, TMDb sync service,
     /// application configuration, and structured logger.
     /// </summary>
-    private readonly IHubContext<TmdbProgressHub> _tmdbHub;
+    private readonly IProgressReporterFactory _reporterFactory;
 
     public AdminHomeController(
         AppDbContext db,
         ITmdbSyncService tmdb,
         IConfiguration config,
         ILogger<AdminHomeController> logger,
-        IHubContext<TmdbProgressHub> tmdbHub)
+        IProgressReporterFactory reporterFactory)
     {
         _db      = db;
         _tmdb    = tmdb;
         _config  = config;
         _logger  = logger;
-        _tmdbHub = tmdbHub;
+        _reporterFactory = reporterFactory;
     }
 
     // ── Dashboard ──────────────────────────────────────────────────────────
@@ -101,29 +100,45 @@ public class AdminHomeController : StaffControllerBase
     /// <param name="movieId">Optional single-movie TMDb sync target.</param>
     /// <summary>
     /// POST /Admin/AdminHome/TmdbSyncRun
-    /// Triggers an on-demand TMDb sync with real-time SignalR progress broadcast.
+    /// Triggers an on-demand TMDb sync with real-time progress broadcast via
+    /// the Phase 4.0 shared progress framework (ProgressHub / sf-progress.js).
     ///
-    /// Each movie processed calls IProgress&lt;TmdbSyncProgressReport&gt; which pushes
-    /// a "TmdbSyncProgress" event to all clients in TmdbProgressHub.SyncGroup.
-    /// The TmdbSyncPage.cshtml spinner receives these events via sfSpinner.fromSignalR().
+    /// The client (sf-tmdb-sync.js) generates an <paramref name="operationId"/>
+    /// before submitting, joins the corresponding ProgressHub group, then
+    /// posts the form. Each movie processed adapts the legacy
+    /// <see cref="TmdbSyncProgressReport"/> to a <see cref="ProgressState"/>
+    /// and reports it via the minted <see cref="IProgressReporter"/>, which
+    /// broadcasts a "ProgressUpdate" event to that group.
     ///
-    /// On completion or error, a "TmdbSyncComplete" or "TmdbSyncError" event is sent
-    /// so the spinner can transition to its complete/error state without polling.
+    /// On completion or error, reporter.Complete()/Error() sends a terminal
+    /// ProgressUpdate so the spinner transitions without polling.
     ///
-    /// Single-movie syncs (movieId provided) do not emit per-movie progress events —
-    /// they complete too quickly. The redirect back to TmdbSyncPage carries the result
-    /// in TempData as before.
+    /// Single-movie syncs (movieId provided) do not emit per-movie progress
+    /// events — they complete too quickly. The redirect back to
+    /// TmdbSyncPage carries the result in TempData as before.
+    ///
+    /// NOTE: /tmdbSyncHub and TmdbProgressHub remain mapped (unused by this
+    /// action) until the Phase 4.1 migration is verified end-to-end, per the
+    /// Phase 4.0 implementation plan.
     /// </summary>
+    /// <param name="forceAll">When <see langword="true"/>, re-syncs all movies regardless of existing metadata.</param>
+    /// <param name="movieId">Optional single-movie TMDb sync target.</param>
+    /// <param name="operationId">
+    /// Client-generated operation id (GUID) used to scope ProgressHub
+    /// broadcasts. Required for full-catalog syncs so the client can join the
+    /// SignalR group before progress begins; ignored for single-movie syncs.
+    /// </param>
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> TmdbSyncRun(bool forceAll = false, int? movieId = null)
+    public async Task<IActionResult> TmdbSyncRun(bool forceAll = false, int? movieId = null, string? operationId = null)
     {
         if (RoleGuard(1) is { } redirect) return redirect;
 
         _logger.LogInformation(
-            "Admin User {UserId} triggered TMDb sync (forceAll={ForceAll}, movieId={MovieId}).",
-            CurrentUserId, forceAll, movieId);
+            "Admin User {UserId} triggered TMDb sync (forceAll={ForceAll}, movieId={MovieId}, operationId={OperationId}).",
+            CurrentUserId, forceAll, movieId, operationId);
 
         TmdbSyncResult? result = null;
+        IProgressReporter? reporter = null;
 
         try
         {
@@ -140,42 +155,32 @@ public class AdminHomeController : StaffControllerBase
             }
             else
             {
-                // Full catalog sync — wire progress to SignalR hub broadcasts
-                var progressReporter = new Progress<TmdbSyncProgressReport>(async report =>
+                // Full catalog sync — wire progress to the shared ProgressHub.
+                // Fall back to a server-generated id if the client didn't supply
+                // one (e.g. JS disabled) so the sync still runs, just without a
+                // client subscribed to the broadcasts.
+                reporter = string.IsNullOrWhiteSpace(operationId)
+                    ? _reporterFactory.Create("TMDb Sync", HttpContext.RequestAborted)
+                    : _reporterFactory.Create(operationId, "TMDb Sync", HttpContext.RequestAborted);
+
+                var progressReporter = new Progress<TmdbSyncProgressReport>(report =>
                 {
-                    try
-                    {
-                        await _tmdbHub.Clients
-                            .Group(TmdbProgressHub.SyncGroup)
-                            .SendAsync("TmdbSyncProgress", new
-                            {
-                                percent = report.Percent,
-                                message = report.Message,
-                                synced  = report.Synced,
-                                skipped = report.Skipped,
-                                failed  = report.Failed,
-                                total   = report.Total
-                            });
-                    }
-                    catch (Exception ex)
-                    {
-                        // Non-fatal — log and continue; the sync must not abort for a hub error
-                        _logger.LogWarning(ex, "TmdbSyncRun: failed to broadcast progress event.");
-                    }
+                    reporter.Report(ProgressState.InProgress(
+                        operationId:   reporter.OperationId,
+                        operationName: "TMDb Sync",
+                        status:        report.Message,
+                        current:       report.Synced + report.Skipped + report.Failed,
+                        total:         report.Total,
+                        succeeded:     report.Synced,
+                        skipped:       report.Skipped,
+                        failed:        report.Failed));
                 });
 
-                result = await _tmdb.SyncAllMoviesAsync(forceAll, progressReporter);
+                result = await _tmdb.SyncAllMoviesAsync(forceAll, progressReporter, reporter.CancellationToken);
 
                 // Broadcast completion so the spinner transitions to its complete state
-                await _tmdbHub.Clients
-                    .Group(TmdbProgressHub.SyncGroup)
-                    .SendAsync("TmdbSyncComplete", new
-                    {
-                        synced    = result.Synced,
-                        skipped   = result.Skipped,
-                        failed    = result.Failed,
-                        wasForced = forceAll
-                    });
+                reporter.Complete(
+                    $"TMDb sync complete — {result.Synced} synced, {result.Skipped} skipped, {result.Failed} failed.");
             }
 
             if (result.Failed == 0)
@@ -192,26 +197,54 @@ public class AdminHomeController : StaffControllerBase
                     "Check Serilog logs for details.";
             }
         }
+        catch (OperationCanceledException)
+        {
+            _logger.LogInformation(
+                "TMDb sync cancelled by Admin User {UserId} (operationId={OperationId}).",
+                CurrentUserId, operationId);
+
+            reporter?.Error("Sync cancelled.");
+            TempData["InfoMessage"] = "TMDb sync was cancelled.";
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "TMDb sync triggered by Admin User {UserId} failed.", CurrentUserId);
 
             // Broadcast error so the spinner shows the error state immediately
-            try
-            {
-                await _tmdbHub.Clients
-                    .Group(TmdbProgressHub.SyncGroup)
-                    .SendAsync("TmdbSyncError", new { message = "Sync failed — check application logs." });
-            }
-            catch { /* swallow — the real error is already logged above */ }
+            reporter?.Error("Sync failed — check application logs.");
 
             TempData["ErrorMessage"] = "TMDb sync encountered an unexpected error. Check the application logs.";
+        }
+        finally
+        {
+            if (reporter is not null)
+            {
+                _reporterFactory.Release(reporter.OperationId);
+            }
         }
 
         // Rebuild dashboard stats and embed the sync result into the ViewModel
         var vm = await BuildDashboardViewModelAsync();
         vm.TmdbSync.LastSyncResult    = result;
         vm.TmdbSync.LastSyncWasForced = forceAll;
+
+        // sf-tmdb-sync.js submits via fetch (no page navigation) so the
+        // ProgressHub connection survives for the full duration of the sync.
+        // Respond with a small JSON payload it can use to refresh the page
+        // in place once the spinner shows "Complete!". A normal form POST
+        // (no X-Requested-With — JS disabled, or single-movie quick links)
+        // falls back to the original full-view redirect.
+        if (string.Equals(Request.Headers["X-Requested-With"], "XMLHttpRequest", StringComparison.OrdinalIgnoreCase))
+        {
+            return Json(new
+            {
+                operationId = reporter?.OperationId,
+                succeeded   = result?.Synced  ?? 0,
+                skipped     = result?.Skipped ?? 0,
+                failed      = result?.Failed  ?? 0,
+                total       = result?.Total   ?? 0,
+            });
+        }
 
         return View("AdminDashboard", vm);
     }

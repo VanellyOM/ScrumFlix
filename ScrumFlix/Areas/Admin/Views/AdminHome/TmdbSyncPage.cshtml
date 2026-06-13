@@ -213,6 +213,8 @@
             <div class="d-flex flex-wrap gap-3">
                 <form asp-area="Admin" asp-controller="AdminHome" asp-action="TmdbSyncRun"
                       method="post" class="sf-sync-trigger-form">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="operationId" class="sf-sync-operation-id" />
                     <button type="submit"
                             class="btn sf-btn-primary"
                             @(!Model.ApiKeyConfigured ? "disabled" : "")
@@ -232,6 +234,7 @@
                       method="post" class="sf-sync-trigger-form">
                     @Html.AntiForgeryToken()
                     <input type="hidden" name="forceAll" value="true" />
+                    <input type="hidden" name="operationId" class="sf-sync-operation-id" />
                     <button type="submit"
                             class="btn sf-btn-outline"
                             @(!Model.ApiKeyConfigured ? "disabled" : "")
@@ -504,5 +507,6 @@
         <script src="~/js/signalr/dist/browser/signalr.min.js"></script>
     </environment>
     @* sf-spinner.js is loaded globally by _AdminLayout — no per-page load needed *@
+    <script src="~/js/sf-progress.js" asp-append-version="true"></script>
     <script src="~/js/sf-tmdb-sync.js" asp-append-version="true"></script>
 }

@@ -82,6 +82,7 @@ using Microsoft.AspNetCore.Http.Features;
 using QuestPDF.Infrastructure;
 using ScrumFlix.Filters;
 using ScrumFlix.Hubs;
+using ScrumFlix.Services.Progress;
 using ScrumFlix.Services.TMDB;
 using Serilog;
 using SixLabors.ImageSharp.Web.Caching;
@@ -196,6 +197,11 @@ builder.Services.AddSingleton<ISystemAccountProvider, SystemAccountProvider>();
 builder.Services.AddScoped<SeatService>();
 
 builder.Services.AddScoped<IDatabaseBackupService, DatabaseBackupService>();
+
+// Phase 4.0 shared progress framework — singleton because it owns the
+// cross-request cancellation registry (Cancel() arrives via a separate
+// SignalR connection from the operation that created the reporter).
+builder.Services.AddSingleton<IProgressReporterFactory, ProgressReporterFactory>();
 
 // SeatReservationExpiryService: background worker that polls every 60 seconds
 // and releases expired seat holds via SeatService.ReleaseExpiredReservationsAsync().
@@ -375,6 +381,7 @@ app.UseAuthorization();
 // ── SignalR Hubs ────────────────────────────────────────────────────────────────
 app.MapHub<ScheduleHub>("/scheduleHub");
 app.MapHub<TmdbProgressHub>("/tmdbSyncHub");
+app.MapHub<ProgressHub>("/progressHub");
 
 // ── Routing ────────────────────────────────────────────────────────────────
 // Admin area — requires [Area("Admin")] on controllers + [Authorize(Roles="Admin")]

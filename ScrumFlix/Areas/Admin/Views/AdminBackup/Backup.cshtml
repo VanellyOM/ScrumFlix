@@ -60,8 +60,15 @@
 					  asp-controller="AdminBackup"
 					  asp-action="TriggerBackup"
 					  method="post"
-					  class="sf-export-form">
+					  class="sf-export-form"
+					  id="sf-backup-form">
 					@Html.AntiForgeryToken()
+					<input type="hidden" name="OperationId" id="sf-backup-operation-id" />
+
+					<div id="sf-backup-error-banner" class="sf-flash-banner sf-flash-banner--danger d-flex gap-2 align-items-center mb-3 d-none" role="alert">
+						<i class="bi bi-x-circle-fill flex-shrink-0" aria-hidden="true"></i>
+						<span id="sf-backup-error-text"></span>
+					</div>
 
 					<div class="sf-form-card mb-4">
 						<div class="d-flex align-items-center justify-content-between mb-3">
@@ -204,6 +211,9 @@
 							<span class="sf-spinner__pct" aria-hidden="true">0%</span>
 						</div>
 						<p class="sf-spinner__status mt-2">Generating backup — this may take a moment…</p>
+						<button type="button" id="sf-backup-cancel-btn" class="btn btn-sm sf-btn-outline mt-2">
+							<i class="bi bi-x-circle me-1" aria-hidden="true"></i>Cancel
+						</button>
 					</div>
 
 					<button type="submit" class="btn sf-btn-primary sf-export-btn">
@@ -268,5 +278,14 @@
 </section>
 
 @section Scripts {
-	<script src="~/js/sf-backup.js"></script>
+	@* SignalR loaded per-page — not globally in _Layout *@
+	<environment include="Development">
+		<script src="~/js/signalr/dist/browser/signalr.js"></script>
+	</environment>
+	<environment exclude="Development">
+		<script src="~/js/signalr/dist/browser/signalr.min.js"></script>
+	</environment>
+	@* sf-spinner.js is loaded globally by _AdminLayout — no per-page load needed *@
+	<script src="~/js/sf-progress.js" asp-append-version="true"></script>
+	<script src="~/js/sf-backup.js" asp-append-version="true"></script>
 }
